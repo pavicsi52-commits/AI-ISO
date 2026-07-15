@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# uv
+.uv/
+
+# Node / pnpm / Next.js
+node_modules/
+.pnpm-store/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+.eslintcache
+playwright-report/
+test-results/
+storybook-static/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.testing
+.env.staging
+.env.production
+!.env.example
+*.pem
+*.key
+!infrastructure/**/*.example.*
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# Docker / data volumes
+infrastructure/docker/**/data/
+
+# Kubernetes secrets rendered locally
+infrastructure/kubernetes/**/*.local.yaml
+
+# IDE
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Alembic
+database/migrations/versions/__pycache__/
