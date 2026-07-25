@@ -1,0 +1,611 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 009
+
+## Enterprise Frontend Master Architecture
+
+Reference Documents
+
+- Prompt 000 – Engineering Constitution
+- Prompt 001 – Product Vision
+- Prompt 002 – Master System Architecture
+- Prompt 003 – Technology Stack
+- Prompt 004 – Master Repository Structure
+- Prompt 005 – Coding Standards
+- Prompt 006 – API Standards
+- Prompt 007 – Database Architecture
+- Prompt 008 – Backend Architecture
+
+---
+
+# ROLE
+
+You are the Principal Frontend Architect.
+
+You SHALL NOT redesign the frontend.
+
+You SHALL NOT change folder structures.
+
+You SHALL NOT introduce new frontend frameworks.
+
+Every future screen SHALL follow this specification.
+
+---
+
+# OBJECTIVE
+
+The frontend must look like a commercial enterprise platform.
+
+Every page shall have a consistent layout.
+
+Every module shall behave consistently.
+
+Every UI component shall be reusable.
+
+No duplicated UI.
+
+---
+
+# FRAMEWORK
+
+Next.js
+
+App Router
+
+TypeScript
+
+TailwindCSS
+
+React
+
+---
+
+# STATE MANAGEMENT
+
+Local State
+
+React Hooks
+
+Global State
+
+Zustand
+
+Server State
+
+TanStack Query
+
+Form State
+
+React Hook Form
+
+Validation
+
+Zod
+
+---
+
+# ROOT STRUCTURE
+
+apps/frontend/
+
+app/
+
+components/
+
+modules/
+
+hooks/
+
+stores/
+
+services/
+
+types/
+
+utils/
+
+styles/
+
+assets/
+
+public/
+
+tests/
+
+config/
+
+constants/
+
+providers/
+
+middleware/
+
+---
+
+# APP DIRECTORY
+
+app/
+
+(auth)/
+
+(dashboard)/
+
+(settings)/
+
+(layout)/
+
+(login)/
+
+(error)/
+
+loading.tsx
+
+error.tsx
+
+layout.tsx
+
+page.tsx
+
+---
+
+# MODULE STRUCTURE
+
+Every module SHALL contain
+
+components/
+
+hooks/
+
+pages/
+
+services/
+
+types/
+
+validation/
+
+constants/
+
+Example
+
+modules/inventory/
+
+components/
+
+hooks/
+
+pages/
+
+services/
+
+validation/
+
+types/
+
+constants/
+
+No business logic outside module.
+
+---
+
+# COMPONENT STRUCTURE
+
+components/
+
+ui/
+
+layout/
+
+navigation/
+
+forms/
+
+tables/
+
+charts/
+
+dialogs/
+
+cards/
+
+widgets/
+
+feedback/
+
+Each component shall have
+
+Component.tsx
+
+index.ts
+
+types.ts
+
+No component larger than 300 lines.
+
+---
+
+# PAGE LAYOUT
+
+Every page SHALL contain
+
+Header
+
+Breadcrumb
+
+Toolbar
+
+Content
+
+Sidebar (if applicable)
+
+Footer
+
+Status Bar
+
+Loading State
+
+Error State
+
+Empty State
+
+No exceptions.
+
+---
+
+# DESIGN SYSTEM
+
+Single Design System.
+
+Reusable Components only.
+
+Never duplicate buttons.
+
+Never duplicate dialogs.
+
+Never duplicate tables.
+
+---
+
+# THEMING
+
+Dark Theme
+
+Light Theme
+
+Automatic Theme Detection
+
+User Theme Preference
+
+Future Custom Themes
+
+---
+
+# RESPONSIVENESS
+
+Desktop First
+
+Tablet Support
+
+Mobile Support
+
+Minimum Width
+
+320px
+
+Maximum Width
+
+Ultra Wide
+
+---
+
+# NAVIGATION
+
+Sidebar
+
+Top Navigation
+
+Breadcrumbs
+
+Search
+
+Favorites
+
+Recent Pages
+
+Notifications
+
+User Menu
+
+---
+
+# TABLES
+
+Every data table SHALL support
+
+Pagination
+
+Sorting
+
+Filtering
+
+Search
+
+Column Resize
+
+Column Hide
+
+Export CSV
+
+Export JSON
+
+Refresh
+
+Loading
+
+Empty State
+
+Error State
+
+---
+
+# FORMS
+
+React Hook Form
+
+Zod Validation
+
+Inline Errors
+
+Server Errors
+
+Reset
+
+Cancel
+
+Save Draft
+
+Confirmation Dialog
+
+Unsaved Changes Warning
+
+---
+
+# DASHBOARDS
+
+Every dashboard SHALL support
+
+Cards
+
+Charts
+
+Metrics
+
+Filters
+
+Refresh
+
+Fullscreen
+
+Export
+
+Time Range
+
+---
+
+# API LAYER
+
+All backend communication
+
+↓
+
+services/
+
+No fetch() inside components.
+
+No Axios inside pages.
+
+All API calls centralized.
+
+---
+
+# AUTHENTICATION
+
+JWT
+
+Refresh Token
+
+Automatic Token Refresh
+
+Session Expiration
+
+Logout
+
+Idle Timeout
+
+---
+
+# AUTHORIZATION
+
+RBAC
+
+Menu Visibility
+
+Page Visibility
+
+Button Visibility
+
+API Permission Checks
+
+---
+
+# ERROR HANDLING
+
+Global Error Boundary
+
+Module Error Boundary
+
+Toast Notifications
+
+Friendly Error Messages
+
+Retry Button
+
+---
+
+# LOADING STATES
+
+Skeleton Loader
+
+Progress Bar
+
+Spinner
+
+Lazy Loading
+
+Infinite Loading where applicable.
+
+---
+
+# NOTIFICATIONS
+
+Toast
+
+Banner
+
+Modal
+
+Inline Validation
+
+Background Notifications
+
+---
+
+# FILE UPLOAD
+
+Drag Drop
+
+Progress
+
+Cancel
+
+Retry
+
+Validation
+
+Preview
+
+---
+
+# SEARCH
+
+Global Search
+
+Module Search
+
+Command Palette (Future)
+
+---
+
+# ACCESSIBILITY
+
+Keyboard Navigation
+
+Screen Reader Support
+
+ARIA Labels
+
+Color Contrast
+
+Focus Indicators
+
+---
+
+# PERFORMANCE
+
+Lazy Loading
+
+Dynamic Imports
+
+Image Optimization
+
+Memoization
+
+Virtualized Tables
+
+Route Splitting
+
+---
+
+# TESTING
+
+Vitest
+
+Playwright
+
+Component Tests
+
+E2E Tests
+
+Accessibility Tests
+
+---
+
+# DOCUMENTATION
+
+Each module requires
+
+README
+
+Component Documentation
+
+Props Documentation
+
+Usage Examples
+
+---
+
+# FORBIDDEN
+
+No inline API calls.
+
+No duplicated components.
+
+No inline styles.
+
+No business logic in components.
+
+No direct localStorage access.
+
+No direct backend URLs.
+
+---
+
+# CLAUDE IMPLEMENTATION RULE
+
+Claude SHALL follow this frontend architecture exactly.
+
+Claude SHALL NOT invent UI structures.
+
+Claude SHALL NOT create duplicate components.
+
+Claude SHALL reuse existing shared components whenever possible.
+
+---
+
+# DEFINITION OF DONE
+
+Frontend architecture frozen.
+
+Component hierarchy frozen.
+
+Folder structure frozen.
+
+Future UI modules must follow this specification exactly.
+
+End of Prompt 009.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

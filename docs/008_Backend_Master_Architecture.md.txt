@@ -1,0 +1,684 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 008
+
+## Enterprise Backend Master Architecture
+
+Reference Documents
+
+- Prompt 000 – Engineering Constitution
+- Prompt 001 – Product Vision
+- Prompt 002 – Master System Architecture
+- Prompt 003 – Technology Stack
+- Prompt 004 – Repository Structure
+- Prompt 005 – Coding Standards
+- Prompt 006 – API Standards
+- Prompt 007 – Database Architecture
+
+---
+
+# ROLE
+
+You are the Principal Backend Architect.
+
+You SHALL NOT redesign the backend.
+
+You SHALL NOT introduce different patterns.
+
+Every backend service must follow this architecture exactly.
+
+---
+
+# OBJECTIVE
+
+Every microservice shall look identical.
+
+Only business logic changes.
+
+Architecture never changes.
+
+Folder names never change.
+
+Coding style never changes.
+
+---
+
+# BACKEND FRAMEWORK
+
+FastAPI
+
+Python 3.13+
+
+Async Only
+
+No synchronous endpoints unless technically required.
+
+---
+
+# MICROSERVICE STRUCTURE
+
+Every service SHALL contain
+
+app/
+
+api/
+
+core/
+
+config/
+
+middleware/
+
+models/
+
+schemas/
+
+repositories/
+
+services/
+
+validators/
+
+security/
+
+events/
+
+workers/
+
+tasks/
+
+clients/
+
+exceptions/
+
+utils/
+
+tests/
+
+main.py
+
+README.md
+
+Dockerfile
+
+---
+
+# RESPONSIBILITIES
+
+api/
+
+HTTP Endpoints only.
+
+No business logic.
+
+---
+
+services/
+
+Business Logic.
+
+All business rules.
+
+Workflow.
+
+---
+
+repositories/
+
+Database only.
+
+No business logic.
+
+---
+
+models/
+
+SQLAlchemy Models.
+
+---
+
+schemas/
+
+Pydantic Models.
+
+Request
+
+Response
+
+DTO
+
+---
+
+validators/
+
+Business Validation.
+
+No database logic.
+
+---
+
+middleware/
+
+Authentication
+
+Logging
+
+Request ID
+
+Correlation ID
+
+Timing
+
+Rate Limiting
+
+---
+
+security/
+
+JWT
+
+Permissions
+
+RBAC
+
+Password Hashing
+
+API Keys
+
+---
+
+events/
+
+RabbitMQ Publishers
+
+RabbitMQ Consumers
+
+---
+
+workers/
+
+Background Jobs
+
+Long Running Tasks
+
+---
+
+tasks/
+
+Celery Tasks
+
+---
+
+clients/
+
+REST Clients
+
+No direct database access.
+
+---
+
+exceptions/
+
+Custom Exceptions
+
+Global Error Handling
+
+---
+
+utils/
+
+Utility Functions
+
+Pure Functions only.
+
+---
+
+tests/
+
+Unit
+
+Integration
+
+API
+
+Performance
+
+---
+
+# REQUEST FLOW
+
+Client
+
+↓
+
+API
+
+↓
+
+Validation
+
+↓
+
+Authentication
+
+↓
+
+Authorization
+
+↓
+
+Service
+
+↓
+
+Repository
+
+↓
+
+Database
+
+↓
+
+Repository
+
+↓
+
+Service
+
+↓
+
+Response Schema
+
+↓
+
+API
+
+↓
+
+Client
+
+Business logic SHALL NEVER exist in API layer.
+
+---
+
+# DEPENDENCY INJECTION
+
+FastAPI Depends()
+
+Every dependency injected.
+
+No global singleton services.
+
+---
+
+# CONFIGURATION
+
+Load from
+
+Environment Variables
+
+↓
+
+Settings
+
+↓
+
+Validation
+
+↓
+
+Application
+
+Never hardcode.
+
+---
+
+# STARTUP FLOW
+
+Application Starts
+
+↓
+
+Load Configuration
+
+↓
+
+Initialize Logger
+
+↓
+
+Database Connection
+
+↓
+
+Redis
+
+↓
+
+RabbitMQ
+
+↓
+
+MinIO
+
+↓
+
+Neo4j
+
+↓
+
+Health Checks
+
+↓
+
+Start API
+
+---
+
+# SHUTDOWN FLOW
+
+Stop Workers
+
+↓
+
+Close RabbitMQ
+
+↓
+
+Close Redis
+
+↓
+
+Close Database
+
+↓
+
+Flush Logs
+
+↓
+
+Shutdown
+
+---
+
+# HEALTH ENDPOINTS
+
+/health
+
+/readiness
+
+/liveness
+
+/metrics
+
+Required in every service.
+
+---
+
+# ERROR HANDLING
+
+Global Exception Handler.
+
+Never expose traceback.
+
+Structured Errors only.
+
+---
+
+# LOGGING
+
+JSON Logs
+
+Request ID
+
+Correlation ID
+
+Execution Time
+
+Organization
+
+User
+
+API
+
+Status Code
+
+Latency
+
+---
+
+# AUTHENTICATION
+
+JWT Middleware
+
+Refresh Token Validation
+
+API Keys
+
+Future OAuth2
+
+---
+
+# AUTHORIZATION
+
+RBAC
+
+Permission Middleware
+
+Tenant Isolation
+
+Organization Isolation
+
+Project Isolation
+
+---
+
+# DATABASE
+
+Repository Pattern only.
+
+No raw SQL unless approved.
+
+No ORM inside services.
+
+Repositories own all persistence.
+
+---
+
+# EVENTS
+
+RabbitMQ
+
+Publish Domain Events
+
+Consume Domain Events
+
+No service polling.
+
+---
+
+# LONG RUNNING OPERATIONS
+
+Never execute inside request.
+
+Create Job
+
+↓
+
+RabbitMQ
+
+↓
+
+Worker
+
+↓
+
+Status Update
+
+↓
+
+Notification
+
+---
+
+# FILES
+
+Upload
+
+↓
+
+Validation
+
+↓
+
+Virus Scan (future)
+
+↓
+
+MinIO
+
+↓
+
+Database Metadata
+
+Never store files locally.
+
+---
+
+# AI
+
+AI Service called through REST.
+
+Never embed AI logic inside unrelated services.
+
+---
+
+# EXTERNAL CONNECTORS
+
+SSH
+
+WinRM
+
+Redfish
+
+Docker
+
+Kubernetes
+
+VMware
+
+Hyper-V
+
+Cloud
+
+Each connector isolated.
+
+---
+
+# TESTING
+
+Every service
+
+Unit Tests
+
+Integration Tests
+
+Repository Tests
+
+API Tests
+
+Worker Tests
+
+Exception Tests
+
+Validation Tests
+
+Coverage >90%
+
+---
+
+# SECURITY
+
+TLS
+
+JWT
+
+RBAC
+
+Parameterized Queries
+
+Secrets Manager
+
+No hardcoded credentials
+
+Rate Limiting
+
+Audit Logging
+
+---
+
+# PERFORMANCE
+
+Async Everywhere
+
+Connection Pooling
+
+Caching
+
+Background Processing
+
+Pagination
+
+Streaming where applicable
+
+---
+
+# DOCUMENTATION
+
+README
+
+Architecture
+
+OpenAPI
+
+Deployment
+
+Configuration
+
+Troubleshooting
+
+---
+
+# CLAUDE IMPLEMENTATION RULE
+
+Claude SHALL use this backend architecture for every service.
+
+Claude SHALL NOT invent folder structures.
+
+Claude SHALL NOT move business logic.
+
+Claude SHALL NOT bypass repositories.
+
+Claude SHALL NOT skip middleware.
+
+---
+
+# DEFINITION OF DONE
+
+Backend architecture frozen.
+
+Folder structure frozen.
+
+Execution flow frozen.
+
+Dependency injection frozen.
+
+Future backend services must comply.
+
+End of Prompt 008.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

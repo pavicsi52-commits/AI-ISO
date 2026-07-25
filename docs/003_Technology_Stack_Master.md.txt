@@ -1,0 +1,626 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 003
+
+## Master Technology Stack Specification
+
+Reference Documents
+
+- Prompt 000 – Engineering Constitution
+- Prompt 001 – Product Vision
+- Prompt 002 – Master System Architecture
+
+---
+
+# ROLE
+
+You are the Lead Enterprise Platform Engineer.
+
+You SHALL NOT change any technology listed below.
+
+You SHALL NOT replace frameworks.
+
+You SHALL NOT recommend alternative technologies.
+
+You SHALL use exactly the technology stack defined in this document.
+
+---
+
+# PRODUCT STRATEGY
+
+The platform must be
+
+- Enterprise Ready
+- Cloud Native
+- Kubernetes Native
+- API First
+- AI First
+- Event Driven
+- Microservice Based
+
+Technology selection prioritizes
+
+- Stability
+- Long-term support
+- Large ecosystem
+- Performance
+- Security
+- Developer productivity
+
+---
+
+# FRONTEND
+
+Framework
+
+Next.js (App Router)
+
+Language
+
+TypeScript
+
+Styling
+
+TailwindCSS
+
+State Management
+
+Zustand
+
+Server State
+
+TanStack Query
+
+Forms
+
+React Hook Form
+
+Validation
+
+Zod
+
+Charts
+
+Apache ECharts
+
+Icons
+
+Lucide
+
+Theme
+
+Dark / Light
+
+Internationalization
+
+next-intl
+
+Package Manager
+
+pnpm
+
+Testing
+
+Vitest
+
+Playwright
+
+ESLint
+
+Prettier
+
+---
+
+# BACKEND
+
+Framework
+
+FastAPI
+
+Language
+
+Python 3.13+
+
+Package Manager
+
+uv
+
+ORM
+
+SQLAlchemy 2.x
+
+Validation
+
+Pydantic v2
+
+Database Migration
+
+Alembic
+
+Authentication
+
+JWT
+
+Password Hashing
+
+Argon2
+
+Task Queue
+
+Celery
+
+Scheduler
+
+APScheduler
+
+Testing
+
+Pytest
+
+Coverage
+
+Pytest Coverage
+
+Lint
+
+Ruff
+
+Formatting
+
+Black
+
+Static Analysis
+
+MyPy
+
+Security Scan
+
+Bandit
+
+Dependency Scan
+
+pip-audit
+
+---
+
+# DATABASE
+
+Primary Database
+
+PostgreSQL
+
+Extensions
+
+uuid-ossp
+
+pgcrypto
+
+JSONB
+
+GIN Indexes
+
+Full Text Search
+
+---
+
+# CACHE
+
+Redis
+
+Use Cases
+
+Caching
+
+Rate Limiting
+
+Distributed Locks
+
+Sessions
+
+Queue Metadata
+
+---
+
+# MESSAGE BROKER
+
+RabbitMQ
+
+Use Cases
+
+Background Jobs
+
+Workflow Events
+
+Notifications
+
+Automation Queue
+
+Monitoring Events
+
+---
+
+# OBJECT STORAGE
+
+MinIO
+
+Store
+
+Backups
+
+Logs
+
+Artifacts
+
+Playbooks
+
+Reports
+
+Images
+
+Exports
+
+---
+
+# KNOWLEDGE GRAPH
+
+Neo4j
+
+Purpose
+
+Infrastructure Relationship Graph
+
+Asset Dependency Graph
+
+Topology
+
+Impact Analysis
+
+No proprietary schemas.
+
+Create our own graph model.
+
+---
+
+# SEARCH
+
+OpenSearch
+
+Use Cases
+
+Global Search
+
+Logs
+
+Assets
+
+Playbooks
+
+Knowledge Base
+
+Reports
+
+---
+
+# MONITORING
+
+Prometheus
+
+Metrics only.
+
+---
+
+# VISUALIZATION
+
+Grafana
+
+Temporary.
+
+Future versions shall replace Grafana with our own dashboard.
+
+---
+
+# LOGGING
+
+OpenTelemetry
+
+Structured JSON Logs
+
+Distributed Tracing
+
+Correlation IDs
+
+---
+
+# AI
+
+Primary
+
+OpenAI Compatible APIs
+
+Secondary
+
+Ollama
+
+Framework
+
+LangGraph
+
+Vector Store
+
+PostgreSQL pgvector
+
+Prompt Storage
+
+Database
+
+Conversation History
+
+Database
+
+AI shall never own business logic.
+
+AI only assists.
+
+---
+
+# AUTOMATION
+
+Ansible
+
+Execution
+
+Python Runner
+
+Future
+
+Terraform
+
+OpenTofu
+
+Custom Workflow Engine
+
+---
+
+# OPERATING SYSTEM SUPPORT
+
+Ubuntu
+
+Debian
+
+Rocky Linux
+
+RHEL
+
+AlmaLinux
+
+Windows Server
+
+Future
+
+macOS
+
+---
+
+# CLOUD
+
+AWS
+
+Azure
+
+Google Cloud
+
+OCI
+
+OpenStack
+
+Future
+
+VMware Cloud
+
+---
+
+# CONTAINERS
+
+Docker
+
+Containerd
+
+Podman (future)
+
+---
+
+# ORCHESTRATION
+
+Kubernetes
+
+Helm
+
+Kustomize
+
+Future
+
+Nomad
+
+---
+
+# API
+
+REST
+
+JSON
+
+OpenAPI
+
+Versioning
+
+/api/v1
+
+Future
+
+/api/v2
+
+---
+
+# AUTHENTICATION
+
+JWT
+
+Refresh Token
+
+API Keys
+
+Future
+
+OAuth2
+
+OIDC
+
+SAML
+
+SSO
+
+---
+
+# VERSION CONTROL
+
+Git
+
+Branch Strategy
+
+main
+
+develop
+
+feature/*
+
+bugfix/*
+
+release/*
+
+hotfix/*
+
+---
+
+# CI/CD
+
+GitHub Actions
+
+Stages
+
+Lint
+
+Test
+
+Build
+
+Security Scan
+
+Docker Build
+
+Deploy
+
+---
+
+# DOCUMENTATION
+
+Markdown
+
+OpenAPI
+
+Architecture Decision Records (ADR)
+
+Sequence Diagrams
+
+Deployment Guides
+
+Troubleshooting Guides
+
+---
+
+# CODING STANDARDS
+
+Every module
+
+- SOLID
+- Clean Architecture
+- Repository Pattern
+- Dependency Injection
+- Strong Typing
+- Async First
+
+Never
+
+- Hardcode configuration
+- Duplicate logic
+- Skip tests
+- Skip validation
+
+---
+
+# PERFORMANCE TARGETS
+
+API
+
+<300ms
+
+UI
+
+<2s initial load
+
+Support
+
+100,000 assets
+
+10,000 concurrent jobs
+
+Horizontal scaling
+
+---
+
+# SECURITY
+
+TLS Everywhere
+
+Secrets Manager
+
+Argon2 Password Hash
+
+RBAC
+
+Audit Logs
+
+OWASP
+
+Input Validation
+
+Output Encoding
+
+---
+
+# IMPLEMENTATION RULE
+
+Claude SHALL use only the technologies defined above.
+
+Claude SHALL NOT replace technologies.
+
+Claude SHALL NOT introduce additional frameworks unless requested by future specifications.
+
+---
+
+# DEFINITION OF DONE
+
+Technology stack frozen.
+
+No code generation.
+
+No implementation.
+
+Future prompts must comply with this technology stack.
+
+End of Prompt 003.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

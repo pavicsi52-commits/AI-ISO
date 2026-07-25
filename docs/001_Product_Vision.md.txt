@@ -1,0 +1,387 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+## Prompt 001 - Product Vision & Master Scope
+
+Reference Documents
+
+- Prompt 000 - Engineering Constitution
+
+---
+
+# ROLE
+
+You are a Principal Software Architect, Enterprise Solution Architect, Principal DevOps Architect, Principal AI Architect, Principal QA Architect and Principal Platform Engineer.
+
+You are NOT allowed to invent architecture.
+
+You are NOT allowed to redesign the system.
+
+You are NOT allowed to simplify requirements.
+
+You are only allowed to implement exactly what is defined in this specification.
+
+This specification overrides your own architectural preferences.
+
+---
+
+# PRODUCT NAME
+
+AI Infrastructure Operating System
+
+Short Name
+
+AI-IOS
+
+---
+
+# PRODUCT GOAL
+
+Build a commercial enterprise Infrastructure Operating System capable of discovering, managing, automating, validating, monitoring and operating modern IT infrastructure using Artificial Intelligence.
+
+This is NOT merely an automation platform.
+
+This is NOT an Ansible UI.
+
+This is NOT an AWX clone.
+
+This is NOT a Red Hat AAP clone.
+
+This is NOT a AI-IOS clone.
+
+This is NOT an OPA clone.
+
+The system must be an entirely original software platform.
+
+---
+
+# PRODUCT PHILOSOPHY
+
+Infrastructure should behave like an Operating System.
+
+Users should never need to manually remember playbooks.
+
+Users should communicate with infrastructure using natural language.
+
+Example
+
+Deploy PostgreSQL HA
+
+Upgrade Kubernetes
+
+Patch Ubuntu Servers
+
+Validate Production
+
+Restart Failed Pods
+
+Discover New Servers
+
+Generate Inventory
+
+Backup Databases
+
+Restore Database
+
+Create Disaster Recovery Plan
+
+Everything should become an intelligent workflow.
+
+---
+
+# PRODUCT OBJECTIVES
+
+The platform shall become the central operating system responsible for
+
+Infrastructure Discovery
+
+Inventory Management
+
+Knowledge Graph
+
+Automation
+
+Configuration Management
+
+Application Deployment
+
+Validation
+
+Monitoring
+
+Observability
+
+Compliance
+
+Security
+
+AI Assistant
+
+Workflow Engine
+
+Self Healing
+
+Reporting
+
+Enterprise Administration
+
+Marketplace
+
+---
+
+# TARGET USERS
+
+System Administrator
+
+Linux Administrator
+
+Windows Administrator
+
+DevOps Engineer
+
+Platform Engineer
+
+Infrastructure Engineer
+
+Cloud Engineer
+
+Database Administrator
+
+Security Engineer
+
+Operations Team
+
+Site Reliability Engineer
+
+Enterprise Architect
+
+IT Manager
+
+---
+
+# DEPLOYMENT TYPES
+
+Single Node
+
+Multi Node
+
+On Premise
+
+Private Cloud
+
+Public Cloud
+
+Hybrid Cloud
+
+Air Gapped Environment
+
+---
+
+# CORE MODULES
+
+Authentication
+
+Organizations
+
+Projects
+
+Teams
+
+Asset Discovery
+
+Inventory
+
+Knowledge Graph
+
+Automation Engine
+
+Playbook Library
+
+Execution Engine
+
+Workflow Builder
+
+Validation Engine
+
+Monitoring
+
+Alerting
+
+Notification
+
+Secrets
+
+AI Assistant
+
+Knowledge Base
+
+Marketplace
+
+Reports
+
+Administration
+
+Audit
+
+License Management
+
+---
+
+# PRODUCT PRINCIPLES
+
+Everything must be modular.
+
+Everything must be replaceable.
+
+Everything must be independently deployable.
+
+Every service must expose APIs.
+
+Every service must be testable.
+
+Every service must be observable.
+
+Every service must support Docker.
+
+Every service must support Kubernetes.
+
+Every service must expose health endpoints.
+
+Every service must support structured logging.
+
+---
+
+# USER EXPERIENCE PRINCIPLES
+
+No YAML editing for normal users.
+
+No command line required.
+
+Natural language first.
+
+Visual workflow second.
+
+Advanced editor for experts.
+
+Enterprise dashboard.
+
+Dark mode.
+
+Responsive UI.
+
+Accessibility support.
+
+---
+
+# AI OBJECTIVES
+
+AI should never guess.
+
+AI should always explain.
+
+AI should always provide confidence.
+
+AI should always provide rollback plans.
+
+AI must require approval before production changes.
+
+AI recommendations must be traceable.
+
+---
+
+# PERFORMANCE GOALS
+
+System startup under 60 seconds.
+
+API response under 300ms for normal operations.
+
+Support 100,000 managed assets.
+
+Support thousands of concurrent jobs.
+
+Support horizontal scaling.
+
+---
+
+# SECURITY GOALS
+
+Zero Trust.
+
+Least Privilege.
+
+RBAC.
+
+Audit everything.
+
+Encrypt secrets.
+
+Encrypt communication.
+
+Never store plaintext passwords.
+
+Support MFA.
+
+Support SSO.
+
+Support API Keys.
+
+---
+
+# QUALITY GOALS
+
+Enterprise Code Quality.
+
+High Test Coverage.
+
+Strict Validation.
+
+Comprehensive Documentation.
+
+Backward Compatibility.
+
+API Versioning.
+
+---
+
+# PROJECT SUCCESS CRITERIA
+
+The product shall eventually support
+
+Infrastructure Discovery
+
+Inventory
+
+Automation
+
+Validation
+
+Monitoring
+
+AI Operations
+
+Enterprise Management
+
+without requiring third-party orchestration platforms for core functionality.
+
+---
+
+# IMPLEMENTATION RULE
+
+Do NOT generate code.
+
+Do NOT generate APIs.
+
+Do NOT generate database schemas.
+
+Do NOT generate UI.
+
+This prompt defines only the Product Vision.
+
+Future prompts will define the implementation.
+
+End of Prompt 001.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

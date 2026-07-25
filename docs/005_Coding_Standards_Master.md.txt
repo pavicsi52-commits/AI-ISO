@@ -1,0 +1,536 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 005
+
+## Master Coding Standards
+
+Reference Documents
+
+- Prompt 000 - Engineering Constitution
+- Prompt 001 - Product Vision
+- Prompt 002 - Master Architecture
+- Prompt 003 - Technology Stack
+- Prompt 004 - Master Repository Structure
+
+---
+
+# ROLE
+
+You are the Principal Software Engineer responsible for implementing the AI Infrastructure Operating System.
+
+You SHALL NOT invent coding conventions.
+
+You SHALL strictly follow this specification.
+
+If a conflict exists between your default coding style and this document, this document always wins.
+
+---
+
+# OBJECTIVE
+
+Every source file in this repository must look as if it was written by one engineering team.
+
+Consistency is more important than personal coding preference.
+
+---
+
+# GENERAL PRINCIPLES
+
+Always write
+
+- Production Ready Code
+- Readable Code
+- Maintainable Code
+- Testable Code
+- Secure Code
+- Typed Code
+- Modular Code
+
+Never write
+
+- Demo Code
+- Prototype Code
+- Placeholder Code
+- TODO implementations
+- Fake logic
+
+---
+
+# SOLID
+
+Every implementation must follow
+
+Single Responsibility Principle
+
+Open Closed Principle
+
+Liskov Substitution Principle
+
+Interface Segregation Principle
+
+Dependency Inversion Principle
+
+---
+
+# CLEAN ARCHITECTURE
+
+Separate
+
+Presentation
+
+Application
+
+Domain
+
+Infrastructure
+
+Persistence
+
+No business logic inside controllers.
+
+No database logic inside API endpoints.
+
+---
+
+# FILE SIZE
+
+Maximum
+
+Python File
+
+500 Lines
+
+Preferred
+
+<300 Lines
+
+Class
+
+300 Lines
+
+Function
+
+40 Lines
+
+If larger
+
+Refactor.
+
+---
+
+# NAMING
+
+Variables
+
+snake_case
+
+Functions
+
+snake_case
+
+Classes
+
+PascalCase
+
+Constants
+
+UPPER_CASE
+
+Private Functions
+
+_prefix
+
+Boolean
+
+is_
+
+has_
+
+can_
+
+should_
+
+Example
+
+is_enabled
+
+has_permission
+
+can_execute
+
+---
+
+# FUNCTION DESIGN
+
+One function
+
+One responsibility
+
+No side effects unless documented.
+
+Always return predictable output.
+
+Never return mixed types.
+
+---
+
+# DOCSTRINGS
+
+Every public function
+
+Every class
+
+Every module
+
+Must contain proper docstrings.
+
+Use Google Style.
+
+---
+
+# TYPE HINTS
+
+Every parameter
+
+Every return type
+
+Every model
+
+Must use type hints.
+
+No Any unless unavoidable.
+
+---
+
+# IMPORTS
+
+Standard Library
+
+↓
+
+Third Party
+
+↓
+
+Internal Packages
+
+Never use wildcard imports.
+
+---
+
+# EXCEPTIONS
+
+Never swallow exceptions.
+
+Never use bare except.
+
+Use custom exception classes.
+
+Log unexpected errors.
+
+Return structured API responses.
+
+---
+
+# LOGGING
+
+Never print().
+
+Use structured logger.
+
+Every log
+
+Request ID
+
+Correlation ID
+
+User ID
+
+Organization ID
+
+Severity
+
+Timestamp
+
+Never log passwords.
+
+Never log secrets.
+
+---
+
+# CONFIGURATION
+
+Never hardcode
+
+URLs
+
+Ports
+
+Passwords
+
+Secrets
+
+Tokens
+
+Keys
+
+Everything must come from configuration.
+
+---
+
+# DATABASE
+
+Use Repository Pattern.
+
+Never execute raw SQL unless approved.
+
+Every database call must use transactions where required.
+
+Every migration reversible.
+
+---
+
+# API DESIGN
+
+REST
+
+Versioned
+
+/api/v1
+
+Always
+
+Request Validation
+
+Response Validation
+
+Pagination
+
+Filtering
+
+Sorting
+
+Consistent Error Format
+
+---
+
+# RESPONSE FORMAT
+
+Success
+
+{
+    "success": true,
+    "data": {},
+    "message": "",
+    "request_id": ""
+}
+
+Failure
+
+{
+    "success": false,
+    "error": {},
+    "request_id": ""
+}
+
+Never invent response formats.
+
+---
+
+# VALIDATION
+
+Validate
+
+Headers
+
+Body
+
+Query
+
+Path Parameters
+
+Business Rules
+
+Permissions
+
+Never trust user input.
+
+---
+
+# SECURITY
+
+JWT
+
+RBAC
+
+Input Validation
+
+Output Encoding
+
+Parameterized Queries
+
+Password Hashing
+
+CSRF Protection where applicable
+
+Rate Limiting
+
+Audit Logging
+
+---
+
+# PERFORMANCE
+
+Prefer async.
+
+Avoid N+1 queries.
+
+Cache frequently used data.
+
+Batch database operations.
+
+Avoid unnecessary allocations.
+
+---
+
+# CONCURRENCY
+
+Never block async event loop.
+
+Long running jobs
+
+↓
+
+Background Workers
+
+Never inside request thread.
+
+---
+
+# COMMENTS
+
+Write comments only when necessary.
+
+Good code should explain itself.
+
+Never comment obvious code.
+
+---
+
+# TESTING
+
+Every feature requires
+
+Unit Tests
+
+Integration Tests
+
+API Tests
+
+Validation Tests
+
+Edge Case Tests
+
+Negative Tests
+
+Regression Tests
+
+Target
+
+Minimum 90% Coverage
+
+---
+
+# DOCUMENTATION
+
+Every module
+
+README
+
+Architecture
+
+API
+
+Deployment
+
+Testing
+
+Troubleshooting
+
+---
+
+# CODE REVIEW CHECKLIST
+
+Before code is accepted
+
+✓ Lint Pass
+
+✓ Tests Pass
+
+✓ Coverage
+
+✓ Security Scan
+
+✓ Documentation
+
+✓ Type Check
+
+✓ Ruff
+
+✓ MyPy
+
+✓ Black
+
+✓ OpenAPI
+
+✓ Docker Build
+
+---
+
+# FORBIDDEN
+
+No duplicated code.
+
+No global mutable state.
+
+No business logic in controllers.
+
+No hardcoded credentials.
+
+No print debugging.
+
+No commented dead code.
+
+No unused imports.
+
+No circular dependencies.
+
+No magic numbers.
+
+---
+
+# CLAUDE IMPLEMENTATION RULE
+
+Claude SHALL follow every coding standard defined in this document.
+
+Claude SHALL NOT invent alternative coding styles.
+
+Claude SHALL generate production-ready enterprise code only.
+
+---
+
+# DEFINITION OF DONE
+
+Coding standards finalized.
+
+No implementation code.
+
+Future prompts shall strictly follow this document.
+
+End of Prompt 005.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

@@ -1,0 +1,194 @@
+name: aiios
+
+networks:
+  aiios_network:
+    driver: bridge
+
+volumes:
+  aiios_postgres_data:
+  aiios_redis_data:
+  aiios_rabbitmq_data:
+  aiios_neo4j_data:
+  aiios_neo4j_logs:
+  aiios_minio_data:
+  aiios_opensearch_data:
+  aiios_prometheus_data:
+  aiios_grafana_data:
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: aiios_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${AIIOS_DATABASE_NAME:-aiios}
+      POSTGRES_USER: ${AIIOS_DATABASE_USER:-aiios}
+      POSTGRES_PASSWORD: ${AIIOS_DATABASE_PASSWORD:-change-me}
+    ports:
+      # Host-side 5433 (not the Postgres-standard 5432) avoids colliding with
+      # a native PostgreSQL install that may already occupy 5432 on the host.
+      - "${AIIOS_DATABASE_PORT:-5433}:5432"
+    volumes:
+      - aiios_postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AIIOS_DATABASE_USER:-aiios} -d ${AIIOS_DATABASE_NAME:-aiios}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - aiios_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: aiios_redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${AIIOS_REDIS_PASSWORD:-change-me}"]
+    ports:
+      - "${AIIOS_REDIS_PORT:-6379}:6379"
+    volumes:
+      - aiios_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${AIIOS_REDIS_PASSWORD:-change-me} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - aiios_network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: aiios_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${AIIOS_RABBITMQ_USER:-aiios}
+      RABBITMQ_DEFAULT_PASS: ${AIIOS_RABBITMQ_PASSWORD:-change-me}
+      RABBITMQ_DEFAULT_VHOST: ${AIIOS_RABBITMQ_VHOST:-/aiios}
+    ports:
+      - "${AIIOS_RABBITMQ_PORT:-5672}:5672"
+      - "${AIIOS_RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - aiios_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    networks:
+      - aiios_network
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: aiios_neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: ${AIIOS_NEO4J_USER:-neo4j}/${AIIOS_NEO4J_PASSWORD:-change-me-min-8-chars}
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "${AIIOS_NEO4J_BOLT_PORT:-7687}:7687"
+      - "${AIIOS_NEO4J_HTTP_PORT:-7474}:7474"
+    volumes:
+      - aiios_neo4j_data:/data
+      - aiios_neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - aiios_network
+
+  minio:
+    image: minio/minio:latest
+    container_name: aiios_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${AIIOS_MINIO_ACCESS_KEY:-aiios}
+      MINIO_ROOT_PASSWORD: ${AIIOS_MINIO_SECRET_KEY:-change-me-min-8-chars}
+    ports:
+      - "${AIIOS_MINIO_PORT:-9000}:9000"
+      - "${AIIOS_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - aiios_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - aiios_network
+
+  opensearch:
+    image: opensearchproject/opensearch:2
+    container_name: aiios_opensearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${AIIOS_OPENSEARCH_PASSWORD:-Change-Me-1!}
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "${AIIOS_OPENSEARCH_PORT:-9200}:9200"
+    volumes:
+      - aiios_opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - aiios_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: aiios_prometheus
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - aiios_prometheus_data:/prometheus
+    ports:
+      - "${AIIOS_PROMETHEUS_PORT:-9090}:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - aiios_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: aiios_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${AIIOS_GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${AIIOS_GRAFANA_ADMIN_PASSWORD:-change-me}
+    volumes:
+      - aiios_grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "${AIIOS_GRAFANA_PORT:-3001}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - aiios_network

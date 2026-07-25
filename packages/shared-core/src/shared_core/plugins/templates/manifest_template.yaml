@@ -1,0 +1,49 @@
+# Starting point for a new AI-IOS plugin manifest.
+# Copy this file, fill in every field below, and parse it with
+# shared_core.plugins.manifest.parse_manifest_yaml.
+
+# A unique, stable identifier for your plugin. Never changes across versions.
+plugin_id: my-plugin
+
+# Human-readable display name.
+name: My Plugin
+
+# Semantic version (https://semver.org) of this specific manifest.
+version: "1.0.0"
+
+author: Your Name
+vendor: Your Organization
+description: One or two sentences describing what your plugin does.
+license: MIT
+
+# One of: connector, workflow, automation, validation, monitoring,
+# notification, dashboard, widget, ai, cli, rest_api, authentication,
+# storage, integration, reporting, custom_business_logic.
+category: custom_business_logic
+
+tags: []
+
+# "module.path:ClassName" -- must resolve to a shared_core.plugins.sdk.base.Plugin subclass.
+entry_point: "my_package.my_plugin:MyPlugin"
+
+# Other plugins this one requires, by id, each with a version constraint
+# (PEP 440 style, e.g. ">=1.0.0,<2.0.0", or "*" for any version).
+dependencies: []
+# Example:
+# dependencies:
+#   - plugin_id: some-other-plugin
+#     version_constraint: ">=1.0.0"
+#     optional: false
+
+# Resource categories this plugin requests access to. One or more of:
+# filesystem, database, network, workflow, connector, ai,
+# notifications, scheduler, storage. The host may grant fewer than
+# requested -- always handle a denied permission gracefully.
+permissions: []
+
+# The framework version range this plugin is compatible with.
+compatibility: ">=1.0.0,<2.0.0"
+
+# Optional: describe your plugin's own runtime configuration fields.
+# Each entry: {type: string|integer|number|boolean|array|object, required: bool, default: <value>}.
+configuration_schema: {}

@@ -1,0 +1,768 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 018
+
+## Enterprise Database Framework
+
+Reference Documents
+
+Prompt 000
+Prompt 001
+Prompt 002
+Prompt 003
+Prompt 004
+Prompt 005
+Prompt 006
+Prompt 007
+Prompt 008
+Prompt 009
+Prompt 010
+Prompt 011
+Prompt 012
+Prompt 013
+Prompt 014
+Prompt 015
+Prompt 016
+Prompt 017
+
+---
+
+# ROLE
+
+You are the Principal Database Platform Engineer.
+
+Implement the complete Enterprise Database Framework.
+
+Do NOT redesign the architecture.
+
+Do NOT create business tables.
+
+Do NOT implement business modules.
+
+Implement only the reusable database framework.
+
+---
+
+# OBJECTIVE
+
+Build a reusable database framework that every future microservice shall inherit.
+
+The framework must eliminate duplicated database code across all services.
+
+Every microservice must use this framework for:
+
+- Database Connections
+- Transactions
+- Repositories
+- Unit of Work
+- Pagination
+- Sorting
+- Filtering
+- Soft Delete
+- Audit
+- Versioning
+- Tenant Isolation
+- Query Utilities
+- Health Checks
+
+---
+
+# PACKAGE
+
+packages/shared-core/database/
+
+---
+
+# DIRECTORY STRUCTURE
+
+database/
+
+__init__.py
+
+base.py
+
+engine.py
+
+session.py
+
+settings.py
+
+connection.py
+
+health.py
+
+transaction.py
+
+unit_of_work.py
+
+repository.py
+
+query.py
+
+pagination.py
+
+sorting.py
+
+filtering.py
+
+search.py
+
+audit.py
+
+soft_delete.py
+
+versioning.py
+
+tenant.py
+
+migration.py
+
+seed.py
+
+fixtures.py
+
+factory.py
+
+exceptions.py
+
+constants.py
+
+decorators.py
+
+helpers.py
+
+tests/
+
+README.md
+
+---
+
+# DATABASE ENGINE
+
+Implement
+
+Async SQLAlchemy Engine
+
+Connection Pool
+
+Connection Retry
+
+Graceful Shutdown
+
+Health Check
+
+Automatic Recovery
+
+Support PostgreSQL only.
+
+---
+
+# SESSION MANAGER
+
+Implement
+
+Async Session
+
+Session Factory
+
+Scoped Session
+
+Request Session
+
+Background Worker Session
+
+Transaction Session
+
+Automatic Cleanup
+
+Session Lifetime Management
+
+---
+
+# CONNECTION POOL
+
+Support
+
+Minimum Connections
+
+Maximum Connections
+
+Overflow
+
+Timeout
+
+Reconnect
+
+Health Validation
+
+Metrics
+
+Configuration from Configuration Framework.
+
+---
+
+# BASE MODEL
+
+Create reusable BaseModel
+
+Every future entity inherits
+
+UUID
+
+created_at
+
+updated_at
+
+deleted_at
+
+created_by
+
+updated_by
+
+deleted_by
+
+version
+
+is_active
+
+organization_id
+
+project_id
+
+No future entity may redefine these fields.
+
+---
+
+# UNIT OF WORK
+
+Implement
+
+Begin
+
+Commit
+
+Rollback
+
+Nested Transactions
+
+Context Manager
+
+Retry Support
+
+Automatic Cleanup
+
+Every business operation must use Unit of Work.
+
+---
+
+# GENERIC REPOSITORY
+
+Implement generic repository
+
+Create
+
+Read
+
+Update
+
+Delete
+
+Soft Delete
+
+Restore
+
+Exists
+
+Count
+
+Bulk Create
+
+Bulk Update
+
+Bulk Delete
+
+Find By ID
+
+Find By UUID
+
+Search
+
+Pagination
+
+Filtering
+
+Sorting
+
+No business-specific repositories.
+
+---
+
+# QUERY BUILDER
+
+Support
+
+AND
+
+OR
+
+NOT
+
+IN
+
+BETWEEN
+
+LIKE
+
+ILIKE
+
+JSONB
+
+Full Text Search
+
+Ordering
+
+Grouping
+
+Aggregation
+
+Subquery
+
+Exists
+
+Dynamic Filters
+
+Parameterized Queries only.
+
+---
+
+# PAGINATION
+
+Support
+
+Page
+
+Offset
+
+Cursor
+
+Infinite Scroll
+
+Metadata
+
+Total
+
+Current Page
+
+Page Size
+
+Has Next
+
+Has Previous
+
+---
+
+# FILTERING
+
+Equal
+
+Not Equal
+
+Greater Than
+
+Less Than
+
+Between
+
+Contains
+
+Starts With
+
+Ends With
+
+Null
+
+Not Null
+
+Boolean
+
+Date Range
+
+JSONB
+
+---
+
+# SORTING
+
+Ascending
+
+Descending
+
+Multiple Fields
+
+Null First
+
+Null Last
+
+---
+
+# SEARCH
+
+PostgreSQL Full Text Search
+
+ILIKE
+
+Trigram
+
+Future
+
+Vector Search
+
+---
+
+# SOFT DELETE
+
+Delete
+
+↓
+
+deleted_at
+
+deleted_by
+
+is_active=false
+
+Support
+
+Restore
+
+Purge
+
+Audit
+
+---
+
+# AUDIT
+
+Automatic
+
+Insert
+
+Update
+
+Delete
+
+Restore
+
+Bulk Operations
+
+Store
+
+Before
+
+After
+
+User
+
+Timestamp
+
+Version
+
+---
+
+# VERSIONING
+
+Optimistic Locking
+
+Version Increment
+
+Conflict Detection
+
+Concurrent Update Protection
+
+---
+
+# TENANT ISOLATION
+
+Every query automatically filters by
+
+Organization
+
+Project
+
+Prevent Cross Tenant Access
+
+No bypass unless Super Admin.
+
+---
+
+# TRANSACTION MANAGER
+
+Atomic Transactions
+
+Rollback
+
+Retry
+
+Timeout
+
+Deadlock Retry
+
+Nested Transactions
+
+---
+
+# MIGRATION FRAMEWORK
+
+Alembic Integration
+
+Migration Generator
+
+Migration Validator
+
+Rollback
+
+Version History
+
+Migration Status
+
+Never modify production schema manually.
+
+---
+
+# SEED FRAMEWORK
+
+Development Seed
+
+Testing Seed
+
+Demo Seed
+
+Factory Support
+
+Fixture Support
+
+---
+
+# DATABASE HEALTH
+
+Connection Test
+
+Latency
+
+Version
+
+Pool Status
+
+Replication Status (future)
+
+Disk Usage (future)
+
+---
+
+# PERFORMANCE
+
+Batch Inserts
+
+Batch Updates
+
+Prepared Statements
+
+Async Queries
+
+Connection Reuse
+
+Index Validation
+
+Slow Query Logging
+
+N+1 Detection
+
+---
+
+# DECORATORS
+
+@transaction
+
+@readonly
+
+@tenant
+
+@audit
+
+@soft_delete
+
+@retry
+
+---
+
+# HELPERS
+
+UUID Helper
+
+Timestamp Helper
+
+Query Helper
+
+Pagination Helper
+
+Search Helper
+
+Sort Helper
+
+Filter Helper
+
+Migration Helper
+
+---
+
+# EXCEPTIONS
+
+Connection Failed
+
+Migration Failed
+
+Constraint Failed
+
+Duplicate Record
+
+Version Conflict
+
+Tenant Violation
+
+Query Timeout
+
+Transaction Failed
+
+Repository Error
+
+---
+
+# TESTING
+
+Unit Tests
+
+Repository Tests
+
+Transaction Tests
+
+Migration Tests
+
+Performance Tests
+
+Concurrency Tests
+
+Tenant Isolation Tests
+
+Coverage ≥95%
+
+---
+
+# DOCUMENTATION
+
+README
+
+Database Framework Guide
+
+Repository Guide
+
+Migration Guide
+
+Transaction Guide
+
+Developer Guide
+
+Examples
+
+---
+
+# ACCEPTANCE CRITERIA
+
+✓ Async SQLAlchemy Engine
+
+✓ Session Manager
+
+✓ Connection Pool
+
+✓ Generic Repository
+
+✓ Unit of Work
+
+✓ Transaction Manager
+
+✓ Pagination Engine
+
+✓ Filtering Engine
+
+✓ Sorting Engine
+
+✓ Query Builder
+
+✓ Soft Delete
+
+✓ Audit Engine
+
+✓ Versioning
+
+✓ Tenant Isolation
+
+✓ Migration Framework
+
+✓ Seed Framework
+
+✓ Health Checks
+
+✓ Tests Passing
+
+✓ Documentation Complete
+
+---
+
+# DO NOT IMPLEMENT
+
+Authentication
+
+Users
+
+Organizations
+
+Projects
+
+Inventory
+
+Automation
+
+REST APIs
+
+Business Tables
+
+Business Logic
+
+Only the Enterprise Database Framework.
+
+---
+
+# OUTPUT
+
+Generate every required file.
+
+Generate complete production-ready implementation.
+
+No placeholders.
+
+No TODO comments.
+
+No demo code.
+
+The implementation must compile successfully.
+
+The implementation must pass Ruff, Black, MyPy and Pytest.
+
+Do not summarize.
+
+End Prompt 018.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

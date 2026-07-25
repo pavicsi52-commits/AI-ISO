@@ -1,0 +1,24 @@
+# Manifest for shared_core.plugins.examples.hello_plugin.HelloPlugin.
+# Parse with shared_core.plugins.manifest.parse_manifest_yaml.
+
+plugin_id: hello-plugin
+name: Hello Plugin
+version: "1.0.0"
+author: AI-IOS Platform Team
+vendor: AI-IOS
+description: A minimal sample plugin demonstrating the Plugin SDK contract.
+license: Proprietary
+category: custom_business_logic
+tags:
+  - example
+  - sample
+
+entry_point: "shared_core.plugins.examples.hello_plugin:HelloPlugin"
+
+dependencies: []
+
+permissions: []
+
+compatibility: ">=1.0.0,<2.0.0"
+
+configuration_schema: {}

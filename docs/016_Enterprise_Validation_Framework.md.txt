@@ -1,0 +1,546 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 016
+
+## Enterprise Validation Framework
+
+Reference Documents
+
+Prompt 000
+Prompt 001
+Prompt 002
+Prompt 003
+Prompt 004
+Prompt 005
+Prompt 006
+Prompt 007
+Prompt 008
+Prompt 009
+Prompt 010
+Prompt 011
+Prompt 012
+Prompt 013
+Prompt 014
+Prompt 015
+
+---
+
+# ROLE
+
+You are the Principal Platform Engineer.
+
+Implement the Enterprise Validation Framework.
+
+Do not redesign.
+
+Do not simplify.
+
+Do not skip any validation layer.
+
+---
+
+# OBJECTIVE
+
+Implement a reusable validation framework.
+
+Every API
+
+Every DTO
+
+Every Configuration
+
+Every Business Rule
+
+Every Database Request
+
+Every Workflow
+
+Every Connector
+
+shall use this framework.
+
+No validation logic shall be duplicated.
+
+---
+
+# PACKAGE
+
+packages/shared-core/validation/
+
+---
+
+# DIRECTORY STRUCTURE
+
+validation/
+
+__init__.py
+
+base.py
+
+validator.py
+
+manager.py
+
+factory.py
+
+pipeline.py
+
+context.py
+
+results.py
+
+exceptions.py
+
+constants.py
+
+rules/
+
+field/
+
+request/
+
+response/
+
+business/
+
+database/
+
+security/
+
+workflow/
+
+connectors/
+
+decorators/
+
+middleware/
+
+schemas/
+
+tests/
+
+README.md
+
+---
+
+# VALIDATION LAYERS
+
+Layer 1
+
+Environment Validation
+
+↓
+
+Layer 2
+
+Configuration Validation
+
+↓
+
+Layer 3
+
+API Validation
+
+↓
+
+Layer 4
+
+Schema Validation
+
+↓
+
+Layer 5
+
+Business Validation
+
+↓
+
+Layer 6
+
+Database Validation
+
+↓
+
+Layer 7
+
+Permission Validation
+
+↓
+
+Layer 8
+
+Workflow Validation
+
+↓
+
+Layer 9
+
+Response Validation
+
+No validation layer may be skipped.
+
+---
+
+# FIELD VALIDATORS
+
+UUID
+
+Hostname
+
+IPv4
+
+IPv6
+
+MAC Address
+
+Email
+
+Phone
+
+URL
+
+Port
+
+Username
+
+Password
+
+Organization Name
+
+Project Name
+
+Team Name
+
+Asset Name
+
+Playbook Name
+
+Job Name
+
+Workflow Name
+
+Secret Name
+
+License Key
+
+Cron Expression
+
+CIDR
+
+Semantic Version
+
+---
+
+# REQUEST VALIDATION
+
+Headers
+
+Query
+
+Body
+
+Path
+
+Cookies
+
+Files
+
+Multipart
+
+JSON
+
+---
+
+# BUSINESS VALIDATION
+
+Unique Name
+
+Resource Ownership
+
+Organization Isolation
+
+Project Isolation
+
+License Check
+
+Dependency Check
+
+Duplicate Prevention
+
+Quota Check
+
+Approval Required
+
+Maintenance Window
+
+---
+
+# DATABASE VALIDATION
+
+Foreign Keys
+
+Duplicate Records
+
+Referential Integrity
+
+Version
+
+Soft Delete
+
+Tenant Isolation
+
+---
+
+# WORKFLOW VALIDATION
+
+Circular Dependency
+
+Infinite Loop
+
+Missing Node
+
+Invalid Transition
+
+Permission Check
+
+Required Inputs
+
+Timeout
+
+Rollback Support
+
+---
+
+# SECURITY VALIDATION
+
+JWT
+
+RBAC
+
+API Key
+
+Session
+
+Permission
+
+Secret Access
+
+Rate Limit
+
+CSRF
+
+Origin
+
+---
+
+# CONNECTOR VALIDATION
+
+SSH
+
+WinRM
+
+Redfish
+
+SNMP
+
+Docker
+
+Kubernetes
+
+VMware
+
+Cloud APIs
+
+Every connector shall validate
+
+Credentials
+
+Timeout
+
+Certificate
+
+Version
+
+Capabilities
+
+---
+
+# RESPONSE VALIDATION
+
+Every response shall comply with Prompt 006.
+
+No invalid response leaves the API.
+
+---
+
+# PIPELINE
+
+Input
+
+↓
+
+Sanitize
+
+↓
+
+Validate
+
+↓
+
+Business Rules
+
+↓
+
+Permissions
+
+↓
+
+Database Rules
+
+↓
+
+Success
+
+or
+
+Structured Error
+
+---
+
+# DECORATORS
+
+@validate_request
+
+@validate_response
+
+@validate_permission
+
+@validate_business
+
+@validate_workflow
+
+@validate_database
+
+---
+
+# RESULT MODEL
+
+Every validation returns
+
+Valid
+
+Errors
+
+Warnings
+
+Suggestions
+
+Execution Time
+
+Validator Name
+
+Severity
+
+---
+
+# ERROR FORMAT
+
+Use Prompt 006.
+
+Never invent custom validation responses.
+
+---
+
+# PERFORMANCE
+
+Validation execution
+
+<10ms
+
+Field Validation
+
+<1ms
+
+Batch Validation supported.
+
+---
+
+# TESTING
+
+Unit Tests
+
+Integration Tests
+
+Negative Tests
+
+Boundary Tests
+
+Performance Tests
+
+Coverage >95%
+
+---
+
+# DOCUMENTATION
+
+README
+
+Validation Guide
+
+Developer Guide
+
+Rule Catalog
+
+Examples
+
+---
+
+# ACCEPTANCE CRITERIA
+
+✓ Validation Pipeline
+
+✓ Decorators
+
+✓ Rule Engine
+
+✓ Error Mapping
+
+✓ Tests
+
+✓ Documentation
+
+✓ Performance Goals
+
+---
+
+# DO NOT IMPLEMENT
+
+Authentication
+
+Inventory
+
+Automation
+
+REST APIs
+
+Business Services
+
+Only Validation Framework.
+
+---
+
+# OUTPUT
+
+Generate complete production-ready implementation.
+
+Generate every file.
+
+Do not summarize.
+
+End Prompt 016.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

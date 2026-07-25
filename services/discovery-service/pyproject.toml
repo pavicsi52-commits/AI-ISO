@@ -1,0 +1,121 @@
+[project]
+name = "discovery-service"
+version = "0.1.0"
+description = "AI-IOS Enterprise Discovery Service — multi-protocol infrastructure discovery across network, cloud, Kubernetes, and industrial environments, synchronized into the Inventory Service and Neo4j"
+requires-python = ">=3.13"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic[email]>=2.9.0",
+  "pydantic-settings>=2.6.0",
+  "prometheus-fastapi-instrumentator>=7.0.0",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30.0",
+  "alembic>=1.13.0",
+  "psycopg[binary]>=3.2.0",
+  "neo4j>=5.26.0",
+  "httpx>=0.27.0",
+  "paramiko>=3.5.0",
+  "dnspython>=2.7.0",
+  "ntplib>=0.4.0",
+  "ldap3>=2.9.1",
+  "aiomqtt>=2.3.0",
+  "pymodbus>=3.7.0",
+  "asyncua>=1.1.0",
+  "pysnmp>=7.1.0",
+  "aio-pika>=9.5.0",
+  "kubernetes>=31.0.0",
+  "boto3>=1.35.0",
+  "smbprotocol>=1.14.0",
+  "redfish>=3.3.0",
+  "pyghmi>=1.5.0",
+  "pywinrm>=0.4.3",
+  "grpcio>=1.68.0",
+  "grpcio-health-checking>=1.68.0",
+  "shared-core",
+  # WMI is a Windows-only, COM/DCOM-based protocol -- these two are
+  # simply skipped by `uv sync`/pip on the service's actual Linux
+  # container deployment target, rather than failing to install (no
+  # Linux wheel exists, and pywin32's Windows API bindings can't be
+  # built from source on Linux at all). See app/scanners/wmi_scanner.py.
+  "WMI>=1.5.1; sys_platform == 'win32'",
+  "pywin32>=306; sys_platform == 'win32'",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+  "pytest-cov>=6.0.0",
+  "httpx>=0.27.0",
+  "aiosqlite>=0.20.0",
+  "pyftpdlib>=2.0.0",
+  "grpcio-tools>=1.68.0",
+  "types-paramiko>=3.5.0",
+  "types-ldap3>=2.9.1",
+  "types-grpcio>=1.68.0",
+  "types-pywin32>=306; sys_platform == 'win32'",
+  "moto[ec2,s3,rds,eks,elbv2]>=5.0.0",
+  "pytest-httpx>=0.30.0",
+  "boto3-stubs[ec2,s3,rds,eks,elbv2]>=1.35.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+shared-core = { workspace = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]
+filterwarnings = [
+  "error",
+  # ldap3 2.9.1's own internal code (extend/microsoft/dirSync.py ->
+  # protocol/controls.py) imports pyasn1's now-deprecated tagMap/typeMap
+  # aliases at *module import time* -- this fires on `import ldap3`
+  # itself, before any of our own code runs, and is unresolved upstream
+  # as of ldap3's latest release. Narrowly scoped to that exact message
+  # rather than relaxing the blanket "error" policy.
+  "ignore:tagMap is deprecated. Please use TAG_MAP instead.:DeprecationWarning",
+  "ignore:typeMap is deprecated. Please use TYPE_MAP instead.:DeprecationWarning",
+  # This package's test suite is the first in this monorepo to run many
+  # full-app-lifespan (real Postgres/Redis/RabbitMQ engine) tests back
+  # to back in one process. On Windows' ProactorEventLoop, asyncpg
+  # connection objects that were properly ``await engine.dispose()``-d
+  # at one test's teardown are sometimes only garbage-collected during a
+  # *later*, unrelated test -- their own event loop is already closed by
+  # then, so asyncpg's __del__ can't finish cleanly and raises an
+  # unraisable ResourceWarning pytest turns into this test's own
+  # failure. A real, already-confirmed environment/timing artifact (the
+  # failing test's own assertions all pass; only pytest's post-hoc
+  # unraisable-exception collection fails it), not a connection leak in
+  # this service's own code -- narrowly ignored rather than relaxing the
+  # blanket "error" policy.
+  "ignore::pytest.PytestUnraisableExceptionWarning",
+  # The third-party `wmi` package's own module source (wmi.py, used only
+  # by dnspython's Windows-specific `dns.win32util` fallback, imported
+  # transitively via `dns_scanner.py`) contains literal invalid escape
+  # sequences (`\_`) in ordinary (non-raw) docstrings/comments -- a wart
+  # in that package's own source, unresolved upstream, that the Python
+  # compiler emits as SyntaxWarning at import time. Narrowly scoped to
+  # SyntaxWarning from that exact module rather than relaxing the
+  # blanket "error" policy.
+  "ignore::SyntaxWarning:wmi",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "def __repr__",
+]

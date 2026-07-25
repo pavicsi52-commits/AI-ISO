@@ -1,0 +1,546 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 004
+
+## Master Repository Structure
+
+Reference
+
+- Prompt 000 – Engineering Constitution
+- Prompt 001 – Product Vision
+- Prompt 002 – Master Architecture
+- Prompt 003 – Technology Stack
+
+---
+
+# ROLE
+
+You are the Lead Enterprise Platform Architect.
+
+You SHALL NOT redesign this repository.
+
+You SHALL NOT move folders.
+
+You SHALL NOT rename directories.
+
+Every future implementation must follow this repository exactly.
+
+---
+
+# REPOSITORY NAME
+
+ai-infrastructure-os
+
+---
+
+# MONOREPO
+
+The product SHALL use a single Git Monorepo.
+
+Reason
+
+- Easier dependency management
+- Shared libraries
+- Unified versioning
+- Unified CI/CD
+- Easier testing
+- Enterprise scalability
+
+---
+
+# ROOT STRUCTURE
+
+ai-infrastructure-os/
+
+```
+.github/
+.vscode/
+
+apps/
+services/
+packages/
+infrastructure/
+
+docs/
+
+database/
+
+scripts/
+
+tests/
+
+tools/
+
+assets/
+
+examples/
+
+configs/
+
+templates/
+
+```
+
+No additional root folders are allowed unless approved by architecture.
+
+---
+
+# ROOT FILES
+
+README.md
+
+LICENSE
+
+CHANGELOG.md
+
+CONTRIBUTING.md
+
+SECURITY.md
+
+CODE_OF_CONDUCT.md
+
+ROADMAP.md
+
+.env.example
+
+.gitignore
+
+.editorconfig
+
+.pre-commit-config.yaml
+
+docker-compose.yml
+
+Makefile
+
+pyproject.toml
+
+pnpm-workspace.yaml
+
+---
+
+# APPS
+
+apps/
+
+frontend/
+
+admin/
+
+future-mobile/
+
+future-desktop/
+
+The frontend SHALL NEVER contain business logic.
+
+Only presentation logic.
+
+---
+
+# SERVICES
+
+services/
+
+gateway/
+
+auth-service/
+
+organization-service/
+
+project-service/
+
+team-service/
+
+inventory-service/
+
+asset-discovery-service/
+
+automation-service/
+
+playbook-service/
+
+execution-service/
+
+workflow-service/
+
+validation-service/
+
+monitoring-service/
+
+notification-service/
+
+alert-service/
+
+audit-service/
+
+report-service/
+
+settings-service/
+
+secret-service/
+
+scheduler-service/
+
+knowledge-graph-service/
+
+ai-service/
+
+license-service/
+
+Every service must remain independent.
+
+No service shall directly access another service database.
+
+---
+
+# PACKAGE STRUCTURE
+
+packages/
+
+shared-api/
+
+shared-auth/
+
+shared-config/
+
+shared-events/
+
+shared-logging/
+
+shared-validation/
+
+shared-utils/
+
+shared-security/
+
+shared-testing/
+
+shared-models/
+
+shared-types/
+
+These packages are reusable.
+
+No business logic.
+
+---
+
+# INFRASTRUCTURE
+
+infrastructure/
+
+docker/
+
+kubernetes/
+
+helm/
+
+terraform/
+
+ansible/
+
+nginx/
+
+monitoring/
+
+logging/
+
+postgres/
+
+redis/
+
+rabbitmq/
+
+neo4j/
+
+minio/
+
+opensearch/
+
+---
+
+# DATABASE
+
+database/
+
+migrations/
+
+seed/
+
+fixtures/
+
+schemas/
+
+views/
+
+functions/
+
+---
+
+# DOCUMENTATION
+
+docs/
+
+architecture/
+
+database/
+
+api/
+
+deployment/
+
+operations/
+
+developer/
+
+testing/
+
+security/
+
+user-guide/
+
+administrator-guide/
+
+release-notes/
+
+adr/
+
+Every architecture decision shall have an ADR document.
+
+---
+
+# TESTS
+
+tests/
+
+integration/
+
+performance/
+
+security/
+
+end-to-end/
+
+load/
+
+Every module shall include its own unit tests.
+
+Shared tests remain here.
+
+---
+
+# SCRIPTS
+
+scripts/
+
+bootstrap/
+
+development/
+
+deployment/
+
+migration/
+
+maintenance/
+
+backup/
+
+restore/
+
+---
+
+# TOOLS
+
+tools/
+
+cli/
+
+codegen/
+
+documentation/
+
+testing/
+
+benchmark/
+
+lint/
+
+---
+
+# CONFIGURATION
+
+configs/
+
+development/
+
+testing/
+
+staging/
+
+production/
+
+Every environment shall have isolated configuration.
+
+---
+
+# ASSETS
+
+assets/
+
+logos/
+
+icons/
+
+illustrations/
+
+fonts/
+
+---
+
+# TEMPLATES
+
+templates/
+
+emails/
+
+reports/
+
+notifications/
+
+workflow/
+
+playbooks/
+
+---
+
+# STANDARD SERVICE STRUCTURE
+
+Every service SHALL follow exactly this structure.
+
+Example
+
+services/auth-service/
+
+```
+app/
+
+api/
+
+core/
+
+models/
+
+schemas/
+
+repositories/
+
+services/
+
+validators/
+
+security/
+
+events/
+
+workers/
+
+tasks/
+
+middleware/
+
+config/
+
+utils/
+
+tests/
+
+main.py
+
+```
+
+No extra folders without approval.
+
+---
+
+# FRONTEND STRUCTURE
+
+apps/frontend/
+
+```
+app/
+
+components/
+
+modules/
+
+hooks/
+
+stores/
+
+services/
+
+types/
+
+utils/
+
+styles/
+
+assets/
+
+tests/
+
+```
+
+---
+
+# DOCUMENTATION REQUIREMENT
+
+Every service must include
+
+README.md
+
+API Documentation
+
+Architecture Notes
+
+Deployment Guide
+
+Testing Guide
+
+Troubleshooting Guide
+
+---
+
+# IMPLEMENTATION RULES
+
+Claude SHALL NEVER invent folders.
+
+Claude SHALL NEVER reorganize the repository.
+
+Claude SHALL NEVER merge services.
+
+Claude SHALL follow this repository exactly.
+
+Future prompts depend on this structure.
+
+---
+
+# DEFINITION OF DONE
+
+Repository structure frozen.
+
+Folder naming frozen.
+
+Service locations frozen.
+
+Shared package locations frozen.
+
+No implementation code.
+
+End of Prompt 004.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

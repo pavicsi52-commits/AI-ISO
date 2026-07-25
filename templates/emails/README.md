@@ -1,0 +1,3 @@
+# emails
+
+Transactional email templates.

@@ -1,0 +1,652 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 019
+
+## Enterprise Cache Framework
+
+Reference Documents
+
+Prompt 000
+Prompt 001
+Prompt 002
+Prompt 003
+Prompt 004
+Prompt 005
+Prompt 006
+Prompt 007
+Prompt 008
+Prompt 009
+Prompt 010
+Prompt 011
+Prompt 012
+Prompt 013
+Prompt 014
+Prompt 015
+Prompt 016
+Prompt 017
+Prompt 018
+
+---
+
+# ROLE
+
+You are the Principal Platform Engineer responsible for designing and implementing the Enterprise Cache Framework.
+
+You SHALL NOT redesign the platform.
+
+You SHALL NOT implement business logic.
+
+Implement only the reusable caching framework.
+
+---
+
+# OBJECTIVE
+
+Create a centralized cache framework used by every microservice.
+
+No service shall communicate directly with Redis.
+
+All cache operations must go through this framework.
+
+The framework must provide
+
+- Cache Manager
+- Distributed Locks
+- TTL Management
+- Cache Decorators
+- Query Cache
+- Session Cache
+- Rate Limit Cache
+- Feature Flag Cache
+- Health Monitoring
+- Metrics
+- Cache Invalidation
+- Redis Cluster Support
+
+---
+
+# PACKAGE
+
+packages/shared-core/cache/
+
+---
+
+# DIRECTORY STRUCTURE
+
+cache/
+
+__init__.py
+
+manager.py
+
+client.py
+
+connection.py
+
+settings.py
+
+pool.py
+
+keys.py
+
+ttl.py
+
+decorators.py
+
+serializer.py
+
+compression.py
+
+encryption.py
+
+locks.py
+
+ratelimit.py
+
+sessions.py
+
+queries.py
+
+feature_flags.py
+
+health.py
+
+metrics.py
+
+statistics.py
+
+cleanup.py
+
+warmup.py
+
+cluster.py
+
+sentinel.py
+
+factory.py
+
+exceptions.py
+
+constants.py
+
+helpers.py
+
+tests/
+
+README.md
+
+---
+
+# CACHE PHILOSOPHY
+
+Cache shall improve performance.
+
+Cache shall never become the source of truth.
+
+PostgreSQL remains the source of truth.
+
+Cache failures shall never corrupt business data.
+
+---
+
+# CACHE CONNECTION
+
+Support
+
+Redis Standalone
+
+Redis Sentinel
+
+Redis Cluster
+
+TLS
+
+Authentication
+
+Connection Pool
+
+Retry
+
+Automatic Reconnect
+
+Health Validation
+
+---
+
+# CACHE MANAGER
+
+Implement
+
+Set
+
+Get
+
+Delete
+
+Exists
+
+Increment
+
+Decrement
+
+Expire
+
+Persist
+
+Touch
+
+Clear
+
+Bulk Set
+
+Bulk Get
+
+Bulk Delete
+
+---
+
+# SERIALIZATION
+
+Support
+
+JSON
+
+MessagePack
+
+Pickle (Internal Only)
+
+Compression
+
+Gzip
+
+Zstandard
+
+Automatic serialization.
+
+---
+
+# ENCRYPTION
+
+Encrypt sensitive cache values.
+
+AES-256
+
+Configurable.
+
+---
+
+# TTL MANAGEMENT
+
+Support
+
+Default TTL
+
+Custom TTL
+
+Sliding TTL
+
+Absolute TTL
+
+No Expiration
+
+Automatic Expiration
+
+TTL Metrics
+
+TTL Validation
+
+---
+
+# CACHE KEYS
+
+Centralized key builder.
+
+Examples
+
+organization:{id}
+
+project:{id}
+
+user:{id}
+
+asset:{id}
+
+inventory:{id}
+
+playbook:{id}
+
+workflow:{id}
+
+execution:{id}
+
+validation:{id}
+
+job:{id}
+
+Never hardcode cache keys.
+
+---
+
+# CACHE DECORATORS
+
+Implement
+
+@cache
+
+@invalidate
+
+@cacheable
+
+@evict
+
+@refresh
+
+@distributed_lock
+
+@rate_limit
+
+---
+
+# QUERY CACHE
+
+Cache
+
+Search Results
+
+Pagination
+
+Filtering
+
+Sorting
+
+Metadata
+
+Automatic invalidation after updates.
+
+---
+
+# SESSION CACHE
+
+Store
+
+Sessions
+
+JWT Metadata
+
+Refresh Tokens
+
+User Context
+
+Tenant Context
+
+Idle Timeout
+
+Session Expiration
+
+---
+
+# RATE LIMIT CACHE
+
+Store
+
+Request Counts
+
+Window
+
+Penalty
+
+Block Status
+
+Support distributed environments.
+
+---
+
+# DISTRIBUTED LOCKS
+
+Implement
+
+Acquire
+
+Release
+
+Timeout
+
+Renew
+
+Retry
+
+Deadlock Protection
+
+Use Redis Redlock principles.
+
+---
+
+# CACHE INVALIDATION
+
+Manual
+
+Automatic
+
+Event Driven
+
+TTL
+
+Dependency Based
+
+Pattern Based
+
+Bulk Invalidation
+
+---
+
+# CACHE WARMUP
+
+Startup Warmup
+
+Scheduled Warmup
+
+Predictive Warmup (Future)
+
+---
+
+# FEATURE FLAGS
+
+Store
+
+Global Flags
+
+Organization Flags
+
+Project Flags
+
+User Flags
+
+Rollout Percentage
+
+Expiration
+
+Audit
+
+---
+
+# HEALTH CHECKS
+
+Redis Connectivity
+
+Latency
+
+Memory Usage
+
+Key Count
+
+Hit Ratio
+
+Miss Ratio
+
+Replication Status
+
+Cluster Status
+
+Sentinel Status
+
+---
+
+# METRICS
+
+Cache Hits
+
+Cache Misses
+
+Hit Ratio
+
+Miss Ratio
+
+Latency
+
+Evictions
+
+Expired Keys
+
+Memory Usage
+
+Connections
+
+Operations Per Second
+
+Expose Prometheus metrics.
+
+---
+
+# ERROR HANDLING
+
+Connection Failed
+
+Timeout
+
+Serialization Failed
+
+Compression Failed
+
+Encryption Failed
+
+Cluster Unavailable
+
+Lock Failed
+
+Invalid Key
+
+TTL Error
+
+Map all errors using Prompt 015.
+
+---
+
+# PERFORMANCE
+
+Async Only
+
+Pipeline Support
+
+Batch Operations
+
+Connection Pooling
+
+Compression Threshold
+
+Lazy Serialization
+
+---
+
+# SECURITY
+
+TLS
+
+Redis Authentication
+
+Key Encryption
+
+Sensitive Data Masking
+
+Audit Cache Operations
+
+No plaintext secrets
+
+---
+
+# TESTING
+
+Unit Tests
+
+Redis Integration Tests
+
+Cluster Tests
+
+Sentinel Tests
+
+Performance Tests
+
+Stress Tests
+
+Concurrency Tests
+
+Coverage >=95%
+
+---
+
+# DOCUMENTATION
+
+README
+
+Developer Guide
+
+Operations Guide
+
+Redis Cluster Guide
+
+Redis Sentinel Guide
+
+Performance Guide
+
+Examples
+
+---
+
+# ACCEPTANCE CRITERIA
+
+✓ Redis Standalone
+
+✓ Redis Cluster
+
+✓ Redis Sentinel
+
+✓ Cache Manager
+
+✓ Query Cache
+
+✓ Session Cache
+
+✓ Distributed Locks
+
+✓ Rate Limiting
+
+✓ Cache Decorators
+
+✓ Health Monitoring
+
+✓ Prometheus Metrics
+
+✓ Performance Targets
+
+✓ Tests Passing
+
+✓ Documentation Complete
+
+---
+
+# DO NOT IMPLEMENT
+
+Authentication
+
+Users
+
+Organizations
+
+Projects
+
+Inventory
+
+Automation
+
+Business Logic
+
+REST APIs
+
+Only the Enterprise Cache Framework.
+
+---
+
+# OUTPUT
+
+Generate every required file.
+
+Generate complete production-ready implementation.
+
+No placeholders.
+
+No TODO comments.
+
+No demo code.
+
+The implementation must compile successfully.
+
+The implementation must pass Ruff, Black, MyPy and Pytest.
+
+Do not summarize.
+
+End Prompt 019.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

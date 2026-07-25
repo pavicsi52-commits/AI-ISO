@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-ios-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "ai-ios.labels" . | nindent 4 }}
+data:
+  AIIOS_ENVIRONMENT: {{ .Values.config.environment | quote }}
+  AIIOS_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  AIIOS_GATEWAY_PORT: {{ .Values.gateway.port | quote }}
+  NEXT_PUBLIC_API_BASE_URL: "http://ai-ios-gateway.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.gateway.port }}"
+  NEXT_PUBLIC_APP_ENV: {{ .Values.config.environment | quote }}

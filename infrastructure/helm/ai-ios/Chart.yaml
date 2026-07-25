@@ -1,0 +1,11 @@
+apiVersion: v2
+name: ai-ios
+description: AI Infrastructure Operating System — platform foundation Helm chart
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - ai-ios
+  - infrastructure
+maintainers:
+  - name: AI-IOS Automation

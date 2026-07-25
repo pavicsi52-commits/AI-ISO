@@ -1,0 +1,110 @@
+"""Enterprise Configuration Framework.
+
+Every service SHALL load configuration through this package rather than
+reading environment variables directly (docs/013_Configuration_Framework.md.txt).
+"""
+
+from shared_core.config.cache import (
+    clear_settings_cache,
+    configure_cache_ttl,
+    exists,
+    get,
+    get_bool,
+    get_dict,
+    get_float,
+    get_int,
+    get_list,
+    get_settings,
+    get_string,
+    reload,
+    reload_settings,
+)
+from shared_core.config.environment import Environment, detect_environment, parse_environment
+from shared_core.config.exceptions import (
+    CircularConfigurationError,
+    InvalidConfigurationError,
+    InvalidTypeError,
+    MissingSecretError,
+    MissingVariableError,
+    UnknownEnvironmentError,
+)
+from shared_core.config.loader import Settings, env_files_for, load_settings
+from shared_core.config.profiles import EnvironmentProfile, get_profile
+from shared_core.config.secrets import resolve_secret
+from shared_core.config.settings import (
+    AISettings,
+    ApplicationSettings,
+    AuthSettings,
+    AutomationSettings,
+    DatabaseSettings,
+    EmailSettings,
+    InventorySettings,
+    LoggingSettings,
+    MinioSettings,
+    MonitoringSettings,
+    Neo4jSettings,
+    NotificationSettings,
+    OpenSearchSettings,
+    RabbitMQSettings,
+    RedisSettings,
+    SchedulerSettings,
+    SecretsSettings,
+    StorageSettings,
+    TelemetrySettings,
+    ValidationSettings,
+)
+from shared_core.config.validator import validate_settings
+from shared_core.config.watcher import ConfigWatcher
+
+__all__ = [
+    "AISettings",
+    "ApplicationSettings",
+    "AuthSettings",
+    "AutomationSettings",
+    "CircularConfigurationError",
+    "ConfigWatcher",
+    "DatabaseSettings",
+    "EmailSettings",
+    "Environment",
+    "EnvironmentProfile",
+    "InvalidConfigurationError",
+    "InvalidTypeError",
+    "InventorySettings",
+    "LoggingSettings",
+    "MinioSettings",
+    "MissingSecretError",
+    "MissingVariableError",
+    "MonitoringSettings",
+    "Neo4jSettings",
+    "NotificationSettings",
+    "OpenSearchSettings",
+    "RabbitMQSettings",
+    "RedisSettings",
+    "SchedulerSettings",
+    "SecretsSettings",
+    "Settings",
+    "StorageSettings",
+    "TelemetrySettings",
+    "UnknownEnvironmentError",
+    "ValidationSettings",
+    "clear_settings_cache",
+    "configure_cache_ttl",
+    "detect_environment",
+    "env_files_for",
+    "exists",
+    "get",
+    "get_bool",
+    "get_dict",
+    "get_float",
+    "get_int",
+    "get_list",
+    "get_profile",
+    "get_settings",
+    "get_string",
+    "load_settings",
+    "parse_environment",
+    "reload",
+    "reload_settings",
+    "resolve_secret",
+    "validate_settings",
+]

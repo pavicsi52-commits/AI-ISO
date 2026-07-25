@@ -1,0 +1,594 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 010
+
+## Enterprise UI/UX Design System Master Specification
+
+Reference Documents
+
+- Prompt 000 - Engineering Constitution
+- Prompt 001 - Product Vision
+- Prompt 002 - Master System Architecture
+- Prompt 003 - Technology Stack
+- Prompt 004 - Repository Structure
+- Prompt 005 - Coding Standards
+- Prompt 006 - API Standards
+- Prompt 007 - Database Architecture
+- Prompt 008 - Backend Architecture
+- Prompt 009 - Frontend Architecture
+
+---
+
+# ROLE
+
+You are the Principal Product Designer and Enterprise UX Architect.
+
+You SHALL NOT redesign the design system.
+
+Every future page shall follow this specification.
+
+---
+
+# DESIGN PHILOSOPHY
+
+The platform must look like
+
+Enterprise
+
+Professional
+
+Modern
+
+Minimal
+
+Clean
+
+Fast
+
+Scalable
+
+The UI must feel similar in quality to
+
+GitHub
+
+Azure Portal
+
+Datadog
+
+Grafana
+
+GitLab
+
+Linear
+
+Notion
+
+without copying their implementation or visual assets.
+
+---
+
+# DESIGN PRINCIPLES
+
+Consistency
+
+Predictability
+
+Accessibility
+
+Performance
+
+Clarity
+
+Minimal Clicks
+
+High Information Density
+
+No visual clutter
+
+---
+
+# GRID SYSTEM
+
+12 Column Grid
+
+8px spacing system
+
+Desktop First
+
+Responsive
+
+---
+
+# BREAKPOINTS
+
+Mobile
+
+Tablet
+
+Laptop
+
+Desktop
+
+Ultra Wide
+
+---
+
+# COLORS
+
+Theme System
+
+Primary
+
+Secondary
+
+Success
+
+Warning
+
+Danger
+
+Info
+
+Neutral
+
+Dark
+
+Light
+
+Never hardcode colors.
+
+All colors come from design tokens.
+
+---
+
+# TYPOGRAPHY
+
+One Font Family
+
+Five Heading Levels
+
+Body
+
+Caption
+
+Code Font
+
+Consistent line height
+
+Consistent spacing
+
+---
+
+# ICONS
+
+Lucide Icons
+
+Single Icon Library
+
+No mixed icon libraries
+
+---
+
+# BUTTONS
+
+Primary
+
+Secondary
+
+Outline
+
+Ghost
+
+Danger
+
+Icon Button
+
+Loading Button
+
+Disabled Button
+
+Every button supports
+
+Loading
+
+Disabled
+
+Tooltip
+
+Permission Control
+
+---
+
+# INPUT COMPONENTS
+
+Text
+
+Password
+
+Search
+
+Textarea
+
+Select
+
+Multi Select
+
+Checkbox
+
+Radio
+
+Switch
+
+Date
+
+Date Range
+
+File Upload
+
+Every input supports
+
+Validation
+
+Helper Text
+
+Error Message
+
+Placeholder
+
+Loading
+
+Disabled
+
+---
+
+# TABLES
+
+Enterprise Data Grid
+
+Features
+
+Pagination
+
+Sorting
+
+Filtering
+
+Search
+
+Column Resize
+
+Column Visibility
+
+Export
+
+Refresh
+
+Row Selection
+
+Bulk Actions
+
+Sticky Header
+
+Loading State
+
+Empty State
+
+Error State
+
+---
+
+# CARDS
+
+Metric Card
+
+Status Card
+
+Summary Card
+
+Chart Card
+
+Asset Card
+
+Alert Card
+
+Compact Card
+
+---
+
+# CHARTS
+
+Line
+
+Bar
+
+Pie
+
+Area
+
+Gauge
+
+Timeline
+
+Heatmap
+
+Topology
+
+All charts support
+
+Fullscreen
+
+Export
+
+Refresh
+
+Time Range
+
+---
+
+# DIALOGS
+
+Confirmation
+
+Delete
+
+Warning
+
+Success
+
+Wizard
+
+Fullscreen
+
+Every dialog
+
+ESC Close
+
+Focus Trap
+
+Keyboard Support
+
+---
+
+# WIZARDS
+
+Step Indicator
+
+Back
+
+Next
+
+Cancel
+
+Validation
+
+Progress
+
+Draft Save
+
+---
+
+# NAVIGATION
+
+Sidebar
+
+Breadcrumb
+
+Top Navigation
+
+Global Search
+
+Notification Center
+
+Profile Menu
+
+Favorites
+
+Recent Pages
+
+---
+
+# PAGE STRUCTURE
+
+Every page
+
+Header
+
+Toolbar
+
+Filters
+
+Main Content
+
+Status Bar
+
+Footer
+
+Loading
+
+Empty State
+
+Error State
+
+---
+
+# DASHBOARD
+
+Dashboard contains
+
+Summary Cards
+
+Health
+
+Alerts
+
+Charts
+
+Recent Jobs
+
+Quick Actions
+
+System Status
+
+Recent Activity
+
+---
+
+# NOTIFICATIONS
+
+Toast
+
+Inline
+
+Banner
+
+Modal
+
+Persistent Notifications
+
+---
+
+# LOADING
+
+Skeleton
+
+Progress Bar
+
+Spinner
+
+Shimmer
+
+---
+
+# EMPTY STATES
+
+Illustration
+
+Description
+
+Action Button
+
+Help Link
+
+---
+
+# ERROR STATES
+
+Friendly Message
+
+Retry
+
+Diagnostic Details
+
+Support Link
+
+---
+
+# SEARCH
+
+Global Search
+
+Module Search
+
+Saved Filters
+
+Advanced Search
+
+---
+
+# ACCESSIBILITY
+
+Keyboard Navigation
+
+ARIA Labels
+
+Focus Indicators
+
+Screen Reader
+
+Color Contrast
+
+---
+
+# ANIMATIONS
+
+Fast
+
+Minimal
+
+Professional
+
+No unnecessary animations
+
+---
+
+# DARK MODE
+
+Required
+
+Complete
+
+No visual inconsistencies
+
+---
+
+# RESPONSIVENESS
+
+Desktop
+
+Tablet
+
+Mobile
+
+Every page must adapt correctly.
+
+---
+
+# UI PERMISSIONS
+
+Hide
+
+Disable
+
+Read Only
+
+Based on RBAC.
+
+---
+
+# UX RULES
+
+Never ask the user twice for the same information.
+
+Never lose form data.
+
+Warn before leaving unsaved pages.
+
+Provide meaningful validation messages.
+
+---
+
+# CLAUDE IMPLEMENTATION RULE
+
+Claude SHALL use this design system for every future frontend module.
+
+Claude SHALL NOT invent new component styles.
+
+Claude SHALL reuse shared UI components.
+
+---
+
+# DEFINITION OF DONE
+
+Design System frozen.
+
+Component behavior frozen.
+
+Future UI must comply.
+
+End of Prompt 010.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

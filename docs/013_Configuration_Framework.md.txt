@@ -1,0 +1,397 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 013
+
+## Enterprise Configuration Framework
+
+Reference
+
+Prompt 000
+Prompt 001
+Prompt 002
+Prompt 003
+Prompt 004
+Prompt 005
+Prompt 006
+Prompt 007
+Prompt 008
+Prompt 009
+Prompt 010
+Prompt 011
+Prompt 012
+
+---
+
+ROLE
+
+You are the Principal Platform Engineer.
+
+Implement the Enterprise Configuration Framework.
+
+Do not redesign.
+
+Do not simplify.
+
+Follow every previous specification.
+
+---
+
+OBJECTIVE
+
+Create the complete configuration framework used by every microservice.
+
+Every service SHALL use this package.
+
+No service may load environment variables directly.
+
+---
+
+PACKAGE
+
+packages/shared-core/config/
+
+---
+
+FOLDER STRUCTURE
+
+config/
+
+__init__.py
+
+settings.py
+
+loader.py
+
+validator.py
+
+environment.py
+
+profiles.py
+
+defaults.py
+
+constants.py
+
+exceptions.py
+
+helpers.py
+
+cache.py
+
+watcher.py
+
+tests/
+
+README.md
+
+---
+
+ENVIRONMENT SUPPORT
+
+Development
+
+Testing
+
+Staging
+
+Production
+
+Local
+
+CI
+
+---
+
+SUPPORTED FILES
+
+.env
+
+.env.local
+
+.env.development
+
+.env.testing
+
+.env.staging
+
+.env.production
+
+---
+
+LOAD ORDER
+
+Default
+
+↓
+
+Environment
+
+↓
+
+Secrets
+
+↓
+
+Runtime Overrides
+
+---
+
+CONFIGURATION SECTIONS
+
+Application
+
+Database
+
+Redis
+
+RabbitMQ
+
+Neo4j
+
+MinIO
+
+OpenSearch
+
+Authentication
+
+Logging
+
+Monitoring
+
+Telemetry
+
+Storage
+
+Email
+
+Notifications
+
+Scheduler
+
+AI
+
+Automation
+
+Inventory
+
+Validation
+
+Secrets
+
+---
+
+CONFIGURATION VALIDATION
+
+Every property
+
+Required
+
+Optional
+
+Type Validation
+
+Default Value
+
+Range Validation
+
+Enum Validation
+
+Regex Validation
+
+Cross-field Validation
+
+---
+
+ENVIRONMENT VARIABLES
+
+All variables
+
+UPPER_CASE
+
+Prefix
+
+AIIOS_
+
+Example
+
+AIIOS_DATABASE_HOST
+
+AIIOS_DATABASE_PORT
+
+---
+
+SECRET MANAGEMENT
+
+Never hardcode.
+
+Support
+
+Environment Variables
+
+Docker Secrets
+
+Kubernetes Secrets
+
+Future
+
+Vault
+
+AWS Secrets
+
+Azure Key Vault
+
+---
+
+HOT RELOAD
+
+Development only.
+
+Automatically reload configuration.
+
+Production
+
+Disabled.
+
+---
+
+CONFIGURATION CACHE
+
+Memory Cache
+
+TTL
+
+Invalidation
+
+Reload
+
+---
+
+CONFIGURATION API
+
+Provide reusable methods
+
+get()
+
+get_string()
+
+get_bool()
+
+get_int()
+
+get_float()
+
+get_list()
+
+get_dict()
+
+exists()
+
+reload()
+
+---
+
+ERROR HANDLING
+
+Invalid Configuration
+
+Missing Variable
+
+Invalid Type
+
+Missing Secret
+
+Unknown Environment
+
+Circular Configuration
+
+---
+
+LOGGING
+
+Every configuration load
+
+Success
+
+Failure
+
+Reload
+
+Validation Error
+
+---
+
+TESTING
+
+Unit Tests
+
+Validation Tests
+
+Environment Tests
+
+Performance Tests
+
+Coverage
+
+95%
+
+---
+
+DOCUMENTATION
+
+README
+
+Configuration Guide
+
+Environment Guide
+
+Developer Guide
+
+Migration Guide
+
+---
+
+ACCEPTANCE CRITERIA
+
+✓ All environments supported
+
+✓ Validation working
+
+✓ Cache working
+
+✓ Tests pass
+
+✓ Documentation complete
+
+✓ No hardcoded configuration
+
+---
+
+DO NOT IMPLEMENT
+
+Authentication
+
+Database Models
+
+REST APIs
+
+Business Logic
+
+Only Configuration Framework.
+
+---
+
+OUTPUT
+
+Generate complete production-ready implementation.
+
+Generate every file.
+
+Do not summarize.
+
+End Prompt 013.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

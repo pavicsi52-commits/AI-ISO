@@ -1,0 +1,11 @@
+{
+  "name": "ai-infrastructure-os",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Infrastructure Operating System — enterprise infrastructure automation platform",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.10.0"
+}

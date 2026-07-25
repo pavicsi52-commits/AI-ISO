@@ -1,0 +1,166 @@
+"""Tests for shared_core.database.migration that don't require a live PostgreSQL
+connection -- script-directory-only behavior (sync_dsn, validate_migrations) and
+failure-wrapping around a deliberately unreachable database.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from shared_core.database.exceptions import MigrationFailedError
+from shared_core.database.migration import (
+    build_alembic_config,
+    downgrade,
+    generate_revision,
+    sync_dsn,
+    upgrade,
+    validate_migrations,
+)
+
+# Port 1 on loopback; some platforms silently drop rather than RST a
+# connection to a closed port, so a short connect_timeout bounds the wait
+# instead of relying on the OS default (which can be very long).
+_UNREACHABLE_DSN = "postgresql+psycopg://user:pass@127.0.0.1:1/nonexistent?connect_timeout=2"
+
+_ENV_PY = """
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+config = context.config
+target_metadata = None
+
+
+def run_migrations_offline():
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online():
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+    with connectable.connect() as connection:
+        context.configure(connection=connection, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
+"""
+
+_SCRIPT_MAKO = '''"""${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+Create Date: ${create_date}
+
+"""
+from alembic import op
+import sqlalchemy as sa
+${imports if imports else ""}
+
+revision = ${repr(up_revision)}
+down_revision = ${repr(down_revision)}
+branch_labels = ${repr(branch_labels)}
+depends_on = ${repr(depends_on)}
+
+
+def upgrade() -> None:
+    ${upgrades if upgrades else "pass"}
+
+
+def downgrade() -> None:
+    ${downgrades if downgrades else "pass"}
+'''
+
+_SIMPLE_REVISION = '''"""noop
+
+Revision ID: {revision}
+Revises:
+Create Date: 2026-01-01 00:00:00
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = {revision!r}
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    pass
+
+
+def downgrade() -> None:
+    pass
+'''
+
+
+def _write_alembic_project(script_location: Path) -> None:
+    script_location.mkdir(parents=True, exist_ok=True)
+    (script_location / "env.py").write_text(_ENV_PY, encoding="utf-8")
+    (script_location / "script.py.mako").write_text(_SCRIPT_MAKO, encoding="utf-8")
+    (script_location / "versions").mkdir(exist_ok=True)
+
+
+def test_sync_dsn_leaves_non_asyncpg_dsn_unchanged() -> None:
+    dsn = "postgresql+psycopg://user:pass@localhost:5432/db"
+    assert sync_dsn(dsn) == dsn
+
+
+def test_validate_migrations_raises_on_diverged_heads(tmp_path: Path) -> None:
+    script_location = tmp_path / "migrations"
+    _write_alembic_project(script_location)
+    (script_location / "versions" / "aaa.py").write_text(
+        _SIMPLE_REVISION.format(revision="aaaaaaaaaaaa"), encoding="utf-8"
+    )
+    (script_location / "versions" / "bbb.py").write_text(
+        _SIMPLE_REVISION.format(revision="bbbbbbbbbbbb"), encoding="utf-8"
+    )
+    config = build_alembic_config(script_location=script_location, dsn=_UNREACHABLE_DSN)
+
+    with pytest.raises(MigrationFailedError, match="diverged"):
+        validate_migrations(config)
+
+
+def test_upgrade_wraps_connection_failure(tmp_path: Path) -> None:
+    script_location = tmp_path / "migrations"
+    _write_alembic_project(script_location)
+    (script_location / "versions" / "one.py").write_text(
+        _SIMPLE_REVISION.format(revision="one000000000"), encoding="utf-8"
+    )
+    config = build_alembic_config(script_location=script_location, dsn=_UNREACHABLE_DSN)
+
+    with pytest.raises(MigrationFailedError, match="upgrade"):
+        upgrade(config, "head")
+
+
+def test_downgrade_wraps_connection_failure(tmp_path: Path) -> None:
+    script_location = tmp_path / "migrations"
+    _write_alembic_project(script_location)
+    (script_location / "versions" / "one.py").write_text(
+        _SIMPLE_REVISION.format(revision="one000000000"), encoding="utf-8"
+    )
+    config = build_alembic_config(script_location=script_location, dsn=_UNREACHABLE_DSN)
+
+    with pytest.raises(MigrationFailedError, match="downgrade"):
+        downgrade(config, "base")
+
+
+def test_generate_revision_autogenerate_wraps_connection_failure(tmp_path: Path) -> None:
+    script_location = tmp_path / "migrations"
+    _write_alembic_project(script_location)
+    config = build_alembic_config(script_location=script_location, dsn=_UNREACHABLE_DSN)
+
+    with pytest.raises(MigrationFailedError, match="generation"):
+        generate_revision(config, "autogenerated change", autogenerate=True)

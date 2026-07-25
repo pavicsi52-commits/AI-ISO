@@ -1,0 +1,46 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ios-gateway
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "ai-ios.componentLabels" (dict "component" "gateway" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  replicas: {{ .Values.gateway.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gateway
+      app.kubernetes.io/instance: {{ .Release.Name }}-gateway
+  template:
+    metadata:
+      labels:
+        {{- include "ai-ios.componentLabels" (dict "component" "gateway" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      containers:
+        - name: gateway
+          image: "{{ .Values.image.registry }}{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.gateway.port }}
+          envFrom:
+            - configMapRef:
+                name: ai-ios-config
+            - secretRef:
+                name: ai-ios-secrets
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+{{- end }}

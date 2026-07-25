@@ -1,0 +1,158 @@
+[project]
+name = "ai-infrastructure-os"
+version = "0.1.0"
+description = "AI Infrastructure Operating System — enterprise infrastructure automation platform"
+requires-python = ">=3.13"
+readme = "README.md"
+license = { text = "Proprietary" }
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["services/*", "packages/*"]
+
+[dependency-groups]
+dev = [
+  "ruff>=0.8.0",
+  "black>=24.10.0",
+  "mypy>=1.13.0",
+  "bandit[toml]>=1.8.0",
+  "pip-audit>=2.7.3",
+  "pip-system-certs>=4.0", # trusts the OS cert store; required behind corporate TLS-inspecting proxies
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+  "pytest-cov>=6.0.0",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff — linting and import sorting only. Black owns formatting.
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "I", "N", "UP", "B", "C4", "SIM", "RUF",
+  "ASYNC", "PL", "PTH", "TID", "Q",
+]
+ignore = [
+  "PLR0913", # allow >5 args for DI-heavy constructors; reviewed case by case
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Literal status codes / values in test assertions are standard practice, not magic numbers.
+"tests/*" = ["PLR2004"]
+"**/tests/*" = ["PLR2004"]
+
+# ---------------------------------------------------------------------------
+# Black — formatting
+# ---------------------------------------------------------------------------
+[tool.black]
+line-length = 100
+target-version = ["py313"]
+extend-exclude = "migrations/versions"
+
+# ---------------------------------------------------------------------------
+# MyPy — strict static analysis
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_any_generics = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+exclude = ["migrations/versions"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+# msgpack ships no py.typed marker and no stub package exists on PyPI.
+module = "msgpack.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# ntplib, grpc_health.v1, and pysnmp ship no py.typed marker and no stub
+# package exists on PyPI for any of the three (confirmed: no
+# types-ntplib/types-pysnmp on PyPI; grpc_health.v1's generated stubs
+# aren't covered by types-grpcio, which only covers the grpc/grpc.aio
+# core package). Used by services/discovery-service's own
+# ntp_scanner.py/grpc_scanner.py/snmp_scanner.py.
+module = ["ntplib.*", "grpc_health.*", "pysnmp.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# pyghmi, redfish, smbclient/smbprotocol, and wmi ship no py.typed
+# marker and no stub package exists on PyPI for any of the four
+# (types-pywin32 covers pythoncom itself, not the separate wmi
+# package). Used by services/discovery-service's own
+# ipmi_scanner.py/redfish_scanner.py/smb_scanner.py/wmi_scanner.py.
+module = ["pyghmi.*", "redfish.*", "smbclient.*", "smbprotocol.*", "wmi.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# kubernetes ships no py.typed marker; the only PyPI stub package
+# (kubernetes-stubs 22.6.0) is 14 major versions behind the client
+# actually used here (36.0.3) and produces more version-drift false
+# positives than it resolves. Used by
+# services/discovery-service's own kubernetes_provider.py.
+module = "kubernetes.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# pyftpdlib ships no py.typed marker and no stub package exists on
+# PyPI. Used only by services/discovery-service's own
+# tests/test_scanner_ftp.py to stand up a real, local FTP server for
+# ftp_scanner.py's own test suite.
+module = "pyftpdlib.*"
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# Bandit — security scanning
+# ---------------------------------------------------------------------------
+[tool.bandit]
+exclude_dirs = ["tests", ".venv", "node_modules"]
+skips = []
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["app", "src"]
+omit = ["*/tests/*", "*/migrations/versions/*"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "def __repr__",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

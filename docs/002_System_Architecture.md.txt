@@ -1,0 +1,511 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 002
+
+## Master System Architecture
+
+Reference Documents
+
+- Prompt 000 - Engineering Constitution
+- Prompt 001 - Product Vision
+
+---
+
+# ROLE
+
+You are a Principal Enterprise Software Architect.
+
+You SHALL NOT redesign this architecture.
+
+You SHALL implement only this architecture.
+
+Do not simplify.
+
+Do not replace technologies.
+
+Do not remove services.
+
+Do not invent new folder structures.
+
+Everything must follow this specification.
+
+---
+
+# SYSTEM ARCHITECTURE
+
+The platform SHALL follow a modular Microservices Architecture.
+
+Each service shall be independently deployable.
+
+Each service shall own its own domain.
+
+Each service shall expose REST APIs.
+
+Each service shall support Docker.
+
+Each service shall support Kubernetes.
+
+Each service shall expose OpenAPI.
+
+Each service shall expose Health Endpoints.
+
+Each service shall expose Metrics.
+
+---
+
+# HIGH LEVEL ARCHITECTURE
+
+                    +--------------------------+
+                    |        Next.js UI        |
+                    +------------+-------------+
+                                 |
+                                 |
+                     HTTPS / REST API
+                                 |
+                                 |
+                     +-----------+-----------+
+                     |      API Gateway      |
+                     +-----------+-----------+
+                                 |
+     -------------------------------------------------------------
+      |       |       |       |       |       |       |          |
+      |       |       |       |       |       |       |          |
+ Authentication Inventory Automation Validation Monitoring AI Notification
+      |       |       |       |       |       |       |          |
+      ------------------------------------------------------------
+                                 |
+                           PostgreSQL
+                                 |
+                 Redis / RabbitMQ / Neo4j / MinIO
+
+---
+
+# SYSTEM LAYERS
+
+Presentation Layer
+
+↓
+
+API Gateway
+
+↓
+
+Business Services
+
+↓
+
+Workflow Engine
+
+↓
+
+Automation Engine
+
+↓
+
+Infrastructure Connectors
+
+↓
+
+Storage Layer
+
+↓
+
+External Systems
+
+---
+
+# PROJECT STRUCTURE
+
+AI-IOS/
+
+apps/
+
+services/
+
+packages/
+
+libraries/
+
+infrastructure/
+
+deployments/
+
+docs/
+
+scripts/
+
+tests/
+
+tools/
+
+---
+
+# APPS
+
+apps/
+
+frontend/
+
+admin/
+
+mobile/
+
+desktop/
+
+future/
+
+---
+
+# SERVICES
+
+services/
+
+auth-service/
+
+organization-service/
+
+project-service/
+
+team-service/
+
+inventory-service/
+
+asset-discovery-service/
+
+knowledge-graph-service/
+
+automation-service/
+
+playbook-service/
+
+execution-service/
+
+workflow-service/
+
+validation-service/
+
+monitoring-service/
+
+alert-service/
+
+notification-service/
+
+audit-service/
+
+report-service/
+
+license-service/
+
+ai-service/
+
+secret-service/
+
+scheduler-service/
+
+settings-service/
+
+gateway/
+
+---
+
+# SHARED PACKAGES
+
+packages/
+
+shared-models/
+
+shared-utils/
+
+shared-auth/
+
+shared-api/
+
+shared-events/
+
+shared-validation/
+
+shared-logging/
+
+shared-config/
+
+shared-testing/
+
+shared-security/
+
+---
+
+# INFRASTRUCTURE
+
+infrastructure/
+
+docker/
+
+kubernetes/
+
+helm/
+
+terraform/
+
+ansible/
+
+nginx/
+
+database/
+
+monitoring/
+
+logging/
+
+---
+
+# DOCUMENTATION
+
+docs/
+
+architecture/
+
+database/
+
+api/
+
+deployment/
+
+operations/
+
+developer/
+
+security/
+
+testing/
+
+user-guide/
+
+---
+
+# DATABASES
+
+PostgreSQL
+
+Primary relational database.
+
+Redis
+
+Caching.
+
+RabbitMQ
+
+Background jobs.
+
+Neo4j
+
+Knowledge Graph.
+
+MinIO
+
+Object Storage.
+
+OpenSearch
+
+Search Engine.
+
+---
+
+# SERVICE COMMUNICATION
+
+Synchronous
+
+REST
+
+Asynchronous
+
+RabbitMQ Events
+
+No service shall directly access another service's database.
+
+Communication shall happen only through APIs or Events.
+
+---
+
+# API GATEWAY RESPONSIBILITIES
+
+Authentication
+
+Authorization
+
+Rate Limiting
+
+Request Validation
+
+Routing
+
+Logging
+
+Metrics
+
+Versioning
+
+API Documentation
+
+---
+
+# DOMAIN OWNERSHIP
+
+Every service owns its own tables.
+
+Every service owns its own migrations.
+
+No shared database tables.
+
+No direct joins across services.
+
+---
+
+# CONFIGURATION
+
+Every service shall have
+
+.env
+
+config.py
+
+settings.py
+
+health.py
+
+metrics.py
+
+logging.py
+
+---
+
+# LOGGING
+
+Every request shall contain
+
+Request ID
+
+Correlation ID
+
+User ID
+
+Organization ID
+
+Project ID
+
+Timestamp
+
+---
+
+# SECURITY
+
+JWT
+
+RBAC
+
+API Keys
+
+Secrets
+
+Encryption
+
+HTTPS Only
+
+Audit Logging
+
+---
+
+# OBSERVABILITY
+
+Prometheus Metrics
+
+OpenTelemetry
+
+Health Endpoints
+
+Readiness
+
+Liveness
+
+Tracing
+
+Structured Logs
+
+---
+
+# DEPLOYMENT
+
+Development
+
+Docker Compose
+
+Testing
+
+Docker Compose
+
+Production
+
+Kubernetes
+
+Helm
+
+---
+
+# FAILOVER
+
+Every service shall be stateless.
+
+Persistent data shall remain in databases.
+
+Services shall be restartable.
+
+Services shall support horizontal scaling.
+
+---
+
+# BACKUP
+
+Database Backup
+
+Object Storage Backup
+
+Configuration Backup
+
+Knowledge Graph Backup
+
+Secrets Backup
+
+---
+
+# IMPLEMENTATION RULES
+
+Claude SHALL NOT redesign the architecture.
+
+Claude SHALL NOT merge services.
+
+Claude SHALL NOT introduce monolithic architecture.
+
+Claude SHALL follow this architecture exactly.
+
+Future prompts depend on this document.
+
+---
+
+# DEFINITION OF DONE
+
+Architecture documented.
+
+Folder structure finalized.
+
+Technology decisions frozen.
+
+Service boundaries frozen.
+
+No implementation code shall be generated in this prompt.
+
+End of Prompt 002.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

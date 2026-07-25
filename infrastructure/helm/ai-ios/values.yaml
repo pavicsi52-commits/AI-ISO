@@ -1,0 +1,54 @@
+namespace: ai-ios
+
+image:
+  registry: ""
+  pullPolicy: IfNotPresent
+
+gateway:
+  enabled: true
+  image:
+    repository: aiios/gateway
+    tag: latest
+  replicas: 2
+  port: 8000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+frontend:
+  enabled: true
+  image:
+    repository: aiios/frontend
+    tag: latest
+  replicas: 2
+  port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+config:
+  environment: production
+  logLevel: INFO
+
+# Secret VALUES are intentionally left empty here. Populate via
+# `--set-string secrets.xxx=...`, a values override file that is never
+# committed, or an external secret manager integration in a future prompt.
+secrets:
+  jwtPrivateKey: ""
+  jwtPublicKey: ""
+
+ingress:
+  enabled: false
+  className: nginx
+  host: ai-ios.example.internal
+  tls:
+    enabled: false
+    secretName: ai-ios-tls

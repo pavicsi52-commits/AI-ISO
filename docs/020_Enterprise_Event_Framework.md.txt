@@ -1,0 +1,581 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 020
+
+## Enterprise Event Framework
+
+Reference Documents
+
+Prompt 000
+Prompt 001
+Prompt 002
+Prompt 003
+Prompt 004
+Prompt 005
+Prompt 006
+Prompt 007
+Prompt 008
+Prompt 009
+Prompt 010
+Prompt 011
+Prompt 012
+Prompt 013
+Prompt 014
+Prompt 015
+Prompt 016
+Prompt 017
+Prompt 018
+Prompt 019
+
+---
+
+# ROLE
+
+You are the Principal Distributed Systems Architect.
+
+Implement the Enterprise Event Framework.
+
+Do not redesign the platform.
+
+Do not implement business logic.
+
+Implement only the reusable event framework.
+
+---
+
+# OBJECTIVE
+
+Create a centralized Event Framework for AI-IOS.
+
+Every microservice SHALL publish events through this framework.
+
+Every microservice SHALL consume events through this framework.
+
+No service may directly implement event publishing or event subscription.
+
+The framework must provide
+
+- Domain Events
+- Integration Events
+- Internal Events
+- Event Registry
+- Event Bus
+- Event Versioning
+- Event Validation
+- Event Retry
+- Event Replay
+- Event Dead Letter Support
+- Event Metrics
+- Event Audit
+
+---
+
+# PACKAGE
+
+packages/shared-core/events/
+
+---
+
+# DIRECTORY STRUCTURE
+
+events/
+
+__init__.py
+
+base.py
+
+registry.py
+
+publisher.py
+
+subscriber.py
+
+dispatcher.py
+
+router.py
+
+bus.py
+
+manager.py
+
+serializer.py
+
+validator.py
+
+versioning.py
+
+replay.py
+
+dead_letter.py
+
+retry.py
+
+audit.py
+
+metadata.py
+
+constants.py
+
+exceptions.py
+
+factory.py
+
+decorators.py
+
+middleware.py
+
+metrics.py
+
+health.py
+
+helpers.py
+
+tests/
+
+README.md
+
+---
+
+# EVENT TYPES
+
+Domain Events
+
+Integration Events
+
+Internal Events
+
+Scheduled Events
+
+System Events
+
+Audit Events
+
+Notification Events
+
+Workflow Events
+
+Automation Events
+
+Inventory Events
+
+Validation Events
+
+Monitoring Events
+
+Security Events
+
+AI Events
+
+---
+
+# DOMAIN EVENTS
+
+Represent business facts.
+
+Examples
+
+UserCreated
+
+OrganizationCreated
+
+ProjectCreated
+
+AssetDiscovered
+
+PlaybookExecuted
+
+WorkflowCompleted
+
+ValidationFinished
+
+AlertCreated
+
+---
+
+# INTEGRATION EVENTS
+
+Used between microservices.
+
+Never expose internal database objects.
+
+Payloads must be stable.
+
+Versioned.
+
+---
+
+# INTERNAL EVENTS
+
+Internal service communication only.
+
+Never leave the owning service.
+
+---
+
+# EVENT FORMAT
+
+Every event SHALL contain
+
+event_id
+
+event_name
+
+event_version
+
+event_type
+
+source_service
+
+organization_id
+
+project_id
+
+user_id
+
+timestamp
+
+correlation_id
+
+request_id
+
+payload
+
+metadata
+
+---
+
+# EVENT NAMING
+
+Past tense.
+
+Examples
+
+UserCreated
+
+AssetUpdated
+
+PlaybookDeleted
+
+WorkflowStarted
+
+ExecutionCompleted
+
+ValidationFailed
+
+---
+
+# EVENT VERSIONING
+
+Every event SHALL include version.
+
+Support
+
+v1
+
+v2
+
+v3
+
+Consumers must support backward compatibility.
+
+---
+
+# EVENT REGISTRY
+
+Central registry of all events.
+
+Provide
+
+Registration
+
+Lookup
+
+Validation
+
+Compatibility
+
+Documentation
+
+---
+
+# PUBLISHER
+
+Support
+
+Publish
+
+Publish Batch
+
+Publish Async
+
+Retry
+
+Confirmation
+
+Failure Handling
+
+---
+
+# SUBSCRIBER
+
+Register
+
+Subscribe
+
+Unsubscribe
+
+Retry
+
+Backoff
+
+Dead Letter
+
+Health Check
+
+---
+
+# DISPATCHER
+
+Route events to subscribers.
+
+Support
+
+Priority
+
+Ordering
+
+Filtering
+
+Conditional Routing
+
+---
+
+# RETRY
+
+Exponential Backoff
+
+Maximum Attempts
+
+Retry Delay
+
+Retry Metrics
+
+Retry Classification
+
+---
+
+# DEAD LETTER
+
+Move failed events.
+
+Store metadata.
+
+Allow replay.
+
+Allow inspection.
+
+---
+
+# REPLAY
+
+Replay by
+
+Time Range
+
+Organization
+
+Project
+
+Service
+
+Event Type
+
+Correlation ID
+
+---
+
+# VALIDATION
+
+Every event validated before publish.
+
+Validate
+
+Schema
+
+Version
+
+Payload
+
+Metadata
+
+Tenant
+
+Permissions
+
+---
+
+# AUDIT
+
+Audit every publish.
+
+Audit every consume.
+
+Audit every replay.
+
+Audit every failure.
+
+---
+
+# METRICS
+
+Published
+
+Consumed
+
+Failed
+
+Retried
+
+Dead Letter
+
+Replay
+
+Latency
+
+Throughput
+
+Expose Prometheus metrics.
+
+---
+
+# SECURITY
+
+Validate Tenant
+
+Validate Permissions
+
+Mask Sensitive Data
+
+Never publish secrets.
+
+---
+
+# PERFORMANCE
+
+Async
+
+Batch
+
+Compression
+
+Efficient Serialization
+
+Support thousands of events per second.
+
+---
+
+# TESTING
+
+Unit Tests
+
+Integration Tests
+
+Replay Tests
+
+Retry Tests
+
+Dead Letter Tests
+
+Performance Tests
+
+Coverage >=95%
+
+---
+
+# DOCUMENTATION
+
+README
+
+Architecture Guide
+
+Publisher Guide
+
+Subscriber Guide
+
+Replay Guide
+
+Developer Guide
+
+Examples
+
+---
+
+# ACCEPTANCE CRITERIA
+
+✓ Event Registry
+
+✓ Publisher
+
+✓ Subscriber
+
+✓ Dispatcher
+
+✓ Retry
+
+✓ Replay
+
+✓ Dead Letter
+
+✓ Metrics
+
+✓ Audit
+
+✓ Validation
+
+✓ Tests Passing
+
+✓ Documentation Complete
+
+---
+
+# DO NOT IMPLEMENT
+
+RabbitMQ
+
+Business Logic
+
+Authentication
+
+REST APIs
+
+Business Modules
+
+Only the Enterprise Event Framework.
+
+---
+
+# OUTPUT
+
+Generate every required file.
+
+Generate complete production-ready implementation.
+
+No placeholders.
+
+No TODO comments.
+
+No demo code.
+
+The implementation must compile successfully.
+
+The implementation must pass Ruff, Black, MyPy and Pytest.
+
+Do not summarize.
+
+End Prompt 020.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

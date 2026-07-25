@@ -1,0 +1,490 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 014
+
+## Enterprise Logging Framework
+
+Reference Documents
+
+Prompt 000
+Prompt 001
+Prompt 002
+Prompt 003
+Prompt 004
+Prompt 005
+Prompt 006
+Prompt 007
+Prompt 008
+Prompt 009
+Prompt 010
+Prompt 011
+Prompt 012
+Prompt 013
+
+---
+
+ROLE
+
+You are the Principal Platform Engineer.
+
+Implement the Enterprise Logging Framework.
+
+Do not redesign.
+
+Do not simplify.
+
+Do not skip any feature.
+
+---
+
+OBJECTIVE
+
+Create the centralized logging framework.
+
+Every microservice SHALL use this framework.
+
+No service may use print().
+
+No service may create its own logger.
+
+Every service shall use the shared logger.
+
+---
+
+PACKAGE
+
+packages/shared-core/logging/
+
+---
+
+DIRECTORY STRUCTURE
+
+logging/
+
+__init__.py
+
+logger.py
+
+formatter.py
+
+handlers.py
+
+json_formatter.py
+
+context.py
+
+request_context.py
+
+middleware.py
+
+filters.py
+
+config.py
+
+rotation.py
+
+retention.py
+
+factory.py
+
+constants.py
+
+exceptions.py
+
+tests/
+
+README.md
+
+---
+
+LOG FORMAT
+
+JSON only.
+
+Every log record SHALL contain
+
+timestamp
+
+level
+
+service
+
+environment
+
+hostname
+
+request_id
+
+correlation_id
+
+organization_id
+
+project_id
+
+user_id
+
+session_id
+
+trace_id
+
+span_id
+
+thread_id
+
+process_id
+
+method
+
+url
+
+status_code
+
+latency_ms
+
+ip_address
+
+user_agent
+
+message
+
+exception
+
+---
+
+LOG LEVELS
+
+TRACE
+
+DEBUG
+
+INFO
+
+WARNING
+
+ERROR
+
+CRITICAL
+
+Support runtime configuration.
+
+---
+
+LOG OUTPUTS
+
+Console
+
+File
+
+OpenTelemetry
+
+Future
+
+Kafka
+
+Cloud Logging
+
+Elastic
+
+---
+
+LOG ROTATION
+
+Daily
+
+Maximum Size
+
+Compression
+
+Retention Policy
+
+Automatic Cleanup
+
+---
+
+REQUEST LOGGING
+
+Incoming Request
+
+Outgoing Response
+
+Execution Time
+
+Payload Size
+
+Status Code
+
+Headers (safe only)
+
+Never log secrets.
+
+Never log passwords.
+
+Never log tokens.
+
+---
+
+EXCEPTION LOGGING
+
+Stack Trace
+
+Context
+
+Request ID
+
+Correlation ID
+
+Service
+
+Environment
+
+Severity
+
+---
+
+AUDIT LOGGING
+
+Authentication
+
+Authorization
+
+Configuration Changes
+
+CRUD Operations
+
+Playbook Execution
+
+Workflow Execution
+
+Secret Access
+
+Permission Changes
+
+User Management
+
+License Changes
+
+---
+
+PERFORMANCE LOGGING
+
+Slow Queries
+
+Slow APIs
+
+Slow Jobs
+
+Memory Usage
+
+CPU Usage
+
+Queue Length
+
+Database Latency
+
+---
+
+SECURITY LOGGING
+
+Failed Login
+
+Permission Denied
+
+Invalid Token
+
+Suspicious Activity
+
+Rate Limit
+
+Account Lock
+
+Password Reset
+
+MFA Events
+
+---
+
+STRUCTURED CONTEXT
+
+Every request automatically injects
+
+Request ID
+
+Correlation ID
+
+Organization
+
+Project
+
+User
+
+Execution Time
+
+Service
+
+Environment
+
+---
+
+LOGGER API
+
+Provide reusable methods
+
+trace()
+
+debug()
+
+info()
+
+warning()
+
+error()
+
+critical()
+
+audit()
+
+security()
+
+performance()
+
+exception()
+
+---
+
+INTEGRATION
+
+FastAPI Middleware
+
+Background Workers
+
+Celery
+
+RabbitMQ
+
+CLI
+
+Scheduler
+
+Every component must use same logger.
+
+---
+
+CONFIGURATION
+
+Log Level
+
+Output
+
+Rotation
+
+Retention
+
+Formatting
+
+Masking
+
+Loaded from Configuration Framework.
+
+---
+
+MASKING
+
+Automatically mask
+
+Passwords
+
+Secrets
+
+JWT
+
+Tokens
+
+API Keys
+
+Credit Cards
+
+PII
+
+---
+
+TESTING
+
+Unit Tests
+
+Performance Tests
+
+Stress Tests
+
+Context Tests
+
+Masking Tests
+
+Coverage
+
+95%
+
+---
+
+DOCUMENTATION
+
+README
+
+Usage Guide
+
+Integration Guide
+
+Configuration Guide
+
+Troubleshooting Guide
+
+---
+
+ACCEPTANCE CRITERIA
+
+✓ JSON Logging
+
+✓ Context Injection
+
+✓ Rotation Working
+
+✓ Masking Working
+
+✓ OpenTelemetry Integration
+
+✓ Tests Passing
+
+✓ Documentation Complete
+
+---
+
+DO NOT IMPLEMENT
+
+Authentication
+
+REST APIs
+
+Business Logic
+
+Database Models
+
+Only Enterprise Logging Framework.
+
+---
+
+OUTPUT
+
+Generate complete production-ready implementation.
+
+Generate every required file.
+
+Do not generate placeholders.
+
+Do not summarize.
+
+End Prompt 014.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

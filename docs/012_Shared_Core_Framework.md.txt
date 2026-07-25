@@ -1,0 +1,690 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 012
+
+## Enterprise Shared Core Framework
+
+Reference
+
+- Prompt 000
+- Prompt 001
+- Prompt 002
+- Prompt 003
+- Prompt 004
+- Prompt 005
+- Prompt 006
+- Prompt 007
+- Prompt 008
+- Prompt 009
+- Prompt 010
+- Prompt 011
+
+---
+
+# ROLE
+
+You are the Principal Platform Engineer.
+
+You SHALL implement the complete Shared Core Framework.
+
+Do not redesign.
+
+Do not simplify.
+
+Follow every previous specification.
+
+---
+
+# OBJECTIVE
+
+Create the Enterprise Shared Framework.
+
+Every future microservice SHALL use this framework.
+
+No duplicate implementation is allowed.
+
+This framework becomes the foundation of the platform.
+
+---
+
+# CREATE PACKAGE
+
+packages/shared-core/
+
+---
+
+# CREATE FOLDER STRUCTURE
+
+packages/
+
+shared-core/
+
+src/
+
+config/
+
+constants/
+
+enums/
+
+exceptions/
+
+middleware/
+
+models/
+
+schemas/
+
+responses/
+
+requests/
+
+validators/
+
+security/
+
+logging/
+
+database/
+
+events/
+
+queue/
+
+cache/
+
+storage/
+
+monitoring/
+
+metrics/
+
+telemetry/
+
+utils/
+
+helpers/
+
+decorators/
+
+interfaces/
+
+types/
+
+base/
+
+tests/
+
+README.md
+
+pyproject.toml
+
+---
+
+# CONFIGURATION FRAMEWORK
+
+Implement
+
+Environment Loader
+
+Settings Manager
+
+Configuration Validator
+
+Secret Resolver
+
+Configuration Cache
+
+Environment Profiles
+
+Development
+
+Testing
+
+Staging
+
+Production
+
+No hardcoded values.
+
+---
+
+# CONSTANTS
+
+Create centralized constants.
+
+No magic values.
+
+Categories
+
+HTTP
+
+Database
+
+Redis
+
+RabbitMQ
+
+Neo4j
+
+Docker
+
+Kubernetes
+
+Authentication
+
+Validation
+
+Logging
+
+Monitoring
+
+AI
+
+Automation
+
+Inventory
+
+---
+
+# ENUMS
+
+Create centralized enums.
+
+HTTP Methods
+
+Roles
+
+Permissions
+
+Job Status
+
+Health Status
+
+Asset Status
+
+Execution Status
+
+Validation Status
+
+Severity
+
+Priority
+
+Notification Types
+
+Audit Actions
+
+---
+
+# BASE MODELS
+
+Create reusable base models.
+
+Timestamp Model
+
+Audit Model
+
+UUID Model
+
+Soft Delete Model
+
+Tenant Model
+
+Version Model
+
+Every future database model inherits these.
+
+---
+
+# REQUEST MODELS
+
+Base Request
+
+Pagination Request
+
+Search Request
+
+Filter Request
+
+Sort Request
+
+Bulk Request
+
+Import Request
+
+Export Request
+
+---
+
+# RESPONSE MODELS
+
+Success Response
+
+Error Response
+
+Validation Response
+
+List Response
+
+Pagination Response
+
+Job Response
+
+Health Response
+
+---
+
+# VALIDATION
+
+Create reusable validators.
+
+UUID
+
+Email
+
+Hostname
+
+IP Address
+
+IPv6
+
+MAC
+
+Port
+
+URL
+
+Domain
+
+Password
+
+Username
+
+Project Name
+
+Organization Name
+
+Asset Name
+
+Playbook Name
+
+---
+
+# EXCEPTION FRAMEWORK
+
+Create custom exceptions.
+
+Validation
+
+Authentication
+
+Authorization
+
+Database
+
+Not Found
+
+Conflict
+
+Timeout
+
+Configuration
+
+Dependency
+
+Rate Limit
+
+Business Rule
+
+AI
+
+Automation
+
+---
+
+# MIDDLEWARE
+
+Request ID
+
+Correlation ID
+
+Timing
+
+Logging
+
+Compression
+
+Security Headers
+
+Rate Limiting
+
+Tenant Resolution
+
+Localization
+
+---
+
+# LOGGING
+
+Structured Logger
+
+JSON
+
+Correlation
+
+Request ID
+
+Organization
+
+Project
+
+User
+
+Execution Time
+
+API
+
+Status Code
+
+No print().
+
+---
+
+# SECURITY
+
+Password Hash
+
+JWT Helpers
+
+Permission Helpers
+
+RBAC Helpers
+
+Encryption
+
+Secret Helpers
+
+Token Helpers
+
+---
+
+# DATABASE
+
+Base Repository
+
+Repository Interface
+
+Database Session Manager
+
+Transaction Manager
+
+Migration Helpers
+
+Connection Helpers
+
+---
+
+# CACHE
+
+Redis Wrapper
+
+Distributed Lock
+
+TTL Manager
+
+Cache Keys
+
+Cache Decorators
+
+---
+
+# EVENTS
+
+Base Event
+
+Publisher
+
+Consumer
+
+Serializer
+
+Event Registry
+
+Retry Logic
+
+---
+
+# QUEUE
+
+RabbitMQ Wrapper
+
+Queue Manager
+
+Retry Queue
+
+Dead Letter Queue
+
+Worker Base
+
+---
+
+# STORAGE
+
+MinIO Wrapper
+
+Upload
+
+Download
+
+Delete
+
+Presigned URL
+
+Metadata
+
+---
+
+# TELEMETRY
+
+OpenTelemetry
+
+Metrics
+
+Tracing
+
+Spans
+
+Instrumentation
+
+---
+
+# MONITORING
+
+Health Framework
+
+Readiness
+
+Liveness
+
+Metrics
+
+Dependency Checker
+
+---
+
+# DECORATORS
+
+RequiresPermission
+
+RequiresRole
+
+RequiresOrganization
+
+RequiresProject
+
+Audit
+
+Transaction
+
+Cache
+
+RateLimit
+
+Validate
+
+---
+
+# HELPERS
+
+UUID
+
+Date
+
+Time
+
+JSON
+
+String
+
+Collection
+
+Retry
+
+Hash
+
+Compression
+
+File
+
+Environment
+
+---
+
+# INTERFACES
+
+Repository Interface
+
+Service Interface
+
+Event Interface
+
+Queue Interface
+
+Storage Interface
+
+Validator Interface
+
+---
+
+# TYPES
+
+Shared Type Definitions
+
+API Types
+
+Database Types
+
+Event Types
+
+Queue Types
+
+Response Types
+
+---
+
+# TESTING
+
+Unit Tests
+
+Integration Tests
+
+Performance Tests
+
+Mock Framework
+
+Fixture Framework
+
+Factory Framework
+
+Coverage >95%
+
+---
+
+# DOCUMENTATION
+
+README
+
+Architecture
+
+API
+
+Examples
+
+Developer Guide
+
+Migration Guide
+
+---
+
+# ACCEPTANCE CRITERIA
+
+✓ Shared package builds
+
+✓ Imports work
+
+✓ Type checking passes
+
+✓ Ruff passes
+
+✓ Black passes
+
+✓ Tests pass
+
+✓ Documentation generated
+
+✓ Docker compatible
+
+✓ Ready for reuse
+
+---
+
+# DO NOT IMPLEMENT
+
+Authentication
+
+Organizations
+
+Projects
+
+Inventory
+
+Automation
+
+AI
+
+Monitoring
+
+Validation
+
+Only the Shared Core Framework.
+
+---
+
+# OUTPUT
+
+Generate every file.
+
+Generate complete production-ready implementation.
+
+Do not generate placeholders.
+
+Do not summarize.
+
+End Prompt 012.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

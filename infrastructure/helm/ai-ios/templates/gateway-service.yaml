@@ -1,0 +1,17 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-ios-gateway
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "ai-ios.componentLabels" (dict "component" "gateway" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/instance: {{ .Release.Name }}-gateway
+  ports:
+    - name: http
+      port: {{ .Values.gateway.port }}
+      targetPort: http
+{{- end }}

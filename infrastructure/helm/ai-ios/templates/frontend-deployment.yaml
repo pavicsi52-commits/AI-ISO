@@ -1,0 +1,44 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-ios-frontend
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "ai-ios.componentLabels" (dict "component" "frontend" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/instance: {{ .Release.Name }}-frontend
+  template:
+    metadata:
+      labels:
+        {{- include "ai-ios.componentLabels" (dict "component" "frontend" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.image.registry }}{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.frontend.port }}
+          envFrom:
+            - configMapRef:
+                name: ai-ios-config
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+{{- end }}

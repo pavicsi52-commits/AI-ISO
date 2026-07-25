@@ -1,0 +1,701 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 017
+
+## Enterprise Security Framework
+
+Reference Documents
+
+Prompt 000
+Prompt 001
+Prompt 002
+Prompt 003
+Prompt 004
+Prompt 005
+Prompt 006
+Prompt 007
+Prompt 008
+Prompt 009
+Prompt 010
+Prompt 011
+Prompt 012
+Prompt 013
+Prompt 014
+Prompt 015
+Prompt 016
+
+---
+
+# ROLE
+
+You are the Principal Security Architect.
+
+Implement the Enterprise Security Framework.
+
+You SHALL NOT redesign security architecture.
+
+Every microservice SHALL use this framework.
+
+No service may implement custom security.
+
+---
+
+# OBJECTIVE
+
+Build a centralized security framework responsible for
+
+Authentication
+
+Authorization
+
+RBAC
+
+Permissions
+
+Secrets
+
+Encryption
+
+Sessions
+
+Password Policies
+
+API Keys
+
+Certificates
+
+Security Headers
+
+Rate Limiting
+
+Audit Security Events
+
+Multi-Factor Authentication
+
+Future SSO
+
+Everything security related must live inside this package.
+
+---
+
+# PACKAGE
+
+packages/shared-core/security/
+
+---
+
+# DIRECTORY STRUCTURE
+
+security/
+
+__init__.py
+
+authentication/
+
+authorization/
+
+jwt/
+
+refresh/
+
+apikey/
+
+sessions/
+
+password/
+
+mfa/
+
+permissions/
+
+roles/
+
+rbac/
+
+policies/
+
+encryption/
+
+hashing/
+
+certificates/
+
+headers/
+
+cors/
+
+csrf/
+
+ratelimit/
+
+secrets/
+
+audit/
+
+middleware/
+
+decorators/
+
+validators/
+
+providers/
+
+constants/
+
+exceptions/
+
+tests/
+
+README.md
+
+---
+
+# SECURITY PRINCIPLES
+
+Zero Trust
+
+Least Privilege
+
+Defense in Depth
+
+Secure by Default
+
+Deny by Default
+
+Principle of Explicit Permission
+
+No anonymous privileged access
+
+---
+
+# AUTHENTICATION
+
+Support
+
+JWT
+
+Refresh Tokens
+
+API Keys
+
+Future
+
+OAuth2
+
+OIDC
+
+SAML
+
+LDAP
+
+Active Directory
+
+---
+
+# JWT
+
+Support
+
+Access Token
+
+Refresh Token
+
+Token Rotation
+
+Token Revocation
+
+Token Expiration
+
+Clock Skew
+
+Key Rotation
+
+Algorithms
+
+RS256
+
+ES256
+
+Never HS256 for production.
+
+---
+
+# SESSION MANAGEMENT
+
+Create
+
+Validate
+
+Refresh
+
+Expire
+
+Revoke
+
+Terminate
+
+Idle Timeout
+
+Absolute Timeout
+
+Concurrent Session Limit
+
+Device Tracking
+
+---
+
+# PASSWORD POLICY
+
+Minimum Length
+
+Maximum Length
+
+Uppercase
+
+Lowercase
+
+Number
+
+Special Character
+
+Password History
+
+Password Expiration
+
+Password Reuse Prevention
+
+Dictionary Validation
+
+Breach Check
+
+Argon2 Hashing
+
+Never store plaintext.
+
+---
+
+# MULTI FACTOR AUTHENTICATION
+
+Support
+
+TOTP
+
+Email OTP
+
+Recovery Codes
+
+Trusted Devices
+
+Future
+
+WebAuthn
+
+FIDO2
+
+---
+
+# RBAC
+
+Users
+
+↓
+
+Roles
+
+↓
+
+Permissions
+
+↓
+
+Policies
+
+↓
+
+Resources
+
+↓
+
+Actions
+
+Support
+
+Organization Level
+
+Project Level
+
+Global Level
+
+Custom Roles
+
+Inherited Roles
+
+---
+
+# PERMISSIONS
+
+Read
+
+Create
+
+Update
+
+Delete
+
+Execute
+
+Approve
+
+Export
+
+Import
+
+Admin
+
+Every API validates permissions.
+
+---
+
+# API KEYS
+
+Create
+
+Rotate
+
+Expire
+
+Revoke
+
+Scopes
+
+Usage Tracking
+
+Last Used
+
+IP Restriction
+
+Rate Limit
+
+---
+
+# SECRET MANAGEMENT
+
+Never hardcode.
+
+Support
+
+Environment
+
+Docker Secrets
+
+Kubernetes Secrets
+
+Future
+
+HashiCorp Vault
+
+AWS Secrets Manager
+
+Azure Key Vault
+
+GCP Secret Manager
+
+---
+
+# ENCRYPTION
+
+AES-256
+
+RSA
+
+TLS
+
+At Rest
+
+In Transit
+
+Key Rotation
+
+Encrypted Backups
+
+---
+
+# CERTIFICATES
+
+Certificate Validation
+
+Certificate Expiration
+
+Certificate Rotation
+
+Self Signed Support
+
+CA Support
+
+---
+
+# CORS
+
+Configurable
+
+Origins
+
+Methods
+
+Headers
+
+Credentials
+
+Environment Specific
+
+---
+
+# CSRF
+
+Enable where applicable.
+
+Token Validation
+
+Origin Validation
+
+---
+
+# SECURITY HEADERS
+
+HSTS
+
+CSP
+
+X-Frame-Options
+
+X-Content-Type-Options
+
+Referrer-Policy
+
+Permissions-Policy
+
+X-XSS-Protection
+
+---
+
+# RATE LIMITING
+
+Per User
+
+Per API Key
+
+Per Organization
+
+Per IP
+
+Sliding Window
+
+Burst Control
+
+Distributed Redis Backend
+
+---
+
+# SECURITY AUDIT
+
+Every event
+
+Login
+
+Logout
+
+Failed Login
+
+Permission Denied
+
+Password Change
+
+API Key Created
+
+Secret Access
+
+Role Change
+
+Permission Change
+
+MFA Enabled
+
+MFA Disabled
+
+Session Revoked
+
+Security Policy Changed
+
+---
+
+# TENANT SECURITY
+
+Strict Organization Isolation
+
+Strict Project Isolation
+
+No Cross-Tenant Access
+
+Validate every request.
+
+---
+
+# SECURITY DECORATORS
+
+@requires_auth
+
+@requires_role
+
+@requires_permission
+
+@requires_api_key
+
+@requires_organization
+
+@requires_project
+
+@requires_mfa
+
+---
+
+# SECURITY MIDDLEWARE
+
+JWT Validation
+
+Permission Validation
+
+Security Headers
+
+Rate Limiting
+
+Audit
+
+Correlation ID
+
+Request ID
+
+Session Validation
+
+---
+
+# SECURITY VALIDATION
+
+Passwords
+
+Tokens
+
+Secrets
+
+Certificates
+
+Permissions
+
+API Keys
+
+Sessions
+
+Headers
+
+---
+
+# TESTING
+
+Unit Tests
+
+Penetration Tests
+
+RBAC Tests
+
+JWT Tests
+
+Session Tests
+
+Password Tests
+
+API Key Tests
+
+Rate Limit Tests
+
+Coverage >95%
+
+---
+
+# DOCUMENTATION
+
+README
+
+Security Guide
+
+RBAC Guide
+
+JWT Guide
+
+MFA Guide
+
+Secret Management Guide
+
+Developer Guide
+
+---
+
+# ACCEPTANCE CRITERIA
+
+✓ JWT Framework
+
+✓ Session Framework
+
+✓ RBAC
+
+✓ Permission Engine
+
+✓ Secret Manager
+
+✓ Encryption
+
+✓ MFA
+
+✓ Rate Limiting
+
+✓ Security Middleware
+
+✓ Tests Passing
+
+✓ Documentation Complete
+
+---
+
+# DO NOT IMPLEMENT
+
+User Management
+
+Authentication Service
+
+REST APIs
+
+Database Models
+
+Business Logic
+
+Only Enterprise Security Framework.
+
+---
+
+# OUTPUT
+
+Generate complete production-ready implementation.
+
+Generate every required file.
+
+No placeholders.
+
+No TODOs.
+
+Do not summarize.
+
+End Prompt 017.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

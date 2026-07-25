@@ -1,0 +1,441 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 015
+
+## Enterprise Exception Framework
+
+Reference Documents
+
+Prompt 000
+Prompt 001
+Prompt 002
+Prompt 003
+Prompt 004
+Prompt 005
+Prompt 006
+Prompt 007
+Prompt 008
+Prompt 009
+Prompt 010
+Prompt 011
+Prompt 012
+Prompt 013
+Prompt 014
+
+---
+
+ROLE
+
+You are the Principal Platform Engineer.
+
+Implement the Enterprise Exception Framework.
+
+Do not redesign.
+
+Do not simplify.
+
+Follow every previous specification.
+
+---
+
+OBJECTIVE
+
+Create a centralized exception handling framework used by every microservice.
+
+No service may define its own exception handling mechanism.
+
+Every exception must inherit from the shared framework.
+
+---
+
+PACKAGE
+
+packages/shared-core/exceptions/
+
+---
+
+DIRECTORY STRUCTURE
+
+exceptions/
+
+__init__.py
+
+base.py
+
+authentication.py
+
+authorization.py
+
+validation.py
+
+database.py
+
+configuration.py
+
+dependency.py
+
+network.py
+
+storage.py
+
+cache.py
+
+queue.py
+
+event.py
+
+workflow.py
+
+automation.py
+
+inventory.py
+
+monitoring.py
+
+scheduler.py
+
+notification.py
+
+ai.py
+
+business.py
+
+conflict.py
+
+not_found.py
+
+rate_limit.py
+
+timeout.py
+
+service.py
+
+factory.py
+
+mapper.py
+
+handlers.py
+
+constants.py
+
+tests/
+
+README.md
+
+---
+
+OBJECTIVES
+
+Provide a unified exception hierarchy.
+
+Provide consistent API error responses.
+
+Provide structured logging.
+
+Provide automatic exception mapping.
+
+Provide retry classification.
+
+Provide error codes.
+
+Provide localization support.
+
+---
+
+BASE EXCEPTION
+
+Every custom exception SHALL inherit
+
+AIIOSException
+
+Properties
+
+error_code
+
+message
+
+details
+
+status_code
+
+severity
+
+retryable
+
+metadata
+
+timestamp
+
+request_id
+
+correlation_id
+
+organization_id
+
+project_id
+
+---
+
+EXCEPTION CATEGORIES
+
+Authentication
+
+Authorization
+
+Validation
+
+Database
+
+Configuration
+
+Dependency
+
+Storage
+
+Queue
+
+Cache
+
+Workflow
+
+Automation
+
+Inventory
+
+Monitoring
+
+AI
+
+Notification
+
+Business
+
+Timeout
+
+Conflict
+
+NotFound
+
+RateLimit
+
+Internal
+
+External
+
+Unknown
+
+---
+
+ERROR CODE FORMAT
+
+AIIOS-<DOMAIN>-<NUMBER>
+
+Examples
+
+AIIOS-AUTH-0001
+
+AIIOS-DB-0021
+
+AIIOS-VAL-0105
+
+AIIOS-AI-0301
+
+Codes must be unique.
+
+---
+
+HTTP STATUS MAPPING
+
+400 Validation
+
+401 Unauthorized
+
+403 Forbidden
+
+404 Not Found
+
+409 Conflict
+
+422 Business Validation
+
+429 Rate Limit
+
+500 Internal Error
+
+503 Service Unavailable
+
+---
+
+GLOBAL EXCEPTION HANDLER
+
+Every FastAPI service SHALL register one global handler.
+
+No controller-level exception handling.
+
+---
+
+API RESPONSE
+
+Every error response SHALL follow Prompt 006.
+
+Never expose Python tracebacks.
+
+Never expose SQL errors.
+
+Never expose secrets.
+
+---
+
+LOGGING
+
+Every exception SHALL automatically log
+
+Request ID
+
+Correlation ID
+
+User
+
+Organization
+
+Project
+
+Service
+
+Environment
+
+Exception Type
+
+Severity
+
+Stack Trace
+
+---
+
+RETRY POLICY
+
+Retryable
+
+Database Timeout
+
+Temporary Network
+
+RabbitMQ
+
+Redis
+
+Storage
+
+Not Retryable
+
+Validation
+
+Authentication
+
+Authorization
+
+Business Rule
+
+Conflict
+
+---
+
+LOCALIZATION
+
+Exception messages shall support localization.
+
+Store user-facing messages separately from internal diagnostic messages.
+
+---
+
+SECURITY
+
+Mask secrets.
+
+Mask passwords.
+
+Mask tokens.
+
+Never include sensitive information in API responses.
+
+---
+
+TESTING
+
+Unit Tests
+
+Exception Mapping
+
+Retry Tests
+
+Serialization Tests
+
+HTTP Mapping Tests
+
+Coverage
+
+95%
+
+---
+
+DOCUMENTATION
+
+README
+
+Exception Hierarchy
+
+Error Code Catalog
+
+Usage Guide
+
+Migration Guide
+
+---
+
+ACCEPTANCE CRITERIA
+
+✓ Global handler implemented
+
+✓ Error codes standardized
+
+✓ HTTP mapping complete
+
+✓ Structured logging integrated
+
+✓ Retry policy implemented
+
+✓ Tests passing
+
+✓ Documentation complete
+
+---
+
+DO NOT IMPLEMENT
+
+Authentication logic
+
+Business services
+
+Database models
+
+REST endpoints
+
+Only the Enterprise Exception Framework.
+
+---
+
+OUTPUT
+
+Generate complete production-ready implementation.
+
+Generate every file.
+
+Do not summarize.
+
+End Prompt 015.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

@@ -1,0 +1,583 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 006
+
+## Enterprise API Design Master Specification
+
+Reference Documents
+
+- Prompt 000 – Engineering Constitution
+- Prompt 001 – Product Vision
+- Prompt 002 – Master Architecture
+- Prompt 003 – Technology Stack
+- Prompt 004 – Repository Structure
+- Prompt 005 – Coding Standards
+
+---
+
+# ROLE
+
+You are the Enterprise API Architect.
+
+You SHALL NOT invent API styles.
+
+You SHALL follow this specification exactly.
+
+Every API generated in future prompts MUST comply with this document.
+
+---
+
+# API PHILOSOPHY
+
+The platform is API First.
+
+The UI is a client.
+
+The CLI is a client.
+
+AI is a client.
+
+Future Mobile App is a client.
+
+Everything communicates through APIs.
+
+No component may bypass APIs.
+
+---
+
+# API STYLE
+
+REST API
+
+JSON only.
+
+UTF-8.
+
+HTTPS only.
+
+---
+
+# API VERSIONING
+
+Every endpoint starts with
+
+/api/v1/
+
+Example
+
+/api/v1/auth/login
+
+/api/v1/organizations
+
+/api/v1/projects
+
+Never expose unversioned APIs.
+
+Future versions
+
+/api/v2
+
+/api/v3
+
+---
+
+# HTTP METHODS
+
+GET
+
+Read
+
+POST
+
+Create
+
+PUT
+
+Full Update
+
+PATCH
+
+Partial Update
+
+DELETE
+
+Soft Delete
+
+Never use GET for modifications.
+
+Never use POST for updates.
+
+---
+
+# RESOURCE NAMING
+
+Always plural.
+
+Good
+
+/users
+
+/projects
+
+/organizations
+
+/playbooks
+
+/jobs
+
+Bad
+
+/getUsers
+
+/createUser
+
+/updateProject
+
+/deleteInventory
+
+---
+
+# URL RULES
+
+Lowercase only.
+
+Use hyphen.
+
+Good
+
+asset-discovery
+
+workflow-engine
+
+Bad
+
+AssetDiscovery
+
+WorkflowEngine
+
+---
+
+# STANDARD REQUEST HEADERS
+
+Authorization
+
+Bearer JWT
+
+Content-Type
+
+application/json
+
+Accept
+
+application/json
+
+X-Request-ID
+
+UUID
+
+X-Correlation-ID
+
+UUID
+
+X-Organization-ID
+
+UUID
+
+X-Project-ID
+
+UUID
+
+---
+
+# STANDARD RESPONSE
+
+Every successful response
+
+{
+  "success": true,
+  "message": "Operation completed successfully.",
+  "data": {},
+  "meta": {
+    "request_id": "",
+    "timestamp": ""
+  }
+}
+
+Never invent different formats.
+
+---
+
+# STANDARD ERROR
+
+{
+  "success": false,
+  "message": "Validation failed.",
+  "error": {
+      "code": "",
+      "details": []
+  },
+  "meta": {
+      "request_id": "",
+      "timestamp": ""
+  }
+}
+
+---
+
+# HTTP STATUS CODES
+
+200
+
+Success
+
+201
+
+Created
+
+202
+
+Accepted
+
+204
+
+No Content
+
+400
+
+Validation Error
+
+401
+
+Unauthorized
+
+403
+
+Forbidden
+
+404
+
+Not Found
+
+409
+
+Conflict
+
+422
+
+Business Validation Error
+
+429
+
+Rate Limit
+
+500
+
+Internal Server Error
+
+503
+
+Service Unavailable
+
+---
+
+# PAGINATION
+
+Every list endpoint SHALL support
+
+page
+
+page_size
+
+sort
+
+order
+
+search
+
+filters
+
+Example
+
+GET
+
+/api/v1/assets?page=1&page_size=25
+
+Maximum page size
+
+100
+
+---
+
+# FILTERING
+
+Support
+
+equals
+
+contains
+
+starts_with
+
+ends_with
+
+greater_than
+
+less_than
+
+between
+
+Example
+
+status=healthy
+
+type=server
+
+location=plant-a
+
+---
+
+# SORTING
+
+Example
+
+sort=name
+
+order=asc
+
+sort=created_at
+
+order=desc
+
+---
+
+# SEARCH
+
+Global search
+
+q=
+
+Example
+
+q=postgres
+
+---
+
+# BULK OPERATIONS
+
+Support
+
+Bulk Create
+
+Bulk Update
+
+Bulk Delete
+
+Bulk Validate
+
+Bulk Execute
+
+---
+
+# LONG RUNNING TASKS
+
+Never block request.
+
+Return
+
+202 Accepted
+
+Response
+
+{
+ "job_id":"..."
+}
+
+Client polls
+
+/jobs/{id}
+
+---
+
+# IDEMPOTENCY
+
+Every Create API
+
+Supports
+
+Idempotency-Key
+
+Header
+
+Duplicate requests
+
+Must not create duplicates.
+
+---
+
+# VALIDATION
+
+Validate
+
+Headers
+
+JWT
+
+Permissions
+
+Request Body
+
+Query
+
+Path Parameters
+
+Business Rules
+
+Database Rules
+
+Never trust client input.
+
+---
+
+# OPENAPI
+
+Every endpoint
+
+Summary
+
+Description
+
+Parameters
+
+Responses
+
+Examples
+
+Tags
+
+Security
+
+---
+
+# RATE LIMITING
+
+Per User
+
+Per API Key
+
+Per Organization
+
+Default
+
+100 Requests / Minute
+
+Configurable.
+
+---
+
+# FILE UPLOAD
+
+multipart/form-data
+
+Maximum
+
+100 MB
+
+Store in MinIO.
+
+Never store files inside service.
+
+---
+
+# ASYNC OPERATIONS
+
+Execution
+
+Validation
+
+Discovery
+
+Monitoring
+
+Return Job ID.
+
+---
+
+# AUDIT
+
+Every modifying API
+
+Must create audit log.
+
+User
+
+Time
+
+Action
+
+Entity
+
+Before
+
+After
+
+Result
+
+---
+
+# OBSERVABILITY
+
+Every request
+
+Request ID
+
+Correlation ID
+
+Latency
+
+Response Size
+
+User
+
+Organization
+
+---
+
+# SECURITY
+
+HTTPS
+
+JWT
+
+RBAC
+
+Input Validation
+
+Output Validation
+
+No sensitive data in responses.
+
+No stack traces.
+
+---
+
+# CLAUDE IMPLEMENTATION RULE
+
+Claude SHALL NOT invent API contracts.
+
+Claude SHALL follow this specification exactly.
+
+---
+
+# DEFINITION OF DONE
+
+API standards frozen.
+
+Future services must comply.
+
+End of Prompt 006.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md

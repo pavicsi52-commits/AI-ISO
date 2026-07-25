@@ -30,6 +30,7 @@ node_modules/
 out/
 .turbo/
 *.tsbuildinfo
+next-env.d.ts
 .eslintcache
 playwright-report/
 test-results/
@@ -46,7 +47,13 @@ storybook-static/
 !.env.example
 *.pem
 *.key
+!**/keys/jwt_public_key.pem
 !infrastructure/**/*.example.*
+
+# Large local-only artifacts
+*.tar
+*.tar.gz
+*.tgz
 
 # Terraform
 **/.terraform/
@@ -64,6 +71,7 @@ infrastructure/kubernetes/**/*.local.yaml
 # IDE
 .idea/
 *.iml
+.claude/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json

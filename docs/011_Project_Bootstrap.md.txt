@@ -1,0 +1,423 @@
+# AI Infrastructure Operating System (AI-IOS)
+
+# Prompt 011
+
+## Project Bootstrap & Repository Initialization
+
+Reference Documents
+
+- Prompt 000 – Engineering Constitution
+- Prompt 001 – Product Vision
+- Prompt 002 – Master System Architecture
+- Prompt 003 – Technology Stack
+- Prompt 004 – Repository Structure
+- Prompt 005 – Coding Standards
+- Prompt 006 – API Standards
+- Prompt 007 – Database Architecture
+- Prompt 008 – Backend Architecture
+- Prompt 009 – Frontend Architecture
+- Prompt 010 – UI/UX Design System
+
+---
+
+# ROLE
+
+You are the Lead Platform Engineer.
+
+Implement this specification exactly.
+
+Do not redesign anything.
+
+Do not simplify.
+
+Do not skip any step.
+
+---
+
+# OBJECTIVE
+
+Create the complete AI-IOS repository from scratch.
+
+At the end of this prompt the repository must compile, lint, test and start successfully.
+
+No business modules shall be implemented yet.
+
+Only platform foundation.
+
+---
+
+# CREATE GIT REPOSITORY
+
+Initialize Git repository.
+
+Create main branch.
+
+Create develop branch.
+
+Configure .gitignore.
+
+Configure .editorconfig.
+
+Configure commit message convention.
+
+Configure GitHub Issue Templates.
+
+Configure Pull Request Template.
+
+---
+
+# CREATE ROOT STRUCTURE
+
+Exactly as defined in Prompt 004.
+
+Do not add extra folders.
+
+---
+
+# CREATE ROOT FILES
+
+README.md
+
+LICENSE
+
+SECURITY.md
+
+CONTRIBUTING.md
+
+CHANGELOG.md
+
+ROADMAP.md
+
+CODE_OF_CONDUCT.md
+
+.editorconfig
+
+.env.example
+
+.gitignore
+
+.pre-commit-config.yaml
+
+Makefile
+
+docker-compose.yml
+
+pyproject.toml
+
+pnpm-workspace.yaml
+
+---
+
+# CONFIGURE PYTHON
+
+Python 3.13+
+
+uv
+
+Virtual Environment
+
+Dependency Lock
+
+---
+
+# CONFIGURE BACKEND
+
+FastAPI
+
+Health Endpoint
+
+OpenAPI
+
+Dependency Injection
+
+Settings Loader
+
+Logging
+
+Configuration
+
+No business APIs.
+
+---
+
+# CONFIGURE FRONTEND
+
+Next.js
+
+App Router
+
+TypeScript
+
+TailwindCSS
+
+TanStack Query
+
+Zustand
+
+Dark Theme
+
+No pages except placeholder dashboard.
+
+---
+
+# CONFIGURE DATABASE
+
+PostgreSQL
+
+Docker Compose
+
+Health Check
+
+Alembic initialized
+
+No tables.
+
+---
+
+# CONFIGURE REDIS
+
+Docker Compose
+
+Health Check
+
+---
+
+# CONFIGURE RABBITMQ
+
+Docker Compose
+
+Health Check
+
+---
+
+# CONFIGURE NEO4J
+
+Docker Compose
+
+Health Check
+
+---
+
+# CONFIGURE MINIO
+
+Docker Compose
+
+Health Check
+
+---
+
+# CONFIGURE OPENSEARCH
+
+Docker Compose
+
+Health Check
+
+---
+
+# CONFIGURE PROMETHEUS
+
+Base Configuration
+
+---
+
+# CONFIGURE GRAFANA
+
+Base Configuration
+
+---
+
+# CONFIGURE DOCKER
+
+Every service
+
+Dockerfile
+
+.dockerignore
+
+Healthcheck
+
+---
+
+# CONFIGURE KUBERNETES
+
+Helm Base
+
+Namespace
+
+ConfigMap
+
+Secrets Template
+
+Deployment Template
+
+Service Template
+
+Ingress Template
+
+---
+
+# CONFIGURE TESTING
+
+Backend
+
+Pytest
+
+Coverage
+
+Frontend
+
+Vitest
+
+Playwright
+
+---
+
+# CONFIGURE QUALITY
+
+Black
+
+Ruff
+
+MyPy
+
+Bandit
+
+pip-audit
+
+ESLint
+
+Prettier
+
+---
+
+# CONFIGURE CI
+
+GitHub Actions
+
+Workflow
+
+Lint
+
+Test
+
+Security
+
+Docker Build
+
+---
+
+# CONFIGURE PRE-COMMIT
+
+Black
+
+Ruff
+
+MyPy
+
+ESLint
+
+Prettier
+
+Secret Scan
+
+---
+
+# CONFIGURE LOGGING
+
+Structured JSON
+
+Request ID
+
+Correlation ID
+
+---
+
+# CONFIGURE HEALTH
+
+Backend
+
+/health
+
+/readiness
+
+/liveness
+
+/metrics
+
+---
+
+# ACCEPTANCE CRITERIA
+
+✓ Repository builds
+
+✓ Backend starts
+
+✓ Frontend starts
+
+✓ Docker Compose works
+
+✓ All containers healthy
+
+✓ Lint passes
+
+✓ Tests pass
+
+✓ Coverage configured
+
+✓ GitHub Actions pass
+
+✓ Documentation created
+
+No business modules implemented.
+
+---
+
+# DO NOT IMPLEMENT
+
+Authentication
+
+Users
+
+Organizations
+
+Projects
+
+Inventory
+
+Automation
+
+Monitoring
+
+AI
+
+Validation
+
+Playbooks
+
+Execution
+
+Only infrastructure.
+
+---
+
+# OUTPUT
+
+Generate the complete production-ready repository.
+
+Every file must contain complete implementation.
+
+Do not generate placeholders.
+
+Do not skip files.
+
+Do not summarize.
+
+Generate everything.
+
+End Prompt 011.
+
+After completing every document:
+
+Update
+
+AI_MEMORY.md
