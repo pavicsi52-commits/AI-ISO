@@ -4519,3 +4519,176 @@ end-to-end through the containerized app, plus a live unauthenticated
 request to `/workflows` confirming `401`, and the container's own
 startup log showing a real `shared_core.scheduler` leader-election
 success against live Redis/RabbitMQ.
+
+## Prompt 043 — Enterprise Validation Service ✅ Implemented
+
+`services/validation-service/` is the fourteenth AI-IOS microservice
+built on `packages/shared-core`: verifies infrastructure readiness,
+operational health, configuration correctness, compliance,
+connectivity, security posture, deployment readiness, and runtime
+validation via reusable validation profiles, a real Jinja2-sandboxed
+rule engine, weighted scoring, and remediation suggestions. A research
+agent read the five services this one integrates with (Inventory,
+Configuration Management, Automation, Workflow Runtime, Discovery)
+directly before any code was written, mapping their real endpoints
+rather than their own prompt docs' aspirations — confirming, among
+other things, that Configuration Management's drift/compliance
+endpoints are read-only history (no live "compare now" trigger), and
+that Discovery's own relationship service exists internally but is
+never exposed over REST. Built across the same batch structure as
+every prior AI-IOS service: research, a 12-enum module, 17 models, one
+Alembic migration against real Postgres, 17 repositories, 5 collectors
+(real native network collectors plus delegated/read-only cross-service
+ones), a real rule evaluator built on
+`shared_core.workflow.expressions.evaluate_condition`, a from-scratch
+weighted scoring engine (no `shared_core` equivalent exists), 16
+services, events/notifications/telemetry, a background execution
+worker, an 8-router REST API layer (16 literal endpoints plus 6 added
+directly) plus app factory, a live Docker build/health-check against
+the real compose network, a 193-test suite at 98.04% coverage, and
+this entry.
+
+**A check only collects; a rule decides — two tables, not one, so an
+absent rule is never silently a pass.** `ValidationCheck` names a
+`collector_key` (which data-gathering function runs) and holds no
+pass/fail logic of its own; any number of `ValidationRule` rows
+reference the same check at different thresholds (e.g. `WARNING` at
+80% disk usage, `FAILED` at 95%), evaluated in priority order via
+`app/rules/evaluator.py::evaluate_rule_chain`. A check with zero rules
+attached always produces `UNKNOWN`, confirmed via a real test failure
+during development (the first happy-path end-to-end test asserted
+`PASSED` for a bare connectivity check and got `UNKNOWN` instead) — the
+design was correct, the test was wrong, fixed by attaching a real rule
+rather than loosening the engine's own discipline.
+
+**Collectors split into three honest tiers based on what this service
+can and can't actually do itself.** Real, native network collectors
+(`app/collectors/network.py`: TCP connectivity/port, DNS resolution,
+TLS certificate expiry) run directly from this process — no remote
+execution capability needed for a plain socket connection. Delegated
+collectors (`app/collectors/remote.py`) dispatch a live
+automation-service job for anything genuinely requiring remote
+execution (disk/CPU/memory/etc.) this service has no SSH/WinRM
+capability of its own to perform, the same "this service dispatches,
+automation-service actually connects" split
+`services/workflow-runtime-service`'s own `TASK`/`CONNECTOR` handler
+already established. Read-only collectors
+(`app/collectors/service_state.py`) read already-recorded state from
+Inventory/Configuration Management/Workflow Runtime/Discovery, never
+triggering new work on the other side.
+
+**`/validations` and `/validation-profiles` front the identical
+underlying resource, the same "two literal paths, one real resource"
+shape resolved without inventing a second, fake type.** Docs/043's own
+literal REST list names both `/validations` (full CRUD plus
+`execute`/`cancel`) and `/validation-profiles` (`GET`/`POST` only) for
+what is, on every field and every acceptance-criteria line, the same
+"reusable, named collection of checks" concept its own "VALIDATION
+PROFILES" section describes exactly once. `/validations` is the full
+lifecycle resource (matching `services/workflow-runtime-service`'s own
+`/workflows`); `/validation-profiles` is a second, lighter list/create
+surface over that identical resource — every literal path honored, no
+invented semantics neither path's own doc wording actually supports.
+
+**Six capabilities added beyond docs/043's literal 16-endpoint REST
+list, the widest gap of this kind so far, but each individually
+matches precedent already established at least once before.**
+`/validation-categories`, `/validation-checks`, and `/validation-rules`
+were added because without them there is no way to populate the
+reusable check/rule catalog `/validations` itself depends on — "Rule
+Engine" is an explicit ACCEPTANCE CRITERIA line that would otherwise be
+unreachable by any real caller. `GET /validation-results/executions/{id}`
+and `.../score` were added because a real, computed, persisted score —
+"Scoring" is also an explicit ACCEPTANCE CRITERIA line — would
+otherwise have no REST surface at all, the same "orphaned capability,
+found via coverage" gap `services/workflow-runtime-service`'s own
+`WorkflowEventRecord` table already hit once before.
+`/validation-results/failures/{id}/exceptions` (request/list/decide a
+waiver) was added the same "required capability, no REST list entry"
+way approval-decision endpoints already established.
+
+**Real bugs found via testing:**
+
+1. **`PARALLEL`/`DISTRIBUTED` concurrency corrupted SQLAlchemy's own
+   session state — a real production bug, not a test artifact.** The
+   first implementation of `run_execution()` ran each `(check,
+   target)` pair's *entire* pipeline — collector I/O and database
+   writes together — inside one `asyncio.gather()`. The very first
+   parallel-execution test hit a genuine `sqlalchemy.exc.SAWarning:
+   Usage of the 'Session.add()' operation is not currently supported
+   within the execution stage of the flush process` — `AsyncSession`
+   is not safe for concurrent use by multiple asyncio tasks even
+   within one single-threaded event loop, since a flush is not
+   reentrant, and every real invocation of `PARALLEL`/`DISTRIBUTED` in
+   production (one shared session per background worker job) would
+   have hit the identical corruption. Fixed by splitting collection
+   (`_collect_one`, pure I/O against collector clients, never touching
+   the database, safe to gather concurrently) from persistence
+   (`_persist_result`, always sequential, one at a time, regardless of
+   `concurrency_strategy`) — documented directly in `run_execution`'s
+   own docstring so the split reads as a deliberate constraint, not an
+   arbitrary refactor.
+2. **`ValidationTemplate.created_by` silently redefined an inherited
+   audit column.** `BaseEntityMixin` already reserves `created_by` for
+   its own `UUID`-typed "who created this row" field; this model's own
+   `created_by: str | None` (a free-text author display name) collided
+   with it — a real type conflict MyPy caught the moment it was
+   unblocked for this session (Windows Smart App Control had been
+   flagging its compiled extension as unsigned; resolved by the user
+   mid-Prompt-042 and confirmed still clean here). Renamed to
+   `authored_by` across the model, service, schema, and API layer, and
+   the Alembic migration regenerated to match.
+3. **`ValidationProfile.concurrency_strategy` was typed as a plain
+   `str`, inconsistent with every other enum-backed column in this
+   service** — caught when `POST /validations/{id}/execute`'s own
+   `body.concurrency_strategy or profile.concurrency_strategy`
+   fallback tried to combine a real enum with a bare string. Fixed by
+   properly typing the column `Mapped[ValidationConcurrencyStrategy]`
+   and removing the now-unnecessary `str()` coercions in
+   `ValidationProfileService`.
+4. **24 completely empty, unreferenced scaffolding directories**
+   (matching the identical class of leftover-scaffolding bug
+   `services/workflow-runtime-service`'s own README already
+   documented, including one, `app/engine/`, left over from an earlier
+   draft before the collector/rules/scoring split was settled on).
+   Found via a plain coverage-report read, confirmed dead with a grep,
+   deleted.
+5. **A real Redis capacity limit, not a code bug, but a genuine
+   infrastructure fix.** Redis defaults to 16 logical databases
+   (indices 0–15); this being the fifteenth AI-IOS service needing its
+   own isolated test database, every index was already spoken for —
+   `redis-cli` returned a real `ERR DB index is out of range` for db
+   16. Fixed by adding `--databases 32` to the shared root
+   `docker-compose.yml`'s Redis service (a safe, additive change,
+   confirmed not to disrupt `services/workflow-runtime-service`'s own
+   already-passing tests on db 15 afterward) rather than reusing
+   another service's own test database.
+
+**Testing**: 193 tests, 98.04% coverage, entirely against real
+infrastructure (the repository root's docker-compose Postgres/Redis/
+RabbitMQ) — no mocked database. Postgres isolation between tests uses
+a per-test SAVEPOINT (`join_transaction_mode="create_savepoint"`), the
+same pattern every prior AI-IOS service established. Real network
+collectors are tested against a genuine local TCP server and a genuine
+local TLS server the test suite starts itself, presenting a
+freshly-generated self-signed certificate — this surfaced its own real
+bug: `ssl.create_default_context()` fails closed on self-signed/
+internal-CA certificates (common for real internal enterprise targets)
+and `getpeercert()` returns an empty dict whenever verification is
+disabled, so the collector was fixed to disable chain verification
+deliberately (this check's own job is reading when a certificate
+expires, not judging its trust chain) and parse the raw DER bytes
+directly via `cryptography.x509` instead. Every cross-service collector
+uses `pytest-httpx` against Inventory/Configuration Management/
+Automation/Workflow Runtime/Discovery's own real documented response
+shapes. `test_service_execution.py` covers real end-to-end execution
+runs (happy path, failing rule, unresolvable collector, parallel
+concurrency, cooperative cancellation) with no mocking of the
+orchestrator itself. Ruff/Black/MyPy all clean across the full package
+(155 source files). Docker image built and live health-checked against
+the real compose network (`aiios_aiios_network`) — `/health`,
+`/readiness` (genuine Postgres connectivity from inside the container,
+`3.9ms`), `/liveness`, `/docs`, `/openapi.json`, and `/metrics` all
+confirmed responding correctly end-to-end through the containerized
+app, plus a live unauthenticated request to `/validations` confirming
+`401`.
