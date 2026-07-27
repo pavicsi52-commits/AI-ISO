@@ -4163,3 +4163,196 @@ network (`aiios_aiios_network`) — `/health`, `/readiness` (genuine
 Postgres connectivity from inside the container), `/liveness`, `/docs`,
 `/openapi.json`, and `/metrics` all confirmed responding correctly
 end-to-end through the containerized app.
+
+## Prompt 041 — Enterprise Playbook Service ✅ Implemented
+
+`services/playbook-service/` is the twelfth AI-IOS microservice built
+on `packages/shared-core`: a centralized automation content
+repository — storage, semantic versioning, dependency resolution (with
+real circular-dependency detection), structural content validation,
+Ed25519 digital signatures, draft review and multi-type approval
+workflows, folder-organized repository management, and analytics/
+reporting. Execution stays out of scope, explicitly owned by
+`services/automation-service` per docs/041's own OBJECTIVE and DO NOT
+IMPLEMENT sections. 20 tables (docs/041's own DATABASE TABLES list,
+confirmed via careful line-by-line reading). Built across the same
+batch structure as every prior AI-IOS service: research, a 12-enum
+module, 19 models, one Alembic migration against real Postgres, 19
+repositories, a real Ed25519 signing module built directly on
+`cryptography` (no `shared_core` equivalent exists), a real structural
+content validator covering all 15 supported content types, 20 schema
+modules, 18 services, events/notifications/telemetry, a 7-router REST
+API layer (16 literal endpoints) plus app factory — no background
+worker, since validation runs synchronously inline and docs/041 names
+no queue-worker-shaped capability — a live Docker build/health-check
+against the real compose network, a 213-test suite at 98.42% coverage,
+and this entry.
+
+**"Validation Engine" resolved via direct precedent reuse, not
+re-litigated from scratch.** Docs/041's own "DO NOT IMPLEMENT" section
+names "Validation Engine" while its own "VALIDATION"/ACCEPTANCE
+CRITERIA/OUTPUT sections explicitly require one — the identical
+contradiction shape docs/039 already resolved for TOSCA/Ansible/
+Kubernetes validators, resolved identically here: a real, structural
+(parse-and-check-shape) validator that never executes untrusted
+content. `yaml.safe_load`/`safe_load_all` plus required-key checks for
+the nine YAML-shaped content types, `ast.parse()` for Python (never
+`exec`/`eval`), real `sh -n`/`bash -n` subprocess syntax checks for
+Shell/Bash, and a real PowerShell AST parser via `pwsh`/`powershell.exe`
+when available. Terraform is explicitly unsupported (docs/041 itself
+flags it "(future)"); Custom Plugin content has no defined shape
+anywhere in the spec, so it's honestly always valid rather than
+inventing one.
+
+**"Integrate Prompt 032" (RBAC) / "Integrate Prompt 035" (Secrets)
+satisfied without a live HTTP client to either service, the third
+prompt in a row with identical SECURITY-section wording resolved the
+same way.** Docs/039 and docs/040 both already established that
+authentication (`CurrentUserId`) plus organization/project-scoped
+queries on every list/search/analytics call is sufficient when no field
+in the service's own data model genuinely needs a live permission-check
+or secrets-resolution call. This service's own signing keypair is its
+own key material, loaded from a local file exactly like the JWT
+verification key every downstream AI-IOS service already loads — not a
+secret resolved from another service.
+
+**A domain-model naming collision was caught and fixed proactively via
+design reasoning, before it could become a real bug — not discovered
+through a test failure.** The "playbook repository/folder"
+organizational concept from docs/041's own REPOSITORY section would
+naturally be modeled as `PlaybookRepository`, colliding with the
+standard `{ModelName}Repository(BaseRepository[ModelName])` naming
+convention already reserved for the `Playbook` model's own
+database-access class. Caught while planning the repositories layer,
+before writing it: the *model* was renamed to
+`PlaybookRepositoryFolder` (the underlying table name `playbook_repository`
+left unchanged, matching docs exactly), the same "rename the model, not
+the repository-pattern class" precedent `ConfigurationGitRepository`
+already established.
+
+**Checksummed, signed content — a version's checksum is what gets
+signed, never the raw content directly.** `PlaybookVersion.checksum`
+(`shared_core.helpers.hash_helper.sha256_hex` of content) is computed
+once at version-creation time, alongside real structural validation and
+semantic-version bumping; `PlaybookSignature.checksum` stores the
+checksum that was signed, `PlaybookSignature.signature` stores the
+base64 Ed25519 signature over that checksum string. No `shared_core`
+asymmetric signing utility exists (only HMAC and RSA *encryption*), so
+`app/signing/signer.py` is built directly on `cryptography`, the same
+precedent `services/secrets-management-service`'s own `ssh/keygen.py`
+already established for Ed25519 in this monorepo.
+
+**Fail-fast key loading, no auto-generation fallback — for two keys,
+not one.** Both the JWT verification key (every service's own
+precedent) and this service's own Ed25519 signing keypair are loaded
+from local files at startup with no fallback; a missing file is a hard
+`DependencyError`, never silently regenerated, since a rotating signing
+identity on every container restart would silently break every prior
+signature's own `public_key_fingerprint` continuity. Documented inline
+in `app/config/keys.py::load_signing_keypair`, citing
+`services/secrets-management-service`'s own `app/config/master_key.py`
+as the established discipline this follows.
+
+**Route-registration-order hazard, confirmed live for the third time in
+this cluster.** `GET /playbooks/{playbook_id}` is a catch-all matching
+any single path segment, colliding with the literal sibling paths
+`/playbooks/search`, `/playbooks/templates`, `/playbooks/repository`,
+`/playbooks/statistics`, and `/playbooks/reports` if registered after
+it. `app/core/factory.py`'s `create_app()` registers all five literal
+routers before `playbooks_router`, verified two ways: a real ASGI
+request enumerating `/openapi.json`'s own registered paths during
+development, and — after the Docker image was built — a live,
+unauthenticated HTTP request to the running container's
+`/playbooks/search`, confirming a `401` (reaching the search router)
+rather than a `422` (the catch-all trying to parse the literal string
+`"search"` as a UUID).
+
+**No REST surface for categories/tags/labels/variables/dependencies/
+roles/scripts/collections/reviews/artifacts/signatures as their own
+top-level resources — deliberate, matching docs/040's own precedent.**
+Docs/041's own literal REST APIs list names 16 operations across 6
+paths; every other sub-resource service exists for internal wiring
+(e.g. `PlaybookReportService` calls straight into
+`PlaybookService`/`PlaybookVersionService`/`PlaybookDependencyService`/
+`PlaybookApprovalService`/`PlaybookStatisticsService` per report type)
+and is exercised directly in tests. `app/repositories/playbook_artifact.py`
+goes one step further than any prior prompt's own unrouted resources:
+it has no service layer above it at all yet, tested directly at the
+repository level in `tests/test_repository_playbook_artifact.py`.
+
+**Real bugs found via testing:**
+
+1. **Circular-dependency detection silently missed real cycles — an
+   identity-vs-equality bug in `PlaybookDependencyService._creates_cycle()`.**
+   `dependency.dependency_type is not DependencyType.PLAYBOOK` used
+   Python identity comparison on a value freshly fetched from Postgres
+   through a plain `String`-backed column (not a SQLAlchemy `Enum`
+   type) — the ORM never coerces a plain-string column back into its
+   Python `StrEnum` type on read, so the fetched value was a bare
+   `str`: value-equal but not identity-equal to `DependencyType.PLAYBOOK`.
+   The check silently skipped every real `PLAYBOOK`-type edge, letting
+   a genuine transitive circular dependency through undetected. Caught
+   by `test_transitive_cycle_raises_conflict` ("DID NOT RAISE
+   ConflictError"), diagnosed via ad-hoc scripts against the real
+   database (not pytest) to isolate exactly which boolean was wrong,
+   fixed by switching to `!=` with an explanatory comment distinguishing
+   this DB-fetched case from the safe identity comparison a few lines
+   above (on the raw function *parameter*, never round-tripped through
+   the database, which correctly stays `is`). A repository-wide regex
+   sweep (`\.\w+ is (not )?[A-Z]\w*\.[A-Z_]+`) afterward confirmed no
+   other instance of this exact pattern exists elsewhere in `app/` —
+   this is now a documented, generalized bug class for every future
+   AI-IOS prompt to watch for wherever a plain-string-backed enum
+   column's value is compared with `is`/`is not` after a database
+   round trip.
+2. **`app/telemetry/__init__.py` was missing**, leaving
+   `app/telemetry/tracing.py` an implicit namespace-package member
+   rather than a proper package — every other prompt's own directory
+   convention (`__init__.py` in every `app/` subdirectory) was followed
+   everywhere else in this service but was overlooked here. Found not
+   through a test failure but through the coverage report itself: the
+   module was silently absent from `coverage`'s own file listing
+   entirely — not even shown at 0% the way an imported-but-unexercised
+   module would be — rather than appearing in it like every sibling
+   module. Fixed by adding the missing empty `__init__.py`, after which
+   `app/telemetry/tracing.py` reached 100% coverage like every other
+   module in the package.
+
+**Testing**: 213 tests, 98.42% coverage, entirely against real
+infrastructure (the repository root's docker-compose Postgres/Redis/
+RabbitMQ) — no mocked database. Postgres isolation between tests uses a
+per-test SAVEPOINT (`join_transaction_mode="create_savepoint"`), the
+same pattern every prior AI-IOS service established. Digital signatures
+are exercised with genuinely real Ed25519 sign/verify via
+`cryptography` (both the correct-key-verifies and
+wrong-key-fails-verification paths) — no live external dependency, so
+unlike SSH/Git-provider tests in prior services, no skip condition is
+needed. Structural content validation uses the real `sh`/`bash`/
+PowerShell interpreters already on the host/CI image to syntax-check
+Shell/Bash/PowerShell content, including a genuinely invalid script for
+each. Dedicated coverage includes: full playbook CRUD and
+status-transition lifecycle with correct per-transition event
+publication, semantic versioning (bump/checksum/structural-validation-
+gated creation, diff via real `difflib.unified_diff`, approval
+recording), every CRUD sub-service (category/tag/label/variable/
+template/script/role/collection/repository-folder), the circular-
+dependency DFS traversal (direct and transitive cycles), draft review
+and multi-type approval workflows with correct approve/reject event
+publication, statistics recomputation (playbook/version counts,
+validation-results summary via real re-validation, deprecated-content
+count, cache-then-recompute semantics confirmed by asserting a stale
+cached read before an explicit recompute), report generation across
+all 6 types, the dependency-injection wiring for every service/route
+combination including capabilities with no router at all, and
+construction tests for every schema module with no dedicated router.
+Ruff/Black/MyPy all clean across the full package (132 source files, 35
+test files) — alembic's own auto-generated migration file excluded from
+lint/format checks, the same pre-existing, accepted repository-wide
+convention every prior service's own migration already has. Docker
+image built and live health-checked against the real compose network
+(`aiios_aiios_network`) — `/health`, `/readiness` (genuine Postgres
+connectivity from inside the container), `/liveness`, `/docs`,
+`/openapi.json`, and `/metrics` all confirmed responding correctly
+end-to-end through the containerized app, plus a live unauthenticated
+request confirming the route-registration-order fix through the actual
+running container.
