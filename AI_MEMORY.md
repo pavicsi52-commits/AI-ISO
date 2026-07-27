@@ -4356,3 +4356,166 @@ connectivity from inside the container), `/liveness`, `/docs`,
 end-to-end through the containerized app, plus a live unauthenticated
 request confirming the route-registration-order fix through the actual
 running container.
+
+## Prompt 042 — Enterprise Workflow Runtime Service ✅ Implemented
+
+`services/workflow-runtime-service/` is the thirteenth AI-IOS
+microservice built on `packages/shared-core`: persistence, distributed
+dispatch, and a REST surface around `packages/shared-core`'s own
+in-process DAG workflow engine (Prompt 028) — workflow definitions and
+semantic versioning, instance execution/pause/resume/cancel/rollback/
+replay, checkpointing, human approvals, compensation-based rollback,
+cron/recurring timers, event-driven triggers, and analytics/reporting.
+A research agent read `packages/shared-core/src/shared_core/workflow/`
+directly before any code was written, establishing a hard boundary:
+`WorkflowEngine`/`WorkflowManager`/`WorkflowRuntime` are purely
+in-process with no persistence hooks and no pause/resume entry point,
+so this service's entire job is everything the SDK deliberately
+doesn't do. Of the SDK's 20 `NodeType` values, 9 structural ones are
+handled by the engine itself; the other 11 delegated ones each needed
+a caller-registered handler built here. Built across the same batch
+structure as every prior AI-IOS service: research, a 13-enum module
+(including a translation layer between the SDK's own 11-value
+`WorkflowState` and docs/042's own 12-value status list), 18 models,
+one Alembic migration against real Postgres, 18 repositories, 6 node
+handlers, 20 services, events/notifications/telemetry, a real
+`shared_core.scheduler`-backed timer registrar, a background execution
+worker, a 4-router REST API layer (17 literal endpoints plus 3 added
+directly) plus app factory, a live Docker build/health-check against
+the real compose network, a 175-test suite at 97.60% coverage, and
+this entry.
+
+**`CheckpointStore` is synchronous; real persistence buffers, then
+flushes.** The SDK's own persistence hook calls `save()`/`restore()`
+*synchronously*, never awaited — a real async database write inside
+either would silently never happen. `app/services/checkpoint.py`'s
+`PersistentCheckpointStore` instead buffers every checkpoint in memory
+during the run and flushes to Postgres only after `engine.run()`
+returns, the same "the engine can't await you, so don't let it try"
+constraint that also shaped the compensation and event-persistence
+designs.
+
+**`APPROVAL`/`HUMAN_TASK` have zero engine integration — the entire
+pause/wait/decide mechanism was built from scratch.** The SDK treats
+both as ordinary delegated node types with no special pause semantics
+of its own. `app/services/approval.py`'s `WorkflowApprovalService
+.wait_for_decision` is a real, DB-backed polling wait, explicitly
+documented as **cooperative, not preemptive** (a single process
+polling its own database, not a true interrupt) — the same honest
+scope-limit discipline every prior AI-IOS service has applied to a
+capability the underlying framework doesn't actually support.
+
+**Two capabilities added beyond docs/042's literal 17-endpoint REST
+list, the same "required capability, no REST list entry" precedent
+every prior AI-IOS service has hit at least once.**
+`POST /workflow-instances/{id}/approvals/{approval_id}/decide` and
+`GET /workflow-instances/{id}/approvals` were added directly — without
+them, Human Approvals (an explicit ACCEPTANCE CRITERIA line) would be
+entirely non-functional. A third, `GET /workflow-instances/{id}/steps`,
+was added later in the same session after coverage analysis revealed
+per-node execution results were being persisted but never exposed (see
+bug 3 below).
+
+**`build_automation_task_handler` doesn't exist in the SDK — a real bug
+caught by an ASGI import smoke test, not a design review.** An early
+draft of `app/handlers/task.py` imported it from `shared_core.workflow`
+on the mistaken assumption that automation-service's own Prompt 040
+handler of the same name lived in the shared package. `from
+app.core.factory import create_app` raised `ImportError` immediately.
+Fixed by reimplementing the same dispatch logic locally — AI-IOS
+services never share code across service boundaries except through
+`packages/shared-core`, and `shared_core.workflow` itself defines no
+such function.
+
+**Real bugs found via testing:**
+
+1. **`instance.status.value` crashed with `AttributeError: 'str'
+   object has no attribute 'value'` on a freshly loaded instance — the
+   same enum-column class of bug docs/041's own circular-dependency
+   fix already generalized, now confirmed to recur outside identity
+   comparisons too.** `WorkflowInstance.status` (like most enum-typed
+   columns in this service) is declared `Mapped[WorkflowInstanceStatus]`
+   but backed by a plain `String(16)` column, not a real SQLAlchemy
+   `Enum` type, so a value round-tripped through Postgres in a
+   *different* session than the one that wrote it comes back as a bare
+   `str`. Unlike docs/041's version, this one never showed up in a
+   same-session unit test at all — it only surfaced through a genuine,
+   separate HTTP request (`GET /workflow/reports?report_type=execution`
+   hitting `_execution_report()`'s own fresh DB read) exercised while
+   writing this prompt's own API-router test suite. Fixed at all 4 real
+   call sites (`app/services/report.py`, `app/services/replay.py`,
+   `app/services/instance.py`, `app/services/execution.py`) by
+   switching `.value` to `str(...)`, safe because `WorkflowInstanceStatus`
+   is a `StrEnum` whose `str()` returns the same value for the enum
+   member or the raw string a fresh DB read produces.
+2. **24 completely empty, unreferenced scaffolding directories**
+   (`app/logs`, `app/parallel`, `app/persistence`, `app/queue`,
+   `app/replay`, `app/reports`, `app/rollback`, `app/runtime`,
+   `app/scheduler`, `app/state_machine`, `app/timers`,
+   `app/validators`, `app/variables`, `app/analytics`, `app/approvals`,
+   `app/checkpoint`, `app/child_workflows`, `app/compensation`,
+   `app/context`, `app/controllers`, `app/dispatcher`,
+   `app/distributed`, `app/executor`) — each nothing but a zero-byte
+   `__init__.py`, left over from initial scaffolding and never
+   referenced by any import anywhere in `app/` or `tests/`. Found via a
+   plain coverage-report read (every real package showed real statement
+   counts; these showed `0 0 0 0 100%`, the tell for a package with no
+   code in it), confirmed dead with a repository-wide grep for each
+   name, and deleted.
+3. **`WorkflowExecutionStepResponse` was built and fully modeled but
+   never wired to any endpoint — the same "orphaned capability" shape
+   this service's own `WorkflowEventRecord` table hit earlier in the
+   same build.** Per-node execution results were being persisted
+   correctly by `app/services/execution.py` but were invisible to every
+   caller — 0% coverage on the schema module was the tell. Fixed by
+   adding `app/services/execution_step.py` and a new
+   `GET /workflow-instances/{id}/steps` endpoint, wired through
+   `app/api/deps.py` exactly like the sibling `logs`/`checkpoints`
+   endpoints.
+4. **`app/services/statistics.py`'s `recompute()` used `sum(await x
+   for x in y)`.** Python treats a generator expression containing
+   `await` as an async generator when defined inside an `async def`, so
+   the sync builtin `sum()` raised `TypeError: 'async_generator' object
+   is not iterable` for `approval_count`/`replay_count`, breaking every
+   report/statistics test until diagnosed via the traceback and fixed
+   with explicit accumulator `for` loops.
+
+**Testing**: 175 tests, 97.60% coverage, entirely against real
+infrastructure (the repository root's docker-compose Postgres/Redis/
+RabbitMQ) — no mocked database, and no mocking of
+`shared_core.workflow.WorkflowEngine.run()` itself. Postgres isolation
+between tests uses a per-test SAVEPOINT
+(`join_transaction_mode="create_savepoint"`), the same pattern every
+prior AI-IOS service established. `TASK`/`CONNECTOR`/`WEBHOOK`
+dispatch uses `pytest-httpx` against the Automation Service's own real
+documented response shapes; `QUEUE` nodes, the execution worker, and
+the scheduler registrar test all use a real RabbitMQ connection
+(the latter also a real Redis client and a real `SchedulerManager`,
+not an in-memory fake). Eight real end-to-end DAG execution tests cover
+the happy path, task failure, automatic rollback compensation, approval
+timeout, webhook dispatch, queue dispatch, event publication, and
+sub-workflow spawning — deliberately never running
+`WorkflowApprovalService.wait_for_decision` concurrently with a second
+coroutine deciding the same approval over the same `db_session`, since
+`AsyncSession` is not safe for genuinely concurrent asyncio use; the
+approval mechanism is instead tested via a genuine timeout expiry and a
+sequential decide-then-wait. `tests/test_handlers.py` unit-tests every
+node handler's own error path in isolation (missing `job_id`/`url`/
+`workflow_key`, webhook request failure, loop `max_iterations`
+overflow) rather than only through a full DAG run. Ruff/Black/MyPy all
+clean across the full package (110 app source files, 34 test files) —
+MyPy had been blocked all session by Windows Smart App Control flagging
+its compiled `fscache` extension as unsigned/unrecognized (confirmed via
+the CodeIntegrity event log), resolved by the user mid-session and
+verified clean on the first run once resumed, surfacing 39 pre-existing
+type errors across 12 test files (bare dict-literal lists inferred as
+`list[object]` instead of `list[dict[str, Any]]`, missing return-type
+annotations, one stale `type: ignore`) — all fixed. Docker image built
+and live health-checked against the real compose network
+(`aiios_aiios_network`) — `/health`, `/readiness` (genuine Postgres
+connectivity from inside the container, `2.5ms`), `/liveness`, `/docs`,
+`/openapi.json`, and `/metrics` all confirmed responding correctly
+end-to-end through the containerized app, plus a live unauthenticated
+request to `/workflows` confirming `401`, and the container's own
+startup log showing a real `shared_core.scheduler` leader-election
+success against live Redis/RabbitMQ.
