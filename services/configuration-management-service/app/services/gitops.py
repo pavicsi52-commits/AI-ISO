@@ -31,6 +31,22 @@ from app.models.enums import GitProvider, GitSyncStatus
 from app.repositories.configuration_git_repository import ConfigurationGitRepositoryRepository
 
 
+def _sync_status_of(repository: ConfigurationGitRepository) -> GitSyncStatus:
+    """Return a repository's sync status as a genuine :class:`GitSyncStatus`.
+
+    ``sync_status`` is annotated ``Mapped[GitSyncStatus]`` but stored in
+    a plain ``String`` column, so SQLAlchemy hands back a raw ``str``
+    for any row loaded from Postgres. Comparing that with ``is`` was
+    ``False`` for *every* stored repository, which silently disabled
+    the conflict detection below: ``sync_profile(force=False)``
+    overwrote the remote unconditionally, destroying whatever anyone
+    else had committed, and ``force=True`` meant nothing. Normalising
+    first makes the check mean what it reads as.
+    """
+    status = repository.sync_status
+    return status if isinstance(status, GitSyncStatus) else GitSyncStatus(status)
+
+
 class ConfigurationGitOpsService:
     """Registers Git repositories and synchronizes profile content to them."""
 
@@ -115,7 +131,7 @@ class ConfigurationGitOpsService:
             sort_keys=True,
         )
 
-        if not force and repository.sync_status is GitSyncStatus.SYNCED:
+        if not force and _sync_status_of(repository) is GitSyncStatus.SYNCED:
             try:
                 remote_content = await client.get_file_content(path, ref=repository.branch)
             except GitOpsError as exc:
