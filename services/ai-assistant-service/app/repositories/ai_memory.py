@@ -42,6 +42,18 @@ class AiMemoryRepository(BaseRepository[AiMemory]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_for_org(self, organization_id: UUID) -> list[AiMemory]:
+        """Every memory for *organization_id*, expired ones included.
+
+        Deliberately unfiltered, unlike :meth:`list_live`: this backs
+        the administrative ``GET /ai/memory`` listing, where seeing an
+        expired-but-not-yet-purged row is the point. Context assembly
+        must use :meth:`list_live` instead.
+        """
+        stmt = self._base_select().where(AiMemory.organization_id == organization_id)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_by_key(
         self, organization_id: UUID, scope: MemoryScope, scope_reference: str, key: str
     ) -> AiMemory | None:
