@@ -15,9 +15,11 @@ from uuid import UUID
 
 from shared_core.exceptions.conflict import ConflictError
 
+from app.events.ai_events import RecommendationGeneratedEvent
 from app.models.ai_recommendation import AiRecommendation
 from app.models.enums import RecommendationStatus, RecommendationType
 from app.repositories.ai_recommendation import AiRecommendationRepository
+from app.types import EventPublisher
 
 _DECIDABLE = (RecommendationStatus.PROPOSED,)
 """Only a proposed recommendation may be accepted or rejected.
@@ -30,8 +32,11 @@ audit depends on.
 class RecommendationService:
     """Creates and reviews recommendations."""
 
-    def __init__(self, recommendations: AiRecommendationRepository) -> None:
+    def __init__(
+        self, recommendations: AiRecommendationRepository, *, publish_event: EventPublisher
+    ) -> None:
         self._recommendations = recommendations
+        self._publish_event = publish_event
 
     async def get_by_id(self, recommendation_id: UUID) -> AiRecommendation:
         """Return one recommendation.
@@ -63,7 +68,7 @@ class RecommendationService:
         confidence: float | None = None,
     ) -> AiRecommendation:
         """Record a generated recommendation."""
-        return await self._recommendations.create(
+        record = await self._recommendations.create(
             AiRecommendation(
                 organization_id=organization_id,
                 project_id=project_id,
@@ -77,6 +82,17 @@ class RecommendationService:
                 status=RecommendationStatus.PROPOSED,
             )
         )
+        await self._publish_event(
+            RecommendationGeneratedEvent(
+                source_service="ai-assistant-service",
+                payload={
+                    "recommendation_id": str(record.id),
+                    "recommendation_type": str(recommendation_type),
+                    "title": title,
+                },
+            )
+        )
+        return record
 
     async def decide(
         self, recommendation_id: UUID, *, accept: bool, decided_by: UUID | None

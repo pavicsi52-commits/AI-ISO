@@ -5001,3 +5001,115 @@ live health-checked on `aiios_aiios_network`: `/health`, `/liveness`,
 `/readiness` (real Postgres connectivity, `5.9ms`), `/openapi.json`,
 `/metrics`, `/docs` all `200`, and unauthenticated `GET /alerts`
 correctly `401`.
+
+---
+
+## Prompt 046 — AI Assistant Service (`services/ai-assistant-service`)
+
+Port `8017`, database `aiios_ai_assistant`, Redis db `19`, 32 routes,
+349 tests, 97.84% coverage. The platform's operations copilot:
+multi-provider chat, RAG over real `pgvector`, guardrails,
+permission-aware tool calling, multi-agent orchestration, prompt
+management, scoped memory, recommendations, AI reports, and analytics.
+
+**Two architecture decisions were escalated rather than guessed**, since
+each determined dependencies, testability, and offline capability: real
+`httpx` clients per provider (no vendor SDKs), and provider embeddings
+with a deterministic local fallback.
+
+### The bug that mattered most: enum columns return `str`
+
+Every enum-typed column across this platform is annotated
+`Mapped[SomeEnum]` but stored in a plain `String` column. SQLAlchemy
+returns a **raw `str`** for any row loaded from Postgres — the
+annotation is a lie MyPy cannot catch — so `is` against an enum member
+is `False` for *every* stored row, while passing in a test whose session
+still holds the just-assigned enum in its identity map.
+
+Found via a test that approved a prompt and immediately failed to render
+it. Confirmed by reading back through a second session. Three live,
+shipped bugs:
+
+1. **`services/ai-assistant-service`** — `PromptService.render` and
+   `.rollback` rejected *every* approved prompt in production (the whole
+   feature was dead), and the archive gate failed open, letting an
+   archived version be re-approved.
+2. **`services/alerting-service`** — every `RECURRING` maintenance window
+   was silently demoted to a one-shot interval, so alert suppression
+   stopped at `ends_at` and every later occurrence paged the on-call.
+   The recurrence parser built in Prompt 045 was unreachable.
+3. **`services/automation-service`** — `_dispatch_remote` rejected every
+   stored target with "no concrete provider registered", including
+   correctly configured SSH ones. Remote execution could not work at all.
+
+All three fixed by normalising once through a documented helper rather
+than patching each comparison. `services/user-management-service`'s
+`contact.py` uses `is` on a *Pydantic* field, which is a genuine enum —
+verified safe, not changed. Regression tests in all three services
+deliberately round-trip through the database (`await session.refresh()`
+or a second session), because that is the only thing that makes the
+failure visible; the existing tests all built their models in memory,
+which is precisely why the bugs shipped.
+
+**Rule going forward: never compare a DB-loaded enum attribute with
+`is`/`is not`. Normalise, or use `==`.**
+
+### Other real defects caught before shipping
+
+1. **`"local"` meant two different things.** The offline `HashingEncoder`
+   sentinel and `ModelProvider.LOCAL` (a self-hosted OpenAI-compatible
+   endpoint) both used the string `"local"`, so an operator pointing at
+   their own embedding server silently got lexical keyword hashing
+   instead — no error, no log, just a collapse in retrieval quality —
+   and half of `build_embedding_client` was unreachable. Renamed to
+   `builtin`.
+2. **The RAG metadata filter leaked.** `source_types` was applied to
+   vector search only, so hybrid mode returned documents from other
+   sources. Caught by a filter assertion; fixed with a document join in
+   keyword search, and now asserted across all three strategies.
+3. **Alembic emitted `VECTOR` without importing `pgvector.sqlalchemy`**
+   and never emitted `CREATE EXTENSION vector`. Only running the
+   migration against a genuinely empty database surfaced either.
+4. **Agent routing was first-match-wins**, so "check for vulnerability
+   exposure" routed to validation on the generic `check` instead of
+   security on the specific `vulnerability`. Changed to
+   longest-keyword-wins; table order now only breaks ties.
+
+### Dangling code resolved in both directions
+
+Coverage gaps exposed a whole layer that existed but was unreachable:
+
+- **Seven domain events were defined and never published.** docs/046
+  names them explicitly and `publish_event` was wired into app state,
+  but nothing emitted. All seven now fire from the flows owning their
+  state change, asserted with a real recording publisher. `ToolCalled`
+  fires even on denial — a refused call is exactly what an audit
+  consumer needs.
+- **Sessions had no API at all** — model, repository, and service
+  methods with zero endpoints. Added open/list/close/touch.
+- **Tool-call history was unreachable.** Added
+  `GET /ai/conversations/{id}/tool-calls` (denials included) on a new
+  `ToolHistoryService`, plus a `conversation_id` filter on
+  recommendations.
+- **Genuinely speculative methods were deleted**: `get_by_name` on
+  prompts and agents (no unique constraint needs them),
+  `list_approved`, and `AiStatisticsRepository.list_for_org` (statistics
+  is one row per org — listing is meaningless).
+
+### Verification
+
+Ruff/Black/MyPy clean across 118 source files. Docker image built and
+driven end to end on `aiios_aiios_network` against real Postgres, Redis,
+and RabbitMQ: readiness `11.5ms`, unauthenticated `401`, 20 Prometheus
+metric families, 32 OpenAPI paths — then a full authenticated flow
+(document ingest → incremental re-ingest correctly skipped → hybrid
+`pgvector` search → session lifecycle → prompt approve-then-render →
+injection refused with `instruction_override` and
+`system_prompt_exfiltration` findings). The prompt render succeeding in
+a container with genuine per-request sessions is the direct proof the
+enum fix works where the original bug lived.
+
+**Gotcha**: Git Bash rewrote `-e AIIOS_RABBITMQ_VHOST=/aiios` into
+`C:/Program Files/Git/aiios` via MSYS path conversion, and the container
+died on an opaque `AMQPInternalError`. Prefix `docker run` with
+`MSYS_NO_PATHCONV=1` whenever an argument begins with `/`.

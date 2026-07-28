@@ -6,7 +6,7 @@ Two real strategies, chosen by provider:
   OpenRouter, local OpenAI-compatible endpoints) call the provider's
   own documented embeddings REST API over ``httpx`` -- see
   :mod:`app.clients.embedding_client`.
-- **``local``** uses :class:`HashingEncoder` below, which needs no
+- **``builtin``** uses :class:`HashingEncoder` below, which needs no
   network, no credential, and no model download.
 
 :class:`HashingEncoder` is **feature hashing** (the "hashing trick"), a
@@ -33,8 +33,28 @@ from collections import Counter
 
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+")
 
-LOCAL_PROVIDER = "local"
-LOCAL_MODEL = "local-hashing"
+BUILTIN_PROVIDER = "builtin"
+"""Sentinel selecting this in-process encoder instead of a network call.
+
+Deliberately **not** ``"local"``. ``ModelProvider.LOCAL`` is already
+``"local"`` and means something entirely different -- a self-hosted
+OpenAI-compatible endpoint. Sharing the string made the two
+indistinguishable in
+:func:`app.clients.registry.build_embedding_client`, so an operator who
+pointed ``default_embedding_provider`` at their own embedding server
+silently got this offline lexical encoder instead: no error, no log,
+just a quiet collapse from semantic to keyword retrieval. The two
+concepts now have two names.
+"""
+
+BUILTIN_MODEL = "builtin-hashing"
+"""Recorded as the model name for vectors this encoder produced.
+
+Stored on every embedding row so a corpus indexed offline is
+distinguishable from one indexed by a real provider -- they are not
+comparable, and mixing them in one index would silently degrade
+ranking.
+"""
 
 
 def tokenize(text: str) -> list[str]:
@@ -103,4 +123,4 @@ class HashingEncoder:
         return [value / norm for value in vector]
 
 
-__all__ = ["LOCAL_MODEL", "LOCAL_PROVIDER", "HashingEncoder", "tokenize"]
+__all__ = ["BUILTIN_MODEL", "BUILTIN_PROVIDER", "HashingEncoder", "tokenize"]

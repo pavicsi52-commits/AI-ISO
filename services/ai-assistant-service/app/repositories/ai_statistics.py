@@ -17,12 +17,6 @@ class AiStatisticsRepository(BaseRepository[AiStatistics]):
     def __init__(self, session: AsyncSession, *, tenant_scope: TenantScope | None = None) -> None:
         super().__init__(session, AiStatistics, tenant_scope=tenant_scope)
 
-    async def list_for_org(self, organization_id: UUID) -> list[AiStatistics]:
-        """Every row belonging to *organization_id*."""
-        stmt = self._base_select().where(AiStatistics.organization_id == organization_id)
-        result = await self._session.execute(stmt)
-        return list(result.scalars().all())
-
     async def get_for_org(self, organization_id: UUID) -> AiStatistics | None:
         """Return *organization_id*'s cached snapshot, or ``None``."""
         stmt = self._base_select().where(AiStatistics.organization_id == organization_id)

@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.models.enums import AgentType, ConversationStatus, MessageRole
+from app.models.enums import AgentType, ConversationStatus, MessageRole, ToolCallStatus
 
 
 class ChatRequest(BaseModel):
@@ -118,3 +118,48 @@ __all__ = [
     "MultiAgentRequest",
     "MultiAgentResponse",
 ]
+
+
+class SessionCreateRequest(BaseModel):
+    """Body of ``POST /ai/sessions``."""
+
+    organization_id: UUID
+    project_id: UUID | None = None
+    label: str | None = Field(default=None, max_length=255)
+    expires_at: datetime | None = None
+
+
+class SessionResponse(BaseModel):
+    """One working session."""
+
+    id: UUID
+    organization_id: UUID
+    project_id: UUID | None
+    user_id: UUID
+    label: str | None
+    started_at: datetime
+    last_active_at: datetime
+    expires_at: datetime | None
+    is_open: bool
+
+
+class ToolCallResponse(BaseModel):
+    """One recorded tool call together with its result.
+
+    ``result`` is ``null`` for a denied call: nothing ran, and that
+    absence distinguishes "blocked" from "never attempted".
+    """
+
+    id: UUID
+    conversation_id: UUID | None
+    tool_id: UUID
+    arguments: dict[str, Any]
+    status: ToolCallStatus
+    denial_reason: str | None
+    requested_by: UUID | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    succeeded: bool | None = None
+    result: dict[str, Any] | None = None
+    error_message: str | None = None
+    duration_ms: float | None = None

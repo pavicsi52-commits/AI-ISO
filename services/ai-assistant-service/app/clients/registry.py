@@ -29,7 +29,7 @@ from app.clients.gemini_client import GeminiClient
 from app.clients.ollama_client import OllamaClient
 from app.clients.openai_compatible import OpenAiCompatibleClient
 from app.config.settings import AiAssistantServiceSettings
-from app.embeddings.encoder import LOCAL_PROVIDER, HashingEncoder
+from app.embeddings.encoder import BUILTIN_PROVIDER, HashingEncoder
 from app.models.enums import ModelProvider
 
 logger = get_logger("app.clients.registry")
@@ -185,7 +185,7 @@ def build_embedding_client(
     :class:`~app.embeddings.encoder.HashingEncoder` instead of a
     network call.
     """
-    if provider == LOCAL_PROVIDER:
+    if provider == BUILTIN_PROVIDER:
         return None
     if provider == str(ModelProvider.OLLAMA):
         return EmbeddingClient(

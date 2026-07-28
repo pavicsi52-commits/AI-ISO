@@ -147,10 +147,21 @@ async def generate_recommendation(
 
 @router.get("/recommendations", response_model=SuccessResponse[list[RecommendationResponse]])
 async def list_recommendations(
-    organization_id: UUID, recommendations: RecommendationSvc, _caller: CurrentUserId
+    organization_id: UUID,
+    recommendations: RecommendationSvc,
+    _caller: CurrentUserId,
+    conversation_id: UUID | None = None,
 ) -> SuccessResponse[list[RecommendationResponse]]:
-    """Every recommendation for an organization."""
-    records = await recommendations.list_for_org(organization_id)
+    """Recommendations for an organization, or for one conversation.
+
+    The per-conversation filter answers "what did the assistant propose
+    in *this* thread?", which is the question a reviewer actually has.
+    """
+    records = (
+        await recommendations.list_for_conversation(conversation_id)
+        if conversation_id is not None
+        else await recommendations.list_for_org(organization_id)
+    )
     return SuccessResponse(
         message="Recommendations retrieved.",
         data=[recommendation_to_response(record) for record in records],

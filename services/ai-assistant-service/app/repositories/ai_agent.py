@@ -23,14 +23,6 @@ class AiAgentRepository(BaseRepository[AiAgent]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_name(self, organization_id: UUID, name: str) -> AiAgent | None:
-        """Return the agent registered under *name*, if any."""
-        stmt = self._base_select().where(
-            AiAgent.organization_id == organization_id, AiAgent.name == name
-        )
-        result = await self._session.execute(stmt)
-        return result.scalars().first()
-
     async def list_enabled_for_org(self, organization_id: UUID) -> list[AiAgent]:
         """Every enabled agent for *organization_id*."""
         stmt = self._base_select().where(

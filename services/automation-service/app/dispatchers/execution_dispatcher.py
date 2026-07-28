@@ -48,6 +48,26 @@ class DispatchError(RunnerError):
     """A job's playbook type/target combination cannot be dispatched."""
 
 
+def _connector_type_of(target: AutomationTarget) -> ConnectorType:
+    """Return a target's connector type as a genuine :class:`ConnectorType`.
+
+    ``AutomationTarget.connector_type`` is annotated
+    ``Mapped[ConnectorType]`` but its column is a plain ``String(24)``,
+    so SQLAlchemy returns a raw ``str`` for any row loaded from the
+    database -- the annotation is a lie MyPy cannot catch. Comparing it
+    with ``is`` was therefore ``False`` for *every* stored target, so
+    remote dispatch rejected even correctly-configured SSH targets with
+    "no concrete provider registered". Normalising first restores the
+    check to what it reads as.
+    """
+    connector_type = target.connector_type
+    return (
+        connector_type
+        if isinstance(connector_type, ConnectorType)
+        else ConnectorType(connector_type)
+    )
+
+
 def _build_credential(target: AutomationTarget, secret_value: str | None) -> Credential:
     identity = target.username or "root"
     if secret_value is None:
@@ -66,7 +86,7 @@ async def _dispatch_remote(
     credentials: SecretCredentialResolver,
     caller_token: str,
 ) -> RunnerResult:
-    if target.connector_type is not ConnectorType.SSH:
+    if _connector_type_of(target) is not ConnectorType.SSH:
         raise DispatchError(
             f"Connector type {target.connector_type!r} has no concrete provider registered "
             "(only SSH is supported by this service)."

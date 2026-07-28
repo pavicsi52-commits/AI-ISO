@@ -71,8 +71,8 @@ class AiAssistantServiceSettings(BaseSettings):
 
     default_provider: str = Field(default="ollama")
     default_model: str = Field(default="llama3")
-    default_embedding_provider: str = Field(default="local")
-    default_embedding_model: str = Field(default="local-hashing")
+    default_embedding_provider: str = Field(default="builtin")
+    default_embedding_model: str = Field(default="builtin-hashing")
 
     http_client_timeout_seconds: float = Field(default=60.0, gt=0)
     max_parallel_agents: int = Field(default=5, ge=1)

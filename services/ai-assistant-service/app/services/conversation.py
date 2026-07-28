@@ -75,6 +75,24 @@ class ConversationService:
             )
         )
 
+    async def list_sessions(
+        self, organization_id: UUID, *, user_id: UUID | None = None, open_only: bool = False
+    ) -> list[AiSession]:
+        """Sessions for an organization, optionally narrowed to one user.
+
+        ``open_only`` is the common case in a UI -- "which of my
+        assistant sessions are still live?" -- and is pushed into SQL
+        rather than filtered in Python so a long history stays cheap.
+        """
+        if user_id is not None and open_only:
+            return await self._sessions.list_open_for_user(organization_id, user_id)
+        sessions = await self._sessions.list_for_org(organization_id)
+        if user_id is not None:
+            sessions = [session for session in sessions if session.user_id == user_id]
+        if open_only:
+            sessions = [session for session in sessions if session.is_open]
+        return sessions
+
     async def touch_session(self, session_id: UUID) -> AiSession:
         """Record activity on a session.
 

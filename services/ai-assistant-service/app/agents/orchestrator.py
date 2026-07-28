@@ -52,6 +52,9 @@ agent to use: routing is cheap, frequent, and must be predictable --
 spending a model call to pick a model call would double latency and
 make the choice non-reproducible. Anything unmatched falls to the
 reasoning agent.
+
+Table *order* carries no meaning; see :func:`route` for why the longest
+matched keyword wins instead.
 """
 
 
@@ -101,12 +104,25 @@ class SharedMemory:
 
 
 def route(description: str) -> AgentType:
-    """Pick the agent type best suited to *description*."""
+    """Pick the agent type best suited to *description*.
+
+    The **longest matched keyword wins**, not the first table entry.
+    Keyword length is a good proxy for specificity, and first-match
+    ordering gets this wrong in practice: "check for vulnerability
+    exposure" contains both the generic ``"check"`` (validation) and
+    the highly specific ``"vulnerability"`` (security), and should
+    clearly route to security. Ties break on table order, so the
+    behaviour stays deterministic.
+    """
     lowered = description.lower()
+    best_type = AgentType.REASONING
+    best_length = 0
     for agent_type, keywords in _KEYWORD_ROUTING:
-        if any(keyword in lowered for keyword in keywords):
-            return agent_type
-    return AgentType.REASONING
+        for keyword in keywords:
+            if keyword in lowered and len(keyword) > best_length:
+                best_type = agent_type
+                best_length = len(keyword)
+    return best_type
 
 
 def decompose(request: str, *, max_tasks: int = 4) -> list[AgentTask]:

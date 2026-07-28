@@ -44,6 +44,28 @@ _SEMVER_PARTS = 3
 """``major.minor.patch`` -- anything else is treated as unparseable."""
 
 
+def _status_of(version: AiPromptVersion) -> PromptStatus:
+    """Return a version's status as a genuine :class:`PromptStatus`.
+
+    **Why this exists.** ``AiPromptVersion.status`` is annotated
+    ``Mapped[PromptStatus]`` but its column is a plain ``String(16)``,
+    which is the platform-wide convention. SQLAlchemy therefore hands
+    back a raw ``str`` on any freshly-loaded row -- the annotation is a
+    lie MyPy cannot catch. An ``is`` comparison against an enum member
+    consequently returns ``False`` for *every* row read from the
+    database, while appearing to work in a session that still has the
+    just-assigned enum object in its identity map.
+
+    That is not hypothetical: it silently made ``render`` and
+    ``rollback`` reject every approved prompt in production while the
+    happy path passed in-session, and it let an archived version be
+    re-approved. Normalising once, here, kills the whole bug class
+    rather than patching each comparison.
+    """
+    status = version.status
+    return status if isinstance(status, PromptStatus) else PromptStatus(status)
+
+
 def bump_patch(version_number: str) -> str:
     """Return the next patch version after *version_number*.
 
@@ -151,7 +173,7 @@ class PromptService:
         version = await self._versions.get_version(prompt_id, version_number)
         if version is None:
             raise NotFoundError(f"Prompt {prompt_id!r} has no version {version_number!r}.")
-        if version.status is PromptStatus.ARCHIVED:
+        if _status_of(version) is PromptStatus.ARCHIVED:
             raise ConflictError(
                 f"Version {version_number!r} of prompt {prompt_id!r} is archived "
                 "and cannot be approved."
@@ -179,10 +201,11 @@ class PromptService:
         version = await self._versions.get_version(prompt_id, version_number)
         if version is None:
             raise NotFoundError(f"Prompt {prompt_id!r} has no version {version_number!r}.")
-        if version.status is not PromptStatus.APPROVED:
+        status = _status_of(version)
+        if status is not PromptStatus.APPROVED:
             raise ConflictError(
                 f"Version {version_number!r} of prompt {prompt_id!r} is "
-                f"{str(version.status)!r}, not approved; cannot roll back onto it."
+                f"{str(status)!r}, not approved; cannot roll back onto it."
             )
         prompt.current_version_number = version_number
         return await self._prompts.update(prompt)
@@ -203,7 +226,7 @@ class PromptService:
                 f"Prompt {prompt_id!r} points at missing version "
                 f"{prompt.current_version_number!r}."
             )
-        if version.status is not PromptStatus.APPROVED:
+        if _status_of(version) is not PromptStatus.APPROVED:
             raise ConflictError(
                 f"Prompt {prompt_id!r} current version "
                 f"{prompt.current_version_number!r} is not approved."

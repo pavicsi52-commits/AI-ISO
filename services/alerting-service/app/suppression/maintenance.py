@@ -81,9 +81,30 @@ def is_window_active(window: AlertMaintenanceWindow, moment: datetime) -> bool:
     """Return whether *window* is in force at *moment*."""
     if not window.enabled or moment < window.starts_at:
         return False
-    if window.window_type is not MaintenanceWindowType.RECURRING:
+    if _window_type_of(window) is not MaintenanceWindowType.RECURRING:
         return moment <= window.ends_at
     return _is_recurring_active(window, moment)
+
+
+def _window_type_of(window: AlertMaintenanceWindow) -> MaintenanceWindowType:
+    """Return a window's type as a genuine :class:`MaintenanceWindowType`.
+
+    ``AlertMaintenanceWindow.window_type`` is annotated
+    ``Mapped[MaintenanceWindowType]`` but its column is a plain
+    ``String(16)``, so SQLAlchemy hands back a raw ``str`` for any row
+    loaded from the database -- the annotation is a lie MyPy cannot
+    catch. Comparing that with ``is`` was ``False`` for *every* stored
+    window, which quietly demoted every ``RECURRING`` window to a
+    one-shot interval: suppression stopped at ``ends_at`` and every
+    later occurrence paged the on-call. Normalising first makes the
+    comparison mean what it reads as.
+    """
+    window_type = window.window_type
+    return (
+        window_type
+        if isinstance(window_type, MaintenanceWindowType)
+        else MaintenanceWindowType(window_type)
+    )
 
 
 __all__ = ["is_window_active"]

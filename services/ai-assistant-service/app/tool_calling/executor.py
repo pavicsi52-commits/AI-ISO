@@ -22,6 +22,7 @@ from uuid import UUID
 
 from shared_core.logging.logger import get_logger
 
+from app.events.ai_events import ToolCalledEvent
 from app.guardrails.redaction import redact
 from app.models.ai_tool import AiTool
 from app.models.ai_tool_call import AiToolCall
@@ -34,6 +35,7 @@ from app.tool_calling.registry import (
     authorize,
     validate_arguments,
 )
+from app.types import EventPublisher
 
 logger = get_logger("app.tool_calling.executor")
 
@@ -74,10 +76,13 @@ class ToolExecutor:
         calls: AiToolCallRepository,
         results: AiToolResultRepository,
         handlers: ToolHandlerRegistry,
+        *,
+        publish_event: EventPublisher,
     ) -> None:
         self._calls = calls
         self._results = results
         self._handlers = handlers
+        self._publish_event = publish_event
 
     async def execute(
         self,
@@ -93,7 +98,53 @@ class ToolExecutor:
         caller_permissions: list[str],
         allow_mutating: bool = False,
     ) -> ToolExecution:
-        """Run one tool call, recording every outcome."""
+        """Run one tool call, recording and announcing every outcome.
+
+        The ``ToolCalled`` event is emitted for *every* terminal
+        outcome, including a denial. A refused invocation is precisely
+        what a downstream audit consumer needs to see -- publishing only
+        successes would make the permission gate invisible.
+        """
+        execution = await self._execute(
+            tool,
+            arguments,
+            organization_id=organization_id,
+            project_id=project_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            requested_by=requested_by,
+            agent_tool_keys=agent_tool_keys,
+            caller_permissions=caller_permissions,
+            allow_mutating=allow_mutating,
+        )
+        await self._publish_event(
+            ToolCalledEvent(
+                source_service="ai-assistant-service",
+                payload={
+                    "tool_call_id": str(execution.call.id),
+                    "tool_key": tool.tool_key,
+                    "status": str(execution.status),
+                    "conversation_id": str(conversation_id) if conversation_id else None,
+                },
+            )
+        )
+        return execution
+
+    async def _execute(
+        self,
+        tool: AiTool,
+        arguments: dict[str, Any],
+        *,
+        organization_id: UUID,
+        project_id: UUID | None = None,
+        conversation_id: UUID | None = None,
+        message_id: UUID | None = None,
+        requested_by: UUID | None = None,
+        agent_tool_keys: list[str],
+        caller_permissions: list[str],
+        allow_mutating: bool = False,
+    ) -> ToolExecution:
+        """Authorize, run, and record one tool call."""
         call = await self._calls.create(
             AiToolCall(
                 organization_id=organization_id,

@@ -9,7 +9,6 @@ from shared_core.database.tenant import TenantScope
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_prompt_version import AiPromptVersion
-from app.models.enums import PromptStatus
 
 
 class AiPromptVersionRepository(BaseRepository[AiPromptVersion]):
@@ -32,15 +31,6 @@ class AiPromptVersionRepository(BaseRepository[AiPromptVersion]):
         )
         result = await self._session.execute(stmt)
         return result.scalars().first()
-
-    async def list_approved(self, prompt_id: UUID) -> list[AiPromptVersion]:
-        """Every approved revision -- the only ones eligible for use."""
-        stmt = self._base_select().where(
-            AiPromptVersion.prompt_id == prompt_id,
-            AiPromptVersion.status == PromptStatus.APPROVED,
-        )
-        result = await self._session.execute(stmt)
-        return list(result.scalars().all())
 
 
 __all__ = ["AiPromptVersionRepository"]

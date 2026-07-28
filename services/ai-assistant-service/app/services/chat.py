@@ -38,6 +38,7 @@ from shared_core.logging.logger import get_logger
 from app.agents.orchestrator import AgentOrchestrator, aggregate, decompose
 from app.clients.base import ChatCompletion, ChatMessage
 from app.clients.registry import ModelRegistry
+from app.events.ai_events import ConversationCompletedEvent, ConversationStartedEvent
 from app.guardrails.engine import (
     screen_model_output,
     screen_retrieved_context,
@@ -60,6 +61,7 @@ from app.repositories.ai_conversation import AiConversationRepository
 from app.repositories.ai_tool import AiToolRepository
 from app.tool_calling.executor import ToolExecutor
 from app.tool_calling.registry import to_specification
+from app.types import EventPublisher
 
 logger = get_logger("app.services.chat")
 
@@ -99,6 +101,7 @@ class ChatService:
         default_model: str,
         max_tool_calls: int,
         rag_top_k: int,
+        publish_event: EventPublisher,
         max_parallel_agents: int = 5,
     ) -> None:
         self._conversations = conversations
@@ -112,6 +115,7 @@ class ChatService:
         self._default_model = default_model
         self._max_tool_calls = max_tool_calls
         self._rag_top_k = rag_top_k
+        self._publish_event = publish_event
         self._max_parallel_agents = max_parallel_agents
 
     async def start_conversation(
@@ -124,7 +128,7 @@ class ChatService:
         session_id: UUID | None = None,
     ) -> AiConversation:
         """Open a new conversation."""
-        return await self._conversations.create(
+        conversation = await self._conversations.create(
             AiConversation(
                 organization_id=organization_id,
                 project_id=project_id,
@@ -135,6 +139,13 @@ class ChatService:
                 started_at=datetime.now(UTC),
             )
         )
+        await self._publish_event(
+            ConversationStartedEvent(
+                source_service="ai-assistant-service",
+                payload={"conversation_id": str(conversation.id), "title": title},
+            )
+        )
+        return conversation
 
     async def _resolve_agent(
         self, organization_id: UUID, agent_type: AgentType | None
@@ -404,7 +415,14 @@ class ChatService:
         """Mark a conversation completed."""
         conversation.status = ConversationStatus.COMPLETED
         conversation.completed_at = datetime.now(UTC)
-        return await self._conversations.update(conversation)
+        completed = await self._conversations.update(conversation)
+        await self._publish_event(
+            ConversationCompletedEvent(
+                source_service="ai-assistant-service",
+                payload={"conversation_id": str(completed.id)},
+            )
+        )
+        return completed
 
 
 __all__ = ["INJECTION_REFUSAL", "ChatService", "ChatTurn"]

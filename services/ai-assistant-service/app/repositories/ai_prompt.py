@@ -23,13 +23,5 @@ class AiPromptRepository(BaseRepository[AiPrompt]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_name(self, organization_id: UUID, name: str) -> AiPrompt | None:
-        """Return the prompt registered under *name*, if any."""
-        stmt = self._base_select().where(
-            AiPrompt.organization_id == organization_id, AiPrompt.name == name
-        )
-        result = await self._session.execute(stmt)
-        return result.scalars().first()
-
 
 __all__ = ["AiPromptRepository"]

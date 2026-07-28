@@ -18,11 +18,13 @@ from uuid import UUID
 
 from app.clients.base import ChatMessage
 from app.clients.registry import ModelRegistry
+from app.events.ai_events import ReportGeneratedEvent
 from app.guardrails.engine import screen_model_output
 from app.models.ai_report import AiReport
 from app.models.enums import AiReportType, MessageRole, ModelProvider, RetrievalStrategy
 from app.rag.pipeline import RagPipeline
 from app.repositories.ai_report import AiReportRepository
+from app.types import EventPublisher
 
 _REPORT_BRIEFS: dict[AiReportType, str] = {
     AiReportType.EXECUTIVE: (
@@ -80,10 +82,12 @@ class AiReportService:
         default_provider: ModelProvider,
         default_model: str,
         rag_top_k: int,
+        publish_event: EventPublisher,
     ) -> None:
         self._reports = reports
         self._rag = rag
         self._registry = registry
+        self._publish_event = publish_event
         self._default_provider = default_provider
         self._default_model = default_model
         self._rag_top_k = rag_top_k
@@ -147,7 +151,7 @@ class AiReportService:
         )
         screened = screen_model_output(completion.content)
 
-        return await self._reports.create(
+        report = await self._reports.create(
             AiReport(
                 organization_id=organization_id,
                 project_id=project_id,
@@ -161,6 +165,17 @@ class AiReportService:
                 generated_at=datetime.now(UTC),
             )
         )
+        await self._publish_event(
+            ReportGeneratedEvent(
+                source_service="ai-assistant-service",
+                payload={
+                    "report_id": str(report.id),
+                    "report_type": str(report_type),
+                    "title": subject,
+                },
+            )
+        )
+        return report
 
 
 __all__ = ["AiReportService"]

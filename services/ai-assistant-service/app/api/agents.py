@@ -19,10 +19,12 @@ from app.api.deps import (
     AuditSvc,
     CurrentUserId,
     DbSession,
+    EventPublisherDep,
     ToolExecutorDep,
     get_model_registry,
 )
 from app.clients.registry import ModelRegistry
+from app.events.ai_events import ModelChangedEvent
 from app.models.ai_agent import AiAgent
 from app.models.ai_tool import AiTool
 from app.models.enums import AuditOutcome, ModelProvider
@@ -234,6 +236,7 @@ async def select_model(
     registry: RegistryDep,
     audit: AuditSvc,
     caller: CurrentUserId,
+    publish_event: EventPublisherDep,
 ) -> SuccessResponse[AgentResponse]:
     """Point an agent at a different provider and model.
 
@@ -261,6 +264,16 @@ async def select_model(
         entity_id=agent.id,
         outcome=AuditOutcome.SUCCESS,
         reason=f"Model set to {body.provider}/{body.model}.",
+    )
+    await publish_event(
+        ModelChangedEvent(
+            source_service="ai-assistant-service",
+            payload={
+                "agent_id": str(agent.id),
+                "provider": str(body.provider),
+                "model": body.model,
+            },
+        )
     )
     return SuccessResponse(
         message="Model selection updated.", data=agent_to_response(updated), meta=_meta()

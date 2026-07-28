@@ -58,8 +58,10 @@ from app.services.feedback import FeedbackService
 from app.services.recommendation import RecommendationService
 from app.services.report import AiReportService
 from app.services.statistics import AiStatisticsService
+from app.services.tool_history import ToolHistoryService
 from app.tool_calling.builtin import build_builtin_registry
 from app.tool_calling.executor import ToolExecutor
+from app.types import EventPublisher
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -82,6 +84,14 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 def get_model_registry(request: Request) -> ModelRegistry:
     """The process-wide model provider registry."""
     return request.app.state.model_registry  # type: ignore[no-any-return]
+
+
+def get_event_publisher(request: Request) -> EventPublisher:
+    """The process-wide domain-event publisher."""
+    return request.app.state.publish_event  # type: ignore[no-any-return]
+
+
+EventPublisherDep = Annotated[EventPublisher, Depends(get_event_publisher)]
 
 
 def get_notification_manager(request: Request) -> NotificationManager:
@@ -189,12 +199,15 @@ def get_memory_service(request: Request, session: DbSession) -> MemoryService:
 MemoryDep = Annotated[MemoryService, Depends(get_memory_service)]
 
 
-def get_tool_executor(session: DbSession, platform: PlatformDep) -> ToolExecutor:
+def get_tool_executor(
+    session: DbSession, platform: PlatformDep, publish_event: EventPublisherDep
+) -> ToolExecutor:
     """The current request's tool executor, with built-in handlers bound."""
     return ToolExecutor(
         AiToolCallRepository(session),
         AiToolResultRepository(session),
         build_builtin_registry(platform),
+        publish_event=publish_event,
     )
 
 
@@ -208,6 +221,7 @@ def get_chat_service(
     rag: RagDep,
     registry: Annotated[ModelRegistry, Depends(get_model_registry)],
     tool_executor: ToolExecutorDep,
+    publish_event: EventPublisherDep,
 ) -> ChatService:
     """The current request's fully-wired chat orchestrator."""
     settings = request.app.state.service_settings
@@ -223,6 +237,7 @@ def get_chat_service(
         default_model=settings.default_model,
         max_tool_calls=settings.max_tool_calls_per_turn,
         rag_top_k=settings.rag_top_k,
+        publish_event=publish_event,
         max_parallel_agents=settings.max_parallel_agents,
     )
 
@@ -242,6 +257,14 @@ def get_conversation_service(session: DbSession) -> ConversationService:
 ConversationSvc = Annotated[ConversationService, Depends(get_conversation_service)]
 
 
+def get_tool_history_service(session: DbSession) -> ToolHistoryService:
+    """The current request's tool-call history reader."""
+    return ToolHistoryService(AiToolCallRepository(session), AiToolResultRepository(session))
+
+
+ToolHistorySvc = Annotated[ToolHistoryService, Depends(get_tool_history_service)]
+
+
 def get_prompt_service(session: DbSession) -> PromptService:
     """The current request's prompt service."""
     return PromptService(AiPromptRepository(session), AiPromptVersionRepository(session))
@@ -250,9 +273,11 @@ def get_prompt_service(session: DbSession) -> PromptService:
 PromptSvc = Annotated[PromptService, Depends(get_prompt_service)]
 
 
-def get_recommendation_service(session: DbSession) -> RecommendationService:
+def get_recommendation_service(
+    session: DbSession, publish_event: EventPublisherDep
+) -> RecommendationService:
     """The current request's recommendation service."""
-    return RecommendationService(AiRecommendationRepository(session))
+    return RecommendationService(AiRecommendationRepository(session), publish_event=publish_event)
 
 
 RecommendationSvc = Annotated[RecommendationService, Depends(get_recommendation_service)]
@@ -263,6 +288,7 @@ def get_report_service(
     session: DbSession,
     rag: RagDep,
     registry: Annotated[ModelRegistry, Depends(get_model_registry)],
+    publish_event: EventPublisherDep,
 ) -> AiReportService:
     """The current request's report generator."""
     settings = request.app.state.service_settings
@@ -273,15 +299,16 @@ def get_report_service(
         default_provider=ModelProvider(settings.default_provider),
         default_model=settings.default_model,
         rag_top_k=settings.rag_top_k,
+        publish_event=publish_event,
     )
 
 
 ReportSvc = Annotated[AiReportService, Depends(get_report_service)]
 
 
-def get_feedback_service(session: DbSession) -> FeedbackService:
+def get_feedback_service(session: DbSession, publish_event: EventPublisherDep) -> FeedbackService:
     """The current request's feedback service."""
-    return FeedbackService(AiFeedbackRepository(session))
+    return FeedbackService(AiFeedbackRepository(session), publish_event=publish_event)
 
 
 FeedbackSvc = Annotated[FeedbackService, Depends(get_feedback_service)]
@@ -327,6 +354,7 @@ __all__ = [
     "CurrentUserId",
     "CurrentUserToken",
     "DbSession",
+    "EventPublisherDep",
     "FeedbackSvc",
     "MemoryDep",
     "NotificationSvc",
@@ -337,12 +365,14 @@ __all__ = [
     "ReportSvc",
     "StatisticsSvc",
     "ToolExecutorDep",
+    "ToolHistorySvc",
     "get_audit_service",
     "get_caller_token",
     "get_chat_service",
     "get_conversation_service",
     "get_current_user_id",
     "get_db_session",
+    "get_event_publisher",
     "get_feedback_service",
     "get_http_client",
     "get_memory_service",
