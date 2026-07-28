@@ -81,7 +81,7 @@ class EncryptionKeyService:
         key = await self._keys.create(
             EncryptionKey(
                 organization_id=organization_id,
-                version=version,
+                key_version=version,
                 wrapped_key=wrapped,
                 status=EncryptionKeyStatus.ACTIVE,
             )
@@ -131,7 +131,7 @@ class EncryptionKeyService:
             "rotation" is really just the initial mint).
         """
         previous = await self._keys.get_active(organization_id)
-        next_version = (previous.version + 1) if previous is not None else 1
+        next_version = (previous.key_version + 1) if previous is not None else 1
         new_key = await self._mint(organization_id, version=next_version)
         if previous is not None:
             previous.status = EncryptionKeyStatus.ROTATED

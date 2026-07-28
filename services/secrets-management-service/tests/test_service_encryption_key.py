@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.encryption.envelope import EnvelopeEncryption
 from app.events.secret_events import KeyGeneratedEvent, KeyRevokedEvent
+from app.models.encryption_key import EncryptionKey
 from app.models.enums import EncryptionKeyStatus
+from app.repositories.encryption_key import EncryptionKeyRepository
 from app.repositories.key_rotation_history import KeyRotationHistoryRepository
 from tests.conftest import build_encryption_key_service
 
@@ -22,7 +24,7 @@ async def test_get_or_create_active_mints_first_key(
     keys = build_encryption_key_service(db_session, envelope)
     org_id = uuid.uuid4()
     key = await keys.get_or_create_active(org_id)
-    assert key.version == 1
+    assert key.key_version == 1
     assert key.status == EncryptionKeyStatus.ACTIVE
     assert key.organization_id == org_id
 
@@ -69,7 +71,7 @@ async def test_rotate_mints_new_active_key_and_retires_previous(
     assert previous.id == original.id
     assert previous.status == EncryptionKeyStatus.ROTATED
     assert new_key.status == EncryptionKeyStatus.ACTIVE
-    assert new_key.version == original.version + 1
+    assert new_key.key_version == original.key_version + 1
 
     active = await keys.get_or_create_active(org_id)
     assert active.id == new_key.id
@@ -81,7 +83,7 @@ async def test_rotate_with_no_prior_key_returns_none_as_previous(
     keys = build_encryption_key_service(db_session, envelope)
     previous, new_key = await keys.rotate(uuid.uuid4(), rotated_by=None)
     assert previous is None
-    assert new_key.version == 1
+    assert new_key.key_version == 1
 
 
 async def test_rotate_records_history(
@@ -165,3 +167,36 @@ async def test_revoke_publishes_key_revoked_event(
     await keys.revoke(key.id)
 
     assert any(isinstance(event, KeyRevokedEvent) for event in captured)
+
+
+async def test_key_generation_is_not_disturbed_by_row_updates(
+    db_session: AsyncSession,
+) -> None:
+    """Regression: ``key_version`` must not shadow the base ``version``.
+
+    :class:`shared_core.base.BaseEntityMixin` owns ``version`` for
+    optimistic locking and ``BaseRepository.update()`` increments it on
+    every write. While this column was named ``version``, any update to
+    a key row would silently advance its *generation* -- corrupting
+    rotation ordering and ``rotate()``'s own ``previous + 1``
+    computation -- and optimistic locking was disabled for this table.
+
+    Found by the same collision shipping as a live bug in
+    ``services/reporting-service``'s archive versioning.
+    """
+    key = EncryptionKey(
+        organization_id=uuid.uuid4(),
+        key_version=7,
+        status=EncryptionKeyStatus.ACTIVE,
+        algorithm="AES-256-GCM",
+        wrapped_key="wrapped",
+    )
+    db_session.add(key)
+    await db_session.flush()
+
+    repository = EncryptionKeyRepository(db_session)
+    for _ in range(3):
+        await repository.update(key)
+
+    assert key.key_version == 7, "an unrelated update advanced the key generation"
+    assert key.version > 1, "optimistic locking must still be advancing"

@@ -26,7 +26,19 @@ class EncryptionKey(BaseModel):
 
     __tablename__ = "encryption_keys"
 
-    version: Mapped[int] = mapped_column(Integer, index=True)
+    key_version: Mapped[int] = mapped_column(Integer, index=True)
+    """This DEK's generation for its organization, used to order rotations.
+
+    Deliberately **not** named ``version``: :class:`BaseModel` already
+    owns a ``version`` column for optimistic locking, which
+    ``BaseRepository.update()`` increments on every write. Shadowing it
+    meant any future update to a key row would silently advance its
+    *generation* number -- corrupting rotation ordering and
+    ``rotate()``'s own ``previous.version + 1`` computation -- while
+    also disabling optimistic locking for this table. Renamed after the
+    same collision was found and proven live in
+    ``services/reporting-service``'s archive versioning.
+    """
     wrapped_key: Mapped[str] = mapped_column(Text)
     algorithm: Mapped[str] = mapped_column(String(32), default="AES-256-GCM")
     status: Mapped[EncryptionKeyStatus] = mapped_column(

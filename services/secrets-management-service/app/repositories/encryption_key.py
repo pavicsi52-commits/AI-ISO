@@ -36,7 +36,7 @@ class EncryptionKeyRepository(BaseRepository[EncryptionKey]):
                 EncryptionKey.organization_id == organization_id,
                 EncryptionKey.status == EncryptionKeyStatus.ACTIVE,
             )
-            .order_by(desc(EncryptionKey.version))
+            .order_by(desc(EncryptionKey.key_version))
             .limit(1)
         )
         result = await self._session.execute(stmt)
@@ -47,7 +47,7 @@ class EncryptionKeyRepository(BaseRepository[EncryptionKey]):
         stmt = (
             self._base_select()
             .where(EncryptionKey.organization_id == organization_id)
-            .order_by(desc(EncryptionKey.version))
+            .order_by(desc(EncryptionKey.key_version))
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
