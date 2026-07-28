@@ -4884,3 +4884,120 @@ dispatch branch, threshold/rule breach, broken-collector graceful
 handling, and genuine scheduler-job failure propagation) with no
 mocking of the orchestrator itself. Ruff/Black/MyPy all clean across
 the full package (139 source files).
+
+## Prompt 045 — Enterprise Alerting Service ✅ Implemented
+
+`services/alerting-service/` is the sixteenth AI-IOS microservice built
+on `packages/shared-core`: detects, correlates, deduplicates,
+suppresses, routes, escalates, tracks, and resolves enterprise
+operational alerts — the "operational nervous system" consuming events
+from Monitoring, Validation, Automation, Workflow Runtime,
+Configuration Management, Discovery, and Inventory. Built across the
+established batch structure: a 17-enum module, 16 models, one Alembic
+migration against real Postgres, 16 repositories, six pure decision
+engines (fingerprinting, rule evaluation, suppression, correlation,
+routing, escalation/on-call), 13 schema modules, 7 HTTP clients, 15
+services including the central ingestion pipeline, events/
+notifications/telemetry, a scheduled escalation worker plus its
+`shared_core.scheduler` registration, a 10-router REST API layer (16
+literal endpoints plus 9 added), a live Docker build and health-check,
+a 185-test suite at 97.96% coverage, and this entry.
+
+**`shared_core.enums.severity.Severity` is reused directly rather than
+reinvented.** Its own module docstring names "validation, alerting, and
+logging" as intended consumers and docs/045's own "ALERT SEVERITY" list
+matches it exactly. `app/models/enums.py` records openly that an
+earlier service (`services/validation-service`'s own
+`ValidationSeverity`) missed this and defined a parallel duplicate —
+not revisited, since that is a shipped service outside this prompt's
+scope, but noted so the divergence is deliberate rather than forgotten.
+
+**The ingestion pipeline is one ordered path with a reported outcome.**
+Fingerprint → deduplicate → suppress → raise → correlate, each event
+returning an `IngestionResult` naming which path it took, so neither a
+caller nor a test has to infer it from the resulting status.
+Deliberately sequential, never `asyncio.gather`-ed: every step touches
+the database, and `AsyncSession` is not safe for concurrent use even
+for reads — the real production bug `services/validation-service` hit,
+`services/monitoring-service` designed around, and this service
+inherited as settled practice. `POST /alerts` runs the identical
+pipeline rather than inserting a row, or deduplication would silently
+stop working for API-raised alerts.
+
+**Failure modes are chosen to fail safe, and each is stated where it
+lives.** A rule with no conditions never fires (an unconfigured rule
+must not raise a confident false alert — the inverse of
+validation-service's own "an absent rule is never silently a pass"). An
+uninterpretable maintenance recurrence falls back to its single stored
+interval rather than suppressing forever. A malformed escalation level
+is skipped rather than making the whole policy un-runnable. A route
+filtered at `HIGH` also fires for `CRITICAL`. Escalation only touches
+`NEW`/`OPEN` alerts, never work already under investigation.
+
+**Three honest platform gaps surfaced instead of faked**: PagerDuty/
+ServiceNow/Opsgenie have no `shared_core` transport (verified against
+the real enum, not assumed) so routes for them record `FAILED` with an
+explicit reason; a `WORKFLOW` escalation level cannot run without a
+caller token and escalates plus logs rather than pretending; and
+correlation matches shared identity references rather than a live
+topology graph, deferred rather than stubbed.
+
+**Real bugs found via testing:**
+
+1. **Deduplication violated its own uniqueness constraint on a
+   recurrence.** `alert_deduplication.fingerprint` is `UNIQUE`, but the
+   first implementation always inserted a registry entry after raising
+   an alert. When a condition recurred outside its deduplication window
+   — or after its earlier alert was resolved — a second alert was
+   correctly raised and the insert hit a genuine `DuplicateRecordError`
+   from real Postgres. Fixed with `register_or_reassign`, re-pointing
+   the existing entry at the new primary alert and continuing its
+   occurrence count so a flapping condition's lifetime count survives
+   rather than resetting each window. Caught by two integration tests
+   written specifically for the recurrence paths, not by luck.
+2. **Every infrastructure connection stalled on IPv6 — a real
+   test-suite bug, not merely an environment quirk.** `localhost`
+   resolves to `::1` ahead of `127.0.0.1`, and Docker Desktop's IPv6
+   forwarding *hangs* rather than refusing, so no fast IPv4 fallback
+   occurs and each attempt burns its full timeout; one health test hung
+   five minutes, and an earlier monitoring-service run burned 90
+   minutes on Redis timeouts for the same reason. Diagnosed precisely
+   via `getaddrinfo` ordering plus per-address `asyncio.open_connection`
+   probes, then fixed by pinning the conftest to the IPv4 literal
+   through a documented `_LOOPBACK` constant. The suite then ran in
+   2.59 seconds. Services 001–044 still use `localhost` and remain
+   exposed to the same stall.
+3. **A workflow endpoint that does not exist was caught before
+   shipping.** The first draft of the workflow client posted to
+   `POST /workflow-instances`; checking
+   `services/workflow-runtime-service`'s own routers showed instances
+   are created *by executing a workflow*
+   (`POST /workflows/{id}/execute`, returning 201), never registered
+   directly. Corrected, with the mistake recorded in the client's own
+   docstring so the next reader sees why it is written that way.
+4. **Two dead-code traps handled rather than left.**
+   `AlertNotificationRepository.list_for_org` was unreferenced and
+   deleted. `list_active_at` on maintenance windows was deleted *and
+   replaced by a comment explaining why it must not exist* — it reads
+   as the obvious "which windows are active now" helper but would
+   silently miss every recurring occurrence. Conversely `list_retryable`
+   was unreferenced yet backs docs/045's explicit "Retry" line, so it
+   was wired into a real `retry_failed` capability with a `max_attempts`
+   ceiling (an unreachable channel must not become an infinite loop)
+   rather than deleted or left orphaned — the "found via coverage, wire
+   it up or remove it, never leave it dangling" discipline applied in
+   both directions in one pass.
+
+**Testing**: 185 tests, 97.96% coverage, ~39 seconds, entirely against
+real infrastructure — no mocked database. Per-test SAVEPOINT isolation;
+`db_session_factory` exposed separately so the scheduled worker builds
+its own `DatabaseFramework` on the same test transaction (with results
+verified through a *fresh* session, since the worker commits in its own
+and the original session's identity map would otherwise return stale
+state). The full app lifespan, including a real `SchedulerManager` with
+leader election over real Redis and RabbitMQ, runs on every API test.
+Ruff/Black/MyPy clean across 116 source files. Docker image built and
+live health-checked on `aiios_aiios_network`: `/health`, `/liveness`,
+`/readiness` (real Postgres connectivity, `5.9ms`), `/openapi.json`,
+`/metrics`, `/docs` all `200`, and unauthenticated `GET /alerts`
+correctly `401`.
