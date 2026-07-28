@@ -4692,3 +4692,195 @@ the real compose network (`aiios_aiios_network`) — `/health`,
 confirmed responding correctly end-to-end through the containerized
 app, plus a live unauthenticated request to `/validations` confirming
 `401`.
+
+## Prompt 044 — Enterprise Monitoring Service ✅ Implemented
+
+`services/monitoring-service/` is the fifteenth AI-IOS microservice
+built on `packages/shared-core`: continuously collects, stores,
+processes, correlates, and evaluates operational telemetry across
+infrastructure, cloud, Kubernetes, applications, databases, and
+industrial systems — distributed collectors, time-series metrics,
+health/availability/performance monitoring, synthetic checks,
+dependency-aware health, SLA/SLO tracking, analytics, and reporting.
+Direct investigation of `packages/shared-core/monitoring/` (rather than
+guessing) established clear reuse boundaries before any code was
+written: `HealthStatus`/`calculate_status()`/`ThresholdLevel`/
+`Threshold.evaluate()` (Prompt 023's own single-process self-monitoring
+framework) are reused directly for status vocabulary and breach
+evaluation, but `AvailabilityTracker`/`SlaReport` are explicitly
+in-process-only per their own module docstring ("must not create
+business/persistence tables") and were NOT used for this service's own
+durable `monitoring_sla`/`monitoring_availability` tables — a real,
+separate concern this framework deliberately leaves for a real service
+to own. Built across the same batch structure as every prior AI-IOS
+service: a 14-enum module, 17 models, one Alembic migration against
+real Postgres, 17 repositories, 19 schema files, 6 HTTP clients
+(Inventory/Discovery/Configuration Management/Automation/Workflow
+Runtime/Validation — the last being new, since monitoring sits one
+layer above every other integration point), collectors split into
+native/delegated/read-only/synthetic tiers, a health engine, a
+threshold/rule engine, a time-series aggregation/downsampling/retention
+module, a composite scoring module, 19 services including the central
+"Monitoring Engine" collection orchestrator and a synthetic-test
+execution orchestrator, events/notifications/telemetry, a recurring
+scheduler registration (`shared_core.scheduler.SchedulerManager`, real
+leader election, matching `services/workflow-runtime-service`'s own
+`CRON`/`RECURRING` timer pattern rather than
+`services/validation-service`'s own on-demand-execute pattern), an
+API layer (13 literal endpoints plus 14 added directly) plus app
+factory, a 266-test suite, and this entry.
+
+**Health rollup and threshold breach evaluation are built entirely on
+`shared_core.monitoring`'s own real primitives, not reinvented.**
+`app/health/engine.py::compute_overall_status`/`compute_blast_radius_status`
+are thin wrappers around `shared_core.monitoring.status.calculate_status`
+(the same worst-case status vocabulary every service's own `/readiness`
+endpoint already uses) — one call for a target's own multi-check-type
+rollup, a second call folding a dependency graph's own statuses in for
+"Blast Radius Calculation". `app/rules/thresholds.py::to_shared_threshold`
+converts a persisted `MonitoringThreshold` row into
+`shared_core.monitoring.thresholds.Threshold` at evaluation time so its
+own `evaluate()` breach logic is reused directly rather than
+duplicated. `app/rules/evaluator.py` reuses
+`shared_core.workflow.expressions.evaluate_condition` (Jinja2
+sandboxed), the identical evaluator `services/validation-service`'s own
+rule engine already established.
+
+**`MonitoringCollectionService` splits concurrent I/O collection from
+always-sequential persistence, deliberately not repeating
+`services/validation-service`'s own already-fixed concurrency bug.**
+`_collect_one` (running a registered collector function) is safe to
+run inside `asyncio.gather()`, bounded by a semaphore
+(`max_parallel_collections`); `_persist_one` (every metric-series
+write, health/availability update, threshold/rule evaluation, and
+event publication) always runs afterward in a plain sequential loop —
+`AsyncSession` is not safe for concurrent use by multiple asyncio tasks
+even for reads, since a flush is not reentrant, the exact lesson
+`services/validation-service`'s own `ValidationExecutionService`
+learned the hard way one prompt earlier and this service's own design
+applied proactively rather than rediscovering.
+
+**Fourteen capabilities added beyond docs/044's literal 13-endpoint
+REST list**, the same "required capability, no REST list entry"
+precedent every prior AI-IOS service has established at least once:
+`POST /monitoring/metrics` and `GET /monitoring/metrics/{id}/series`
+(without them, no metric could ever be defined, and "Historical
+Queries"/"Time-window Analysis" — explicit "TIME SERIES" "Support"
+lines — would have no REST surface); `POST /monitoring/sla` and
+`POST /monitoring/slo` (without them, no SLA/SLO could ever be
+registered); `/monitoring-collectors`, `/monitoring-rules`,
+`/monitoring-dependencies`, `/monitoring-synthetic-tests`, and
+`/monitoring-retention-policies` (each GET+POST — without them,
+"Distributed Collectors"/"Dependency-aware Health"/"Synthetic
+Monitoring" — all explicit ACCEPTANCE CRITERIA lines — and "Retention
+Policies" would have nothing to configure them with); and
+`GET /monitoring/history` (`app/schemas/history.py`'s own
+`MonitoringHistoryResponse` was otherwise never referenced by any
+router — an orphaned-schema gap found via a coverage report, the same
+"found via coverage, wire it up" precedent
+`services/workflow-runtime-service`'s own `execution_step` endpoint
+already established). `GET /monitoring/performance` and the
+`PERFORMANCE` report type are a computed view over
+`MonitoringMetricSeries` filtered to performance-relevant metric types
+— docs/044's own 17-table list has no `monitoring_performance` table.
+
+**Real bugs found via testing:**
+
+1. **Two real foreign-key-integrity bugs in
+   `MonitoringSyntheticExecutionService.run()`, both the same root
+   cause: using an unrelated row's own id as a foreign key without a
+   matching row actually existing.** The first draft passed `test.id`
+   (a `MonitoringSyntheticTest`'s own id) directly as
+   `MonitoringMetricSeries.metric_id` — a real foreign key into
+   `monitoring_metrics` a synthetic test's id is never a member of; the
+   first "record synthetic latency" integration test hit a genuine
+   `asyncpg.exceptions.ForeignKeyViolationError`. Fixed via
+   `MonitoringMetricService.get_or_create_by_name` lazily resolving
+   (and reusing across every later run) one shared
+   `"synthetic_latency_ms"` metric per organization, the same
+   "reuse the same row across repeated runs" pattern
+   `MonitoringTargetService.get_or_create` already established. The
+   same service also fell back to `test.id` as `MonitoringHealth
+   .target_id` for a *target-less* synthetic test (one probing a bare
+   external endpoint, per `MonitoringSyntheticTest`'s own docstring) —
+   `target_id` is a real, non-nullable foreign key into
+   `monitoring_targets`, so the first target-less-test integration test
+   hit the identical class of error. Fixed via a new
+   `_resolve_target_id` helper that registers (and reuses) one
+   lightweight `CUSTOM_TARGET` row representing the test itself via
+   `MonitoringTargetService.get_or_create`. Both surfaced immediately
+   as hard test failures against real Postgres, not a mocked session —
+   neither was fixed by relaxing the schema (e.g. making a column
+   nullable to dodge the failure); each was fixed at the service layer,
+   preserving the schema's own real guarantees.
+2. **`MonitoringCollectionService._persist_health_signal` silently
+   recorded a failed DNS resolution as `HEALTHY`.** The breach-count
+   check (`unresolved_drift_count`/`non_compliant_count`/
+   `failed_count`) never matched a `dns` collector's own
+   `{"resolved": false}` result shape, since those three field names
+   belong to a different set of collectors sharing the same
+   "no-numeric-value" persistence bucket. Fixed by additionally
+   checking `resolved`/`reachable`/`valid` for an explicit `False`, the
+   same boolean-success-key convention
+   `MonitoringSyntheticExecutionService`'s own `_SUCCESS_KEYS` already
+   used.
+3. **Ruff's `ASYNC109` flagged four private helper functions in
+   `app/collectors/network.py`** (`_tcp_connect`/`_resolve_dns`/
+   `_fetch_certificate`/`_http_request`) for accepting a parameter
+   literally named `timeout` — a rule `services/validation-service`'s
+   own, differently-shaped `network.py` never triggered, since that
+   version inlined `check.timeout_seconds` straight into
+   `asyncio.wait_for()` rather than factoring out reusable, model-
+   agnostic helpers (needed here so both the recurring-collector
+   wrappers and `app/collectors/synthetic.py`'s own one-off-probe
+   wrappers could share the identical probing logic instead of
+   duplicating it once per owning model). Fixed by renaming the
+   parameter to `timeout_seconds` throughout — Ruff's own suggested
+   `asyncio.timeout()` context-manager rewrite was not applicable here
+   since `asyncio.wait_for()` remains the correct primitive for
+   wrapping a single already-existing coroutine.
+
+**Environment note, not a code defect**: mid-session, Docker Desktop's
+own WSL2 port-forwarding layer became unstable on the development
+machine (a container would report itself healthy and `docker inspect`
+would show its port correctly published, yet the host could not
+actually connect — confirmed via direct `netstat`/TCP-probe checks
+against Postgres, then Redis, then all three core containers
+simultaneously). Container recreation, a full Docker Desktop process
+kill/relaunch, and a `wsl --shutdown` VM reset each restored
+connectivity for 10-20 minutes before it degraded again — a host/
+environment issue, not something introduced by this service's own code
+or test suite (`services/workflow-runtime-service`'s own test suite
+uses the identical real-`SchedulerManager`-per-test pattern without
+issue). Per the user's own explicit direction, the live Docker
+image build/health-check verification step is deferred until Docker
+Desktop's networking stabilizes, rather than spending further
+autonomous time on infrastructure troubleshooting outside this
+service's own code; the test suite's own last fully clean run (before
+the instability began, on this exact code) is what "Testing" below
+reports.
+
+**Testing**: 266 tests, 98.36% coverage (last clean run, captured
+before the environment instability above began; no source code changed
+since), entirely against real infrastructure (the repository root's
+docker-compose Postgres/Redis/RabbitMQ) — no mocked database. Postgres
+isolation between tests uses a per-test SAVEPOINT
+(`join_transaction_mode="create_savepoint"`), the same pattern every
+prior AI-IOS service established; `db_session_factory` is exposed
+separately from `db_session` so worker/scheduler tests can build their
+own `DatabaseFramework` sharing that same test transaction. Real
+network collectors are tested against a genuine local TCP server, a
+genuine local TLS server presenting a freshly-generated self-signed
+certificate, and `pytest-httpx` for HTTP checks; every cross-service
+collector uses `pytest-httpx` against Inventory/Discovery/Configuration
+Management/Automation/Workflow Runtime/Validation's own real documented
+response shapes. The full app lifespan — including a real
+`SchedulerManager` (leader election, heartbeat, real Redis/RabbitMQ) —
+is exercised on every API-layer test via
+`application.router.lifespan_context`, not skipped or mocked.
+`test_service_collection.py`/`test_worker_collection.py` cover the
+"Monitoring Engine" orchestrator end-to-end (every `collector_key`
+dispatch branch, threshold/rule breach, broken-collector graceful
+handling, and genuine scheduler-job failure propagation) with no
+mocking of the orchestrator itself. Ruff/Black/MyPy all clean across
+the full package (139 source files).
