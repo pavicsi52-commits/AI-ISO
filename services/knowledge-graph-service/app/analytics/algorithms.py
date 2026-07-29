@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from shared_core.exceptions.validation import ValidationError
 
@@ -363,7 +363,13 @@ def critical_assets(
         }
         for node in graph.nodes
     ]
-    scored.sort(key=lambda item: (-float(item["score"]), str(item["key"])))
+
+    # The score is written as a float two lines above; the cast is for
+    # the type checker, which only sees dict[str, Any] here.
+    def _order(item: dict[str, Any]) -> tuple[float, str]:
+        return (-float(cast(float, item["score"])), str(item["key"]))
+
+    scored.sort(key=_order)
     return scored[:limit]
 
 

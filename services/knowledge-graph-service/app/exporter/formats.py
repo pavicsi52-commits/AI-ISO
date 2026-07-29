@@ -136,7 +136,9 @@ def write_graphml(subgraph: Subgraph) -> bytes:
         _data(element, "relationship_type", edge.relationship_type)
         _data(element, "weight", str(edge.weight))
 
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    # Wrapped in bytes() because ElementTree.tostring is typed as Any
+    # in the stubs even though it returns bytes for a bytes encoding.
+    return bytes(ET.tostring(root, encoding="utf-8", xml_declaration=True))
 
 
 def _data(parent: ET.Element, name: str, value: str | None) -> None:

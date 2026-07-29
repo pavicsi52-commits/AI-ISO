@@ -61,7 +61,7 @@ class GraphSnapshotRepository(BaseRepository[GraphSnapshot]):
             .limit(limit)
         )
         result = await self._session.execute(stmt)
-        return [tuple(row) for row in result.all()]  # type: ignore[misc]
+        return [tuple(row) for row in result.all()]
 
     async def list_expired(self, organization_id: UUID, *, moment: datetime) -> list[GraphSnapshot]:
         """Snapshots past their expiry, for the retention sweep."""

@@ -338,6 +338,16 @@ class SnapshotService:
         after = await self._collect(organization_id)
         return compare(before, after)
 
+    async def list_snapshots(
+        self, organization_id: UUID, *, limit: int = 100
+    ) -> list[GraphSnapshot]:
+        """Snapshots for one organization, newest first."""
+        return await self._snapshots.list_for_org(organization_id, limit=limit)
+
+    async def list_versions(self, organization_id: UUID, *, limit: int = 100) -> list[GraphVersion]:
+        """Version markers for one organization, newest first."""
+        return await self._versions.list_for_org(organization_id, limit=limit)
+
     async def sweep_expired(self, organization_id: UUID) -> int:
         """Delete snapshots past their retention; returns how many.
 

@@ -24,7 +24,7 @@ from uuid import UUID
 
 from shared_core.logging.logger import get_logger
 
-from app.exporter.formats import render
+from app.exporter.formats import FILE_EXTENSIONS, render
 from app.graph.entities import Subgraph
 from app.graph.repository import GraphRepository
 from app.importer.formats import parse
@@ -156,13 +156,15 @@ class GraphIoService:
         actor_id: UUID | None = None,
     ) -> GraphExportJob:
         """Render the organization's graph into one downloadable payload."""
-        extension = graph_format
+        # The real extension comes back from render() below; this is
+        # only the placeholder the job row carries until it does, so a
+        # failed export still has a plausible filename to report.
         job = await self._exports.create(
             GraphExportJob(
                 organization_id=organization_id,
                 export_format=graph_format,
                 status=JobStatus.RUNNING,
-                filename=f"graph-export.{extension}",
+                filename=f"graph-export.{FILE_EXTENSIONS[graph_format]}",
                 filters={
                     "node_types": [str(one) for one in node_types or []],
                     "project_id": project_id,
@@ -193,10 +195,10 @@ class GraphIoService:
                 if edge.from_key in present and edge.to_key in present
             ]
 
-            payload, content_type, extension = render(
+            payload, content_type, rendered_extension = render(
                 Subgraph(nodes=nodes, relationships=relationships), graph_format
             )
-            job.filename = f"graph-export.{extension}"
+            job.filename = f"graph-export.{rendered_extension}"
             job.content_type = content_type
             job.payload = payload
             job.size_bytes = len(payload)

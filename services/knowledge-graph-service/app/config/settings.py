@@ -109,6 +109,16 @@ class KnowledgeGraphServiceSettings(BaseSettings):
     """
 
     # Synchronization.
+    sync_service_token: str = Field(default="")
+    """The bearer token synchronization reads source services with.
+
+    A sync runs unattended at 03:00, so there is no caller token to
+    forward -- unlike every read path in
+    ``services/dashboard-service``. Empty by default so a deployment
+    that has not configured one gets an honest 401 from each source
+    rather than a silent half-populated graph.
+    """
+
     sync_enabled: bool = Field(default=True)
     sync_poll_seconds: int = Field(default=300, ge=30, le=86_400)
     sync_batch_size: int = Field(default=500, ge=1, le=10_000)
