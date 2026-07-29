@@ -53,8 +53,8 @@ class ReportingServiceSettings(BaseSettings):
     monitoring_service_base_url: str = Field(default="http://localhost:8015")
     alerting_service_base_url: str = Field(default="http://localhost:8016")
     ai_assistant_service_base_url: str = Field(default="http://localhost:8017")
-    compliance_service_base_url: str = Field(default="http://localhost:8020")
-    incident_service_base_url: str = Field(default="http://localhost:8021")
+    compliance_service_base_url: str = Field(default="http://localhost:8022")
+    incident_service_base_url: str = Field(default="http://localhost:8023")
     administration_service_base_url: str = Field(default="http://localhost:8009")
 
     http_client_timeout_seconds: float = Field(default=60.0, gt=0)

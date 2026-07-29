@@ -1,0 +1,70 @@
+[project]
+name = "knowledge-graph-service"
+version = "0.1.0"
+description = "AI-IOS Enterprise Knowledge Graph Service — Neo4j graph model, digital twins, dependency/impact/blast-radius analysis, graph analytics, synchronization, and import/export"
+requires-python = ">=3.13"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic[email]>=2.9.0",
+  "pydantic-settings>=2.6.0",
+  "prometheus-fastapi-instrumentator>=7.0.0",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30.0",
+  "alembic>=1.13.0",
+  "psycopg[binary]>=3.2.0",
+  "httpx>=0.27.0",
+  "neo4j>=5.25.0",
+  "shared-core",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+  "pytest-cov>=6.0.0",
+  "pytest-httpx>=0.35.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+shared-core = { workspace = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]
+filterwarnings = [
+  "error",
+  # This package's test suite runs many full-app-lifespan (real
+  # Postgres/Redis/RabbitMQ/Neo4j engine) tests back to back in one
+  # process. On Windows' ProactorEventLoop, asyncpg connection objects
+  # that were properly ``await engine.dispose()``-d at one test's
+  # teardown are sometimes only garbage-collected during a *later*,
+  # unrelated test -- their own event loop is already closed by then, so
+  # asyncpg's __del__ can't finish cleanly and raises an unraisable
+  # ResourceWarning pytest turns into that later test's own failure. A
+  # confirmed environment/timing artifact, not a connection leak in this
+  # service's own code -- the same diagnosis and fix
+  # services/dashboard-service's own pyproject.toml (and every prior
+  # AI-IOS service before it) already established -- narrowly ignored
+  # rather than relaxing the blanket "error" policy.
+  "ignore::pytest.PytestUnraisableExceptionWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "def __repr__",
+]
