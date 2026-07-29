@@ -90,6 +90,7 @@ _STRING = re.compile(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"")
 _WORD = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
 _PARAMETER = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
 _NUMERIC_LITERAL = re.compile(r"(?<![\w.$])\d+(?:\.\d+)?(?![\w.])")
+_VARIABLE_LENGTH = re.compile(r"\[[^\]]*\*[^\]]*\]")
 
 _ALLOWED_BARE_NUMBERS: frozenset[str] = frozenset()
 """Numeric literals a read-only statement may contain: none.
@@ -97,6 +98,27 @@ _ALLOWED_BARE_NUMBERS: frozenset[str] = frozenset()
 A ``LIMIT 100`` looks harmless, but allowing bare numbers means allowing
 ``SKIP 999999`` and every other unparameterised value. The endpoint
 applies its own limit, so the caller never needs one.
+"""
+
+_VARIABLE_LENGTH_REASON = (
+    "Variable-length patterns such as [*1..3] are not permitted in custom "
+    "Cypher. Cypher cannot bind a range as a parameter, so the depth would "
+    "be unchecked -- and an unbounded traversal on a large estate is an "
+    "outage. Use /graph/topology, /graph/dependencies, /graph/impact, or "
+    "/graph/blast-radius, which take a depth and bound it."
+)
+"""Why a variable-length range is refused outright.
+
+Found by a test: the numeric-literal check does **not** catch the bounds
+in ``[*1..3]``, because ``1`` is followed by a dot and ``3`` is preceded
+by one, so both fail the regex word-boundary guards. A read-only
+statement could therefore request ``[*1..50]`` and pin the database.
+
+Refused rather than bounded, which is the same stance the rest of this
+module takes: depth is the one value Cypher cannot parameterise, so a
+caller-authored statement has no safe way to express it. The built-in
+traversal endpoints validate depth through
+:func:`app.cypher.builder.validate_depth` and are the supported path.
 """
 
 
@@ -159,6 +181,11 @@ def inspect(cypher: str) -> GuardResult:
                     "write, execute generated Cypher, or reach outside the database."
                 ),
             )
+
+    # Checked before the literal scan, because that scan cannot see the
+    # bounds inside [*1..3] -- see _VARIABLE_LENGTH_REASON.
+    if _VARIABLE_LENGTH.search(cleaned):
+        return GuardResult(allowed=False, reason=_VARIABLE_LENGTH_REASON)
 
     literals = _NUMERIC_LITERAL.findall(cleaned)
     unexpected = [one for one in literals if one not in _ALLOWED_BARE_NUMBERS]
