@@ -38,9 +38,7 @@ class DashboardShareRepository(BaseRepository[DashboardShare]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_for_user(
-        self, organization_id: UUID, user_id: UUID
-    ) -> list[DashboardShare]:
+    async def list_for_user(self, organization_id: UUID, user_id: UUID) -> list[DashboardShare]:
         """Active shares directed at one user."""
         stmt = self._base_select().where(
             DashboardShare.organization_id == organization_id,

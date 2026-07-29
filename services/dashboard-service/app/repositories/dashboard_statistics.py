@@ -25,9 +25,7 @@ class DashboardStatisticsRepository(BaseRepository[DashboardStatistics]):
 
     async def get_for_org(self, organization_id: UUID) -> DashboardStatistics | None:
         """Return *organization_id*'s cached rollup, or ``None``."""
-        stmt = self._base_select().where(
-            DashboardStatistics.organization_id == organization_id
-        )
+        stmt = self._base_select().where(DashboardStatistics.organization_id == organization_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 

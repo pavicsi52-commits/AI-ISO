@@ -23,9 +23,7 @@ class DashboardFavoriteRepository(BaseRepository[DashboardFavorite]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_for_user(
-        self, organization_id: UUID, user_id: UUID
-    ) -> list[DashboardFavorite]:
+    async def list_for_user(self, organization_id: UUID, user_id: UUID) -> list[DashboardFavorite]:
         """Every dashboard one user has pinned, in their own order."""
         stmt = (
             self._base_select()

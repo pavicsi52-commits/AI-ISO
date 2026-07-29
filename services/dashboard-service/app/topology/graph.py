@@ -204,9 +204,7 @@ def build_graph(
             signature = (str(source), str(target), rel_type)
             if signature not in seen_edges:
                 seen_edges.add(signature)
-                graph.edges.append(
-                    GraphEdge(source=str(source), target=str(target), kind=rel_type)
-                )
+                graph.edges.append(GraphEdge(source=str(source), target=str(target), kind=rel_type))
 
     if root_id not in seen_nodes:
         seen_nodes[root_id] = GraphNode(id=root_id, label=root_id, kind="Root")

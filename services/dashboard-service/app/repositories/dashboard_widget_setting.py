@@ -23,9 +23,7 @@ class DashboardWidgetSettingRepository(BaseRepository[DashboardWidgetSetting]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_for_user(
-        self, widget_id: UUID, user_id: UUID
-    ) -> DashboardWidgetSetting | None:
+    async def get_for_user(self, widget_id: UUID, user_id: UUID) -> DashboardWidgetSetting | None:
         """One user's overrides for one widget, if they have any."""
         stmt = self._base_select().where(
             DashboardWidgetSetting.widget_id == widget_id,
