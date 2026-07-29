@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from shared_core.exceptions.validation import ValidationError
 
 from app.cypher.builder import validate_label, validate_relationship_type
@@ -89,6 +89,26 @@ class RelationshipInput(BaseModel):
     @classmethod
     def _reject_reserved(cls, value: dict[str, Any]) -> dict[str, Any]:
         return _clean_properties(value)
+
+    @model_validator(mode="after")
+    def _reject_self_loop(self) -> RelationshipInput:
+        """Refuse an edge from a node to itself.
+
+        Enforced on the **model** rather than in a separate validator
+        function, so every construction path is covered -- the importer
+        and the sync mappers build these directly, and a self-loop that
+        only failed later at write time would abort a whole batch
+        instead of being one rejected row.
+
+        A self-loop makes every dependency traversal cyclic and every
+        blast radius infinite.
+        """
+        if self.from_key == self.to_key:
+            raise ValueError(
+                f"A node cannot relate to itself ({self.from_key!r}); a self-loop "
+                "makes dependency traversal cyclic."
+            )
+        return self
 
 
 @dataclass(slots=True)
@@ -234,17 +254,14 @@ def validate_node_input(node: NodeInput) -> NodeInput:
 def validate_relationship_input(relationship: RelationshipInput) -> RelationshipInput:
     """Confirm a relationship's type is one this service will write.
 
+    The self-loop rule lives on :class:`RelationshipInput` itself rather
+    than here, so it holds for every construction path rather than only
+    the ones that remember to call this.
+
     Raises:
-        ValidationError: If the type is unknown, or if it points a node
-            at itself. A self-loop makes every dependency traversal
-            cyclic and every blast radius infinite.
+        ValidationError: If the relationship type is not a known type.
     """
     validate_relationship_type(relationship.relationship_type)
-    if relationship.from_key == relationship.to_key:
-        raise ValidationError(
-            f"A node cannot relate to itself ({relationship.from_key!r}); a self-loop "
-            "makes dependency traversal cyclic."
-        )
     return relationship
 
 

@@ -191,12 +191,24 @@ async def db_session(
         yield session
 
 
-@pytest_asyncio.fixture(scope="session")
-async def neo4j_driver() -> AsyncIterator[AsyncDriver]:
-    """One Neo4j driver for the whole session.
+_SCHEMA_APPLIED = False
+"""Whether the graph schema has been applied in this process.
 
-    Session-scoped because a driver is a connection pool and building
-    one per test would spend more time connecting than testing.
+A module-level flag rather than a session-scoped fixture, because the
+driver below has to be **function**-scoped: this suite runs on
+pytest-asyncio's default function-scoped event loop, and an
+``AsyncDriver`` built on one loop and used from another fails with
+``NoneType object has no attribute send`` -- an error that names nothing
+useful. Building the driver per test is cheap (it connects lazily); the
+schema is the expensive part, so that is what gets cached.
+"""
+
+
+@pytest_asyncio.fixture
+async def neo4j_driver() -> AsyncIterator[AsyncDriver]:
+    """A Neo4j driver bound to this test's event loop.
+
+    Function-scoped deliberately -- see :data:`_SCHEMA_APPLIED`.
     """
     driver = create_neo4j_driver(neo4j_test_settings())
     if driver is None:
@@ -210,14 +222,18 @@ async def neo4j_driver() -> AsyncIterator[AsyncDriver]:
     await driver.close()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def graph_schema(neo4j_driver: AsyncDriver) -> None:
-    """Apply the graph schema once for the session.
+    """Apply the graph schema, once per process.
 
-    Once rather than per test: the statements are all ``IF NOT EXISTS``
-    and index creation is the slowest thing in this suite.
+    Every statement is ``IF NOT EXISTS``, so re-running is harmless --
+    but index creation is the slowest thing in this suite, and doing it
+    per test would dominate the runtime.
     """
-    await apply_schema(GraphClient(neo4j_driver))
+    global _SCHEMA_APPLIED
+    if not _SCHEMA_APPLIED:
+        await apply_schema(GraphClient(neo4j_driver))
+        _SCHEMA_APPLIED = True
 
 
 @pytest.fixture
