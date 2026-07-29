@@ -38,15 +38,70 @@ _NODE_PATTERN = re.compile(
     r"(?:CREATE|MERGE)\s*\(\s*\w*\s*:\s*(?:GraphNode\s*:\s*)?(\w+)\s*(\{[^}]*\})\s*\)",
     re.IGNORECASE,
 )
-_EDGE_PATTERN = re.compile(
+_INLINE_EDGE_PATTERN = re.compile(
     r"\(\s*\w*\s*\{[^}]*?key\s*:\s*['\"]([^'\"]+)['\"][^}]*?\}\s*\)"
-    r"\s*-\s*\[\s*:\s*(\w+)[^\]]*\]\s*->\s*"
+    r"\s*-\s*\[[^\]]*?:\s*(\w+)[^\]]*\]\s*->\s*"
     r"\(\s*\w*\s*\{[^}]*?key\s*:\s*['\"]([^'\"]+)['\"][^}]*?\}\s*\)",
     re.IGNORECASE,
 )
+"""An edge whose endpoints carry their keys inline.
+
+The hand-written shape: ``({key: 'a'})-[:USES]->({key: 'b'})``.
+"""
+
+_BINDING_PATTERN = re.compile(
+    r"\(\s*(\w+)\s*(?::\s*[\w:]+\s*)?\{[^}]*?key\s*:\s*['\"]([^'\"]+)['\"]",
+    re.IGNORECASE,
+)
+"""A variable bound to a node key, e.g. ``(a:GraphNode {key: 'app-1'``.
+
+Needed because this service's **own** export writes the correct
+idempotent form -- ``MATCH (a {key: ...}), (b {key: ...}) MERGE
+(a)-[r:TYPE]->(b)`` -- where the MERGE names variables rather than
+repeating the keys. A parser that only understood inline keys could not
+read the file the exporter had just produced, which a round-trip test
+caught.
+"""
+
+_VARIABLE_EDGE_PATTERN = re.compile(
+    r"\(\s*(\w+)\s*\)\s*-\s*\[[^\]]*?:\s*(\w+)[^\]]*\]\s*->\s*\(\s*(\w+)\s*\)",
+    re.IGNORECASE,
+)
+"""An edge between two previously bound variables."""
 _PROPERTY_PATTERN = re.compile(r"(\w+)\s*:\s*(?:'([^']*)'|\"([^\"]*)\"|([^,}\s]+))")
 
 _GRAPHML_NS = {"g": "http://graphml.graphdrawing.org/xmlns"}
+
+_MANAGED_FIELDS: frozenset[str] = frozenset(
+    {
+        "key",
+        "id",
+        "node_type",
+        "type",
+        "name",
+        "description",
+        "project_id",
+        "source",
+        "properties",
+        "organization_id",
+        "created_at",
+        "updated_at",
+        "relationship_key",
+        "from_key",
+        "to_key",
+        "weight",
+        "relationship_type",
+    }
+)
+"""Field names this service owns, stripped from caller properties.
+
+Wider than it first looks, and deliberately: it has to cover everything
+**this service's own exports** emit, or a round trip fails. The JSON and
+Cypher writers both include ``organization_id`` and the timestamps, and
+:class:`~app.graph.entities.NodeInput` refuses those names outright --
+so without stripping them here, importing an export produced five
+minutes earlier would reject every row.
+"""
 
 
 @dataclass(slots=True)
@@ -107,8 +162,22 @@ def _node_from(
         rejections.append(_reject(index, f"unknown node type {raw_type!r}", key))
         return None
 
-    reserved = {"key", "id", "node_type", "type", "name", "description", "project_id", "source"}
-    properties = {k: v for k, v in raw.items() if k not in reserved}
+    # Everything this service manages is stripped rather than passed
+    # through as a caller property. Two reasons, and the second is the
+    # one a test found: NodeInput refuses reserved names outright, so a
+    # payload carrying organization_id or created_at -- which is exactly
+    # what *this service's own JSON and Cypher exports* write -- would
+    # be rejected wholesale. An export that cannot be re-imported makes
+    # snapshot restore a dead end.
+    properties = {k: v for k, v in raw.items() if k not in _MANAGED_FIELDS}
+
+    # JSON exports nest the caller's own properties under "properties";
+    # every other format keeps them flat. Merging rather than treating
+    # the nested dict as a property named "properties" is what makes the
+    # two shapes agree.
+    nested = raw.get("properties")
+    if isinstance(nested, dict):
+        properties.update({k: v for k, v in nested.items() if k not in _MANAGED_FIELDS})
     try:
         return NodeInput(
             key=str(key),
@@ -237,7 +306,12 @@ def parse_graphml(payload: bytes) -> ParsedGraph:
     # ElementTree does not resolve external entities or DTDs, so the
     # billion-laughs and external-entity classes of XML attack do not
     # apply here. It is the right parser for this input.
-    graph = root.find("g:graph", _GRAPHML_NS) or root.find("graph")
+    # `is not None`, never a truthiness check: an Element with no
+    # children is falsy, so `a or b` silently discards a legitimately
+    # empty <graph> and reports the document as malformed.
+    graph = root.find("g:graph", _GRAPHML_NS)
+    if graph is None:
+        graph = root.find("graph")
     if graph is None:
         raise ValidationError("The GraphML document has no <graph> element.")
 
@@ -269,7 +343,7 @@ def _find_all(parent: ET.Element, tag: str) -> list[ET.Element]:
     would be a parser that only reads its own output.
     """
     found = parent.findall(f"g:{tag}", _GRAPHML_NS)
-    return found or parent.findall(tag)
+    return found if found else parent.findall(tag)
 
 
 def _graphml_data(element: ET.Element) -> dict[str, Any]:
@@ -292,6 +366,10 @@ def parse_cypher(payload: bytes) -> ParsedGraph:
     including any write clause aimed at existing data -- is ignored and
     counted.
 
+    Statements are parsed **one at a time** so that a variable bound in
+    one cannot resolve an edge in another, which is what a real Cypher
+    scope would do.
+
     Raises:
         ValidationError: If the payload is not decodable text.
     """
@@ -301,33 +379,14 @@ def parse_cypher(payload: bytes) -> ParsedGraph:
         raise ValidationError(f"Not valid UTF-8 Cypher: {exc}") from exc
 
     parsed = ParsedGraph()
-    matched_spans = 0
-
-    for index, match in enumerate(_NODE_PATTERN.finditer(text)):
-        matched_spans += 1
-        label, properties = match.group(1), match.group(2)
-        raw = _cypher_properties(properties)
-        raw.setdefault("node_type", label)
-        node = _node_from(raw, index, parsed.rejections)
-        if node is not None:
-            parsed.nodes.append(node)
-
-    for index, match in enumerate(_EDGE_PATTERN.finditer(text)):
-        matched_spans += 1
-        edge = _edge_from(
-            {
-                "from_key": match.group(1),
-                "relationship_type": match.group(2),
-                "to_key": match.group(3),
-            },
-            index,
-            parsed.rejections,
-        )
-        if edge is not None:
-            parsed.relationships.append(edge)
-
     statements = [one for one in text.split(";") if one.strip()]
-    ignored = max(0, len(statements) - matched_spans)
+    recognised = 0
+
+    for index, statement in enumerate(statements):
+        if _parse_statement(statement, index, parsed):
+            recognised += 1
+
+    ignored = len(statements) - recognised
     if ignored:
         parsed.rejections.append(
             {
@@ -340,6 +399,50 @@ def parse_cypher(payload: bytes) -> ParsedGraph:
             }
         )
     return parsed
+
+
+def _parse_statement(statement: str, index: int, parsed: ParsedGraph) -> bool:
+    """Extract whatever one statement declares; returns whether anything matched."""
+    matched = False
+
+    for match in _NODE_PATTERN.finditer(statement):
+        raw = _cypher_properties(match.group(2))
+        raw.setdefault("node_type", match.group(1))
+        node = _node_from(raw, index, parsed.rejections)
+        matched = True
+        if node is not None:
+            parsed.nodes.append(node)
+
+    for match in _INLINE_EDGE_PATTERN.finditer(statement):
+        matched = True
+        _append_edge(parsed, index, match.group(1), match.group(2), match.group(3))
+
+    bindings = {match.group(1): match.group(2) for match in _BINDING_PATTERN.finditer(statement)}
+    for match in _VARIABLE_EDGE_PATTERN.finditer(statement):
+        source, edge_type, target = match.group(1), match.group(2), match.group(3)
+        from_key, to_key = bindings.get(source), bindings.get(target)
+        if from_key is None or to_key is None:
+            # A variable this statement never bound. Ignored rather than
+            # guessed at -- an edge attached to the wrong node is worse
+            # than an edge that did not import.
+            continue
+        matched = True
+        _append_edge(parsed, index, from_key, edge_type, to_key)
+
+    return matched
+
+
+def _append_edge(
+    parsed: ParsedGraph, index: int, from_key: str, edge_type: str, to_key: str
+) -> None:
+    """Build and record one relationship, or its rejection."""
+    edge = _edge_from(
+        {"from_key": from_key, "relationship_type": edge_type, "to_key": to_key},
+        index,
+        parsed.rejections,
+    )
+    if edge is not None:
+        parsed.relationships.append(edge)
 
 
 def _cypher_properties(block: str) -> dict[str, Any]:
