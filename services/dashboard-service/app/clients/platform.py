@@ -22,6 +22,7 @@ import httpx
 from shared_core.exceptions.dependency import DependencyError
 from shared_core.exceptions.validation import ValidationError
 
+from app.config.settings import DashboardServiceSettings
 from app.models.enums import DataSource
 
 _ALLOWED_CUSTOM_SCHEMES = frozenset({"http", "https"})
@@ -39,6 +40,7 @@ class SourceEndpoints:
     validation: str
     monitoring: str
     alerting: str
+    reporting: str
     ai_assistant: str
     compliance: str
     incident: str
@@ -48,9 +50,13 @@ class SourceEndpoints:
         """Return the configured base URL for *source*.
 
         Raises:
-            ValidationError: If *source* has no configured base URL --
-                which is true only for ``CUSTOM_API``, whose URL comes
-                from the query itself.
+            ValidationError: If *source* is not fetched over HTTP. Three
+                members legitimately are not: ``CUSTOM_API`` carries its
+                own absolute URL, ``STATIC`` needs no fetch at all, and
+                ``TOPOLOGY`` is read from Neo4j by
+                :class:`~app.topology.graph.TopologyReader`. Each gets
+                its own message, because "no configured base URL" told
+                an author nothing about which of the three they hit.
         """
         mapping: dict[DataSource, str] = {
             DataSource.INVENTORY: self.inventory,
@@ -61,18 +67,49 @@ class SourceEndpoints:
             DataSource.VALIDATION: self.validation,
             DataSource.MONITORING: self.monitoring,
             DataSource.ALERTING: self.alerting,
+            DataSource.REPORTING: self.reporting,
             DataSource.AI_ASSISTANT: self.ai_assistant,
             DataSource.COMPLIANCE: self.compliance,
             DataSource.INCIDENT: self.incident,
             DataSource.ADMINISTRATION: self.administration,
         }
         base_url = mapping.get(source)
-        if base_url is None:
+        if base_url is not None:
+            return base_url
+        if source is DataSource.CUSTOM_API:
+            raise ValidationError("A custom_api query must supply an absolute URL in its path.")
+        if source is DataSource.TOPOLOGY:
             raise ValidationError(
-                f"Data source {str(source)!r} has no configured base URL; "
-                "a custom_api query must supply an absolute URL in its path."
+                "The 'topology' data source is read from the graph, not over HTTP; "
+                "use it only on a topology_graph widget."
             )
-        return base_url
+        raise ValidationError(
+            f"Data source {str(source)!r} is not fetched over HTTP and has no base URL."
+        )
+
+
+def build_source_endpoints(settings: DashboardServiceSettings) -> SourceEndpoints:
+    """Every data source's base URL, in one place.
+
+    Lives here rather than in the application factory so the API
+    dependencies and any worker read the same mapping -- two copies of
+    twelve base URLs is two places to forget one.
+    """
+    return SourceEndpoints(
+        inventory=settings.inventory_service_base_url,
+        discovery=settings.discovery_service_base_url,
+        configuration=settings.configuration_service_base_url,
+        automation=settings.automation_service_base_url,
+        workflow=settings.workflow_runtime_service_base_url,
+        validation=settings.validation_service_base_url,
+        monitoring=settings.monitoring_service_base_url,
+        alerting=settings.alerting_service_base_url,
+        reporting=settings.reporting_service_base_url,
+        ai_assistant=settings.ai_assistant_service_base_url,
+        compliance=settings.compliance_service_base_url,
+        incident=settings.incident_service_base_url,
+        administration=settings.administration_service_base_url,
+    )
 
 
 def unwrap(payload: Any, result_path: str | None) -> list[dict[str, Any]]:
@@ -187,4 +224,4 @@ class PlatformSourceClient:
         return rows
 
 
-__all__ = ["PlatformSourceClient", "SourceEndpoints", "unwrap"]
+__all__ = ["PlatformSourceClient", "SourceEndpoints", "build_source_endpoints", "unwrap"]

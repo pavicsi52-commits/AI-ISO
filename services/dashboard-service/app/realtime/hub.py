@@ -122,6 +122,16 @@ class DashboardHub:
         self._max_subscribers = max_subscribers
         self._broadcaster = broadcaster
 
+    def attach_broadcaster(self, broadcaster: Broadcaster | None) -> None:
+        """Attach cross-replica fan-out after construction.
+
+        Needed because the broadcaster has to be told which hub to
+        deliver into, so one of the two must exist first. Building the
+        hub twice to work around that would leave the first one holding
+        subscribers nothing ever delivers to.
+        """
+        self._broadcaster = broadcaster
+
     @property
     def subscriber_count(self) -> int:
         """How many clients are connected across every dashboard."""
@@ -130,6 +140,15 @@ class DashboardHub:
     def count_for(self, dashboard_id: UUID) -> int:
         """How many clients are watching one dashboard."""
         return len(self._subscribers.get(dashboard_id, {}))
+
+    def watched_dashboards(self) -> list[UUID]:
+        """Every dashboard with at least one watcher on this replica.
+
+        The refresh worker iterates this rather than every dashboard in
+        the database, which is what keeps its cost proportional to the
+        audience instead of to the size of the installation.
+        """
+        return [dashboard_id for dashboard_id, group in self._subscribers.items() if group]
 
     def presence(self, dashboard_id: UUID) -> list[dict[str, Any]]:
         """Who is currently watching one dashboard."""

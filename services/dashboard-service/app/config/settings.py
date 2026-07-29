@@ -97,6 +97,21 @@ class DashboardServiceSettings(BaseSettings):
     stream_max_subscribers: int = Field(default=500, ge=1)
     presence_ttl_seconds: int = Field(default=60, ge=10)
 
+    refresh_worker_enabled: bool = Field(default=True)
+    refresh_poll_seconds: int = Field(default=15, ge=5, le=3_600)
+    """How often the per-replica refresh loop re-resolves watched dashboards.
+
+    Deliberately **not** a leader-elected scheduler job: subscribers are
+    per-process, so electing one replica to do the refreshing would
+    leave every other replica's watchers frozen. See
+    :mod:`app.workers.refresh`.
+    """
+
+    # Analytics rollup (leader-elected -- see app/workers/registrar.py).
+    scheduler_enabled: bool = Field(default=True)
+    statistics_rollup_seconds: int = Field(default=900, ge=60, le=86_400)
+    analytics_window_days: int = Field(default=30, ge=1, le=365)
+
     # Topology (Prompt 036).
     topology_enabled: bool = Field(default=True)
     topology_max_depth: int = Field(default=4, ge=1, le=10)

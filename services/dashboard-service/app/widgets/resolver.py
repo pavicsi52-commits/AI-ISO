@@ -277,18 +277,20 @@ class WidgetResolver:
 
     def __init__(
         self,
-        sources: PlatformSourceClient,
+        sources: PlatformSourceClient | None,
         topology: TopologyReader | None = None,
         ai_client: Any | None = None,
         *,
         max_parallel: int = 6,
         max_rows: int = 5_000,
+        anonymous: bool = False,
     ) -> None:
         self._sources = sources
         self._topology = topology
         self._ai = ai_client
         self._max_parallel = max_parallel
         self._max_rows = max_rows
+        self._anonymous = anonymous or sources is None
 
     async def resolve_many(
         self,
@@ -341,6 +343,19 @@ class WidgetResolver:
         resolved = ResolvedWidget(
             widget_key=widget.widget_key, widget_type=widget_type, title=widget.title
         )
+        if self._anonymous:
+            # An anonymous viewer -- someone holding only a share link --
+            # has no credential to read the source services with, and
+            # this service holds none of its own. Returning the widget's
+            # shape with an explicit UNAUTHORIZED status is honest;
+            # resolving it under somebody else's rights would not be.
+            resolved.status = WidgetStatus.UNAUTHORIZED
+            resolved.error = (
+                "Sign in to see this widget's data. A share link opens the "
+                "dashboard's layout, not the data behind it."
+            )
+            resolved.duration_ms = (time.monotonic() - started) * 1000
+            return resolved
         try:
             options = parse_options(widget.options)
             query = parse_query(widget.query)
@@ -386,7 +401,7 @@ class WidgetResolver:
         parameters: dict[str, Any],
     ) -> list[dict[str, Any]]:
         """Fetch and filter one widget's rows."""
-        if query.source is DataSource.STATIC:
+        if query.source is DataSource.STATIC or self._sources is None:
             return []
         params = {**{k: str(v) for k, v in parameters.items()}, **query.params}
         rows = await self._sources.fetch(

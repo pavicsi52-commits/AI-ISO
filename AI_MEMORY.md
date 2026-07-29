@@ -5205,3 +5205,113 @@ retention → recompute statistics.
 apostrophes or `\n`; several files had to be written with the Write
 tool instead. And `MSYS_NO_PATHCONV=1` remains mandatory for any
 `docker run` argument starting with `/`.
+
+---
+
+## Prompt 048 — Dashboard Service (`services/dashboard-service`)
+
+Port 8019, database `aiios_dashboard`, Redis db 21. 14 tables, 53 REST
+operations plus a WebSocket, 336 tests at **97% coverage**,
+Ruff/Black/MyPy clean across 92 source files.
+
+### The bug this prompt found in its own code
+
+`GET /dashboards/shared/{token}` was documented as "deliberately
+unauthenticated: the token *is* the credential". Its dependency chain
+reached `CurrentUserToken`, so it required a bearer token and returned
+`401` to exactly the visitor it existed for. **A documented feature was
+off, and the docstring said the opposite.** The API test caught it.
+
+The fix is not just an optional-token dependency. It forced the real
+question: *whose credential resolves an anonymous visitor's widgets?*
+This service holds none of its own by design, and using the sharer's
+would hand a stranger whatever that person can see. So:
+
+- signed-in visitor following a link → widgets resolved with **their
+  own** token;
+- anonymous visitor → dashboard, layout, and every widget marked
+  `UNAUTHORIZED` with a plain reason.
+
+That same reasoning then propagated backwards into the refresh worker,
+which had been drafted to re-resolve dashboards centrally and broadcast
+the rows. A broadcast frame reaches every watcher at once, and those are
+different people with different rights — so the worker was rewritten to
+**notify, never fetch**. It now needs no session, no HTTP client, and no
+credentials. When a redesign deletes three dependencies, the shape was
+wrong before.
+
+### The other real find
+
+`DataSource.REPORTING` existed in the enum with no `SourceEndpoints`
+field. Any widget reading the reporting service failed with a message
+blaming `custom_api`. Fixed, plus the error now distinguishes the three
+genuinely non-HTTP sources (`CUSTOM_API`, `STATIC`, `TOPOLOGY`) instead
+of giving all three the same misleading text. Regression test walks
+every enum member.
+
+### Decisions worth remembering
+
+1. **Two workers, opposite scaling.** `StatisticsWorker` is
+   leader-elected through `shared_core.scheduler` — N replicas computing
+   one rollup is N times the load for an identical result.
+   `RefreshWorker` runs on **every** replica, because subscribers live
+   in the process that accepted their connection and an elected replica
+   would freeze everyone else's watchers. This is the first service in
+   the platform where leader election is the *wrong* answer, and the
+   reason is written at the top of both modules.
+2. **Route order is load-bearing.** docs/048 specifies both
+   `/dashboards/{id}` and literal collections like
+   `/dashboards/statistics`. FastAPI matches in registration order, so
+   literal-segment routers are included first — otherwise
+   `/dashboards/statistics` parses as a dashboard id and 422s forever.
+3. **Every layout save is a new row.** Restoring points `is_current` at
+   an earlier revision rather than copying forward. `layout_revision`
+   and `revision` are deliberately not named `version`, which is
+   `BaseEntityMixin`'s optimistic-lock counter — the shadowing bug that
+   shipped live in reporting and latent in secrets-management. A static
+   guard test walks every model's own annotations.
+4. **Analytics are derived, never incremented.** Every figure is
+   recomputed from the view/widget/share rows that already exist. A
+   counter bumped per view drifts the moment one write is lost, with no
+   way to tell that it has. Load time is reported as median and p95, not
+   a mean — a mean is dominated by a few pathological loads and hides
+   everyone else's experience.
+5. **Contrast is reported, not rejected.** A brand colour is sometimes
+   fixed by forces outside engineering, and a visible, specific
+   shortfall beats a refusal that gets worked around by disabling the
+   check.
+
+### Testing notes
+
+- **Neither test client can drive an SSE endpoint.** `ASGITransport` and
+  Starlette's `TestClient` both buffer a response body to completion,
+  and an SSE stream never ends — the first attempt hung the suite. The
+  route function is now called directly and its own generator consumed.
+  The **WebSocket is driven over a real socket** via `TestClient`, which
+  does support it, and genuinely delivers presence → heartbeat → update.
+- The Redis broadcaster is tested against **real Redis**: two hubs, one
+  publishes, the other receives. "Does pub/sub reach the other side?"
+  cannot be answered by a mock.
+- Enum normalisers are all verified after `await db_session.refresh(...)`
+  — the discipline that would have caught the four dead features this
+  platform shipped.
+
+### Verification
+
+Ruff and Black clean on 99 files. **MyPy had to be run inside the
+container**: Windows Smart App Control began blocking mypy's compiled
+`__mypyc` extension mid-session (CodeIntegrity event 3077 — it had
+worked an hour earlier, and reinstalling from sdist hit the same block
+on `librt`). `docker run … uv run --with mypy python -m mypy app/ main.py`
+→ *Success: no issues found in 92 source files*. Worth remembering as
+the fallback whenever a native-extension tool is blocked on this host.
+
+Image built and driven end to end on `aiios_aiios_network` against real
+Postgres, Redis, RabbitMQ, and Neo4j: readiness `ready` with both
+`database ok` and `graph ok`; create dashboard → add widget → save
+layout revision 1 → load (widget correctly `failed` with "inventory is
+unreachable", request still `200`) → mint a 43-character share link →
+open it **with no Authorization header** and get `unauthorized` widgets
+→ seed both built-in themes → recompute statistics → 6 audit entries →
+delete. Every step behaved as designed, including the two deliberate
+degradations.
