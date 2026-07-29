@@ -26,6 +26,7 @@ from shared_core.exceptions.not_found import NotFoundError
 from shared_core.logging.logger import get_logger
 
 from app.cypher.builder import (
+    MAX_LIMIT_CEILING,
     label_clause,
     order_clause,
     traversal_pattern,
@@ -51,7 +52,7 @@ from app.models.enums import NodeType, RelationshipType, TraversalDirection
 logger = get_logger("app.graph.repository")
 
 _NODE_RETURN = "properties(n) AS node"
-_MAX_LIMIT = 10_000
+_MAX_LIMIT = MAX_LIMIT_CEILING
 
 
 class GraphRepository:
@@ -453,15 +454,25 @@ class GraphRepository:
             depth=depth,
             ceiling=self._max_depth,
         )
+        # OPTIONAL MATCH, and the root returned on every row, for two
+        # reasons that both bite: a subgraph whose edges name a node its
+        # own node list omits is not renderable, and
+        # ``Graph.from_subgraph`` deliberately drops edges pointing
+        # outside the node set -- so every analysis run over a topology
+        # would silently lose exactly the root's own edges. OPTIONAL is
+        # what makes an isolated node return itself rather than nothing;
+        # "this node has no neighbours" and "there is no such node" are
+        # different answers and the caller needs to tell them apart.
         cypher = (
             f"MATCH (root:{GRAPH_NODE_LABEL} "
             "{key: $root_key, organization_id: $organization_id}) "
-            f"MATCH path = (root){pattern}"
+            f"OPTIONAL MATCH path = (root){pattern}"
             f"(other:{GRAPH_NODE_LABEL}{label_clause(node_types)} "
             "{organization_id: $organization_id}) "
             "WITH root, other, relationships(path) AS edges "
-            "UNWIND edges AS edge "
-            "RETURN DISTINCT properties(other) AS node, "
+            "UNWIND coalesce(edges, [null]) AS edge "
+            "RETURN DISTINCT properties(root) AS root_node, "
+            "       properties(other) AS node, "
             "       startNode(edge).key AS from_key, "
             "       endNode(edge).key AS to_key, "
             "       type(edge) AS edge_type, "
@@ -651,12 +662,20 @@ class GraphRepository:
 
     @staticmethod
     def _assemble(root_key: str, records: list[dict[str, Any]], *, truncated: bool) -> Subgraph:
-        """De-duplicate traversal rows into a subgraph."""
+        """De-duplicate traversal rows into a subgraph.
+
+        The root goes in first, so it leads the node list rather than
+        appearing wherever the traversal happened to reach it.
+        """
         subgraph = Subgraph(root_key=root_key, truncated=truncated)
         seen_nodes: set[str] = set()
         seen_edges: set[str] = set()
         for row in records:
-            node = GraphNode.from_record(row.get("node", {}))
+            root = GraphNode.from_record(row.get("root_node") or {})
+            if root.key and root.key not in seen_nodes:
+                seen_nodes.add(root.key)
+                subgraph.nodes.append(root)
+            node = GraphNode.from_record(row.get("node") or {})
             if node.key and node.key not in seen_nodes:
                 seen_nodes.add(node.key)
                 subgraph.nodes.append(node)

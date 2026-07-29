@@ -86,9 +86,7 @@ class TestRoundTrips:
     """Export then import reproduces the graph."""
 
     @pytest.mark.parametrize("graph_format", list(GraphFormat))
-    def test_nodes_survive_a_round_trip(
-        self, sample: Subgraph, graph_format: GraphFormat
-    ) -> None:
+    def test_nodes_survive_a_round_trip(self, sample: Subgraph, graph_format: GraphFormat) -> None:
         payload, _content_type, _extension = render(sample, graph_format)
         parsed = parse(payload, graph_format)
         assert {n.key for n in parsed.nodes} == {n.key for n in sample.nodes}
@@ -143,9 +141,7 @@ class TestJson:
             parse(b"{not json", GraphFormat.JSON)
 
     def test_a_node_without_a_key_is_rejected_with_a_reason(self) -> None:
-        parsed = parse(
-            json.dumps({"nodes": [{"name": "nameless"}]}).encode(), GraphFormat.JSON
-        )
+        parsed = parse(json.dumps({"nodes": [{"name": "nameless"}]}).encode(), GraphFormat.JSON)
         assert parsed.nodes == []
         assert parsed.rejected == 1
         assert "no key" in parsed.rejections[0]["reason"]
@@ -174,9 +170,7 @@ class TestJson:
         assert "unknown relationship type" in parsed.rejections[0]["reason"]
 
     def test_a_non_object_row_is_rejected(self) -> None:
-        parsed = parse(
-            json.dumps({"nodes": ["just a string"]}).encode(), GraphFormat.JSON
-        )
+        parsed = parse(json.dumps({"nodes": ["just a string"]}).encode(), GraphFormat.JSON)
         assert "not an object" in parsed.rejections[0]["reason"]
 
 
@@ -241,9 +235,7 @@ class TestCsv:
             parse(b"", GraphFormat.CSV)
 
     def test_an_unknown_record_type_is_rejected(self) -> None:
-        parsed = parse(
-            b"record_type,key,node_type\nspaceship,a,Application\n", GraphFormat.CSV
-        )
+        parsed = parse(b"record_type,key,node_type\nspaceship,a,Application\n", GraphFormat.CSV)
         assert "unknown record_type" in parsed.rejections[0]["reason"]
 
     def test_a_row_without_a_record_type_defaults_to_node(self) -> None:
@@ -317,9 +309,7 @@ class TestCypherImport:
         assert any("not recognised" in one["reason"] for one in parsed.rejections)
 
     def test_recognised_node_statements_become_data(self) -> None:
-        payload = (
-            b"MERGE (n:GraphNode:Application {key: 'app-1', name: 'Billing'});"
-        )
+        payload = b"MERGE (n:GraphNode:Application {key: 'app-1', name: 'Billing'});"
         parsed = parse(payload, GraphFormat.CYPHER)
         assert [n.key for n in parsed.nodes] == ["app-1"]
         assert parsed.nodes[0].name == "Billing"

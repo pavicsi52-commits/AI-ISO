@@ -28,6 +28,7 @@ from app.analytics.algorithms import (
     critical_assets,
     relationship_density,
 )
+from app.cypher.builder import MAX_LIMIT_CEILING
 from app.digital_twin.twin import DigitalTwinService
 from app.graph.entities import Subgraph
 from app.graph.repository import GraphRepository
@@ -51,7 +52,7 @@ class StatisticsService:
         sync_jobs: GraphSyncJobRepository,
         twins: DigitalTwinService,
         *,
-        max_nodes: int = 20_000,
+        max_nodes: int = MAX_LIMIT_CEILING,
     ) -> None:
         self._graph = graph
         self._statistics = statistics

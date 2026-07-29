@@ -369,9 +369,7 @@ async def restore_snapshot(
         context=result,
     )
     return SuccessResponse(
-        message=(
-            f"Restored {result['restored_nodes']} nodes, " f"removing {result['removed_nodes']}."
-        ),
+        message=(f"Restored {result['restored_nodes']} nodes, removing {result['removed_nodes']}."),
         data=result,
         meta=_meta(),
     )

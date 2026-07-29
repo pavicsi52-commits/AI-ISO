@@ -45,6 +45,7 @@ from app.analytics.algorithms import (
     risk_propagation,
     shortest_path_length,
 )
+from app.cypher.builder import MAX_LIMIT_CEILING
 from app.dependencies.engine import AnalysisResult, DependencyEngine, dependency_score
 from app.events.graph_events import (
     SOURCE_SERVICE,
@@ -102,7 +103,7 @@ class AnalyticsService:
         dependencies: DependencyEngine,
         *,
         publish_event: EventPublisher,
-        max_nodes: int = 20_000,
+        max_nodes: int = MAX_LIMIT_CEILING,
         pagerank_iterations: int = 20,
         pagerank_damping: float = 0.85,
     ) -> None:
@@ -239,6 +240,14 @@ class AnalyticsService:
             DependencyError: If the graph is unreachable.
         """
         started = time.monotonic()
+        # Counted before loading, never after. ``_load`` reads with
+        # ``LIMIT max_nodes``, so an oversized graph comes back
+        # *truncated* -- and ``require_size``, which can only see what
+        # was loaded, would then wave it through. The analysis would run
+        # on part of the estate and report confident centrality and
+        # component numbers for a graph that is not the one in the
+        # database, which is worse than refusing.
+        await self._require_analysable(organization_id)
         graph = await self._load(organization_id)
         require_size(graph, ceiling=self._max_nodes)
 
@@ -349,7 +358,7 @@ class AnalyticsService:
         failed = [str(one) for one in options.get("failed_keys") or []]
         if not failed:
             raise ValidationError(
-                "Risk propagation needs a 'failed_keys' list naming the nodes " "that have failed."
+                "Risk propagation needs a 'failed_keys' list naming the nodes that have failed."
             )
         risk = risk_propagation(graph, failed_keys=failed)
         return {"risk": risk, "failed_keys": failed}, _rank(risk)
@@ -425,6 +434,22 @@ class AnalyticsService:
         rows = await self._metadata.list_for_org(organization_id, limit=10_000)
         return {row.node_key: row.criticality for row in rows if row.criticality}
 
+    async def _require_analysable(self, organization_id: UUID) -> None:
+        """Refuse an organization whose graph is too large to load whole.
+
+        Raises:
+            ValidationError: If it exceeds the ceiling, naming the real
+                total rather than the truncated one.
+        """
+        total = await self._graph.count_nodes(organization_id)
+        if total > self._max_nodes:
+            raise ValidationError(
+                f"This graph has {total:,} nodes, above the "
+                f"{self._max_nodes:,}-node analytics ceiling. Narrow the scope by "
+                "node type or project, or raise "
+                "AIIOS_KNOWLEDGE_GRAPH_SERVICE_ANALYTICS_MAX_NODES."
+            )
+
     async def _load(self, organization_id: UUID) -> Graph:
         """Read the organization's graph into an adjacency view."""
         nodes = await self._graph.list_nodes(organization_id, order_by="key", limit=self._max_nodes)
@@ -451,9 +476,7 @@ class AnalyticsService:
                     "depth": result.depth,
                     "direction": str(result.direction),
                 },
-                summary=(
-                    f"{result.affected_count} nodes affected, " f"severity {result.severity}."
-                ),
+                summary=(f"{result.affected_count} nodes affected, severity {result.severity}."),
                 result=result.as_dict(),
                 affected_count=result.affected_count,
                 risk_score=result.risk_score,

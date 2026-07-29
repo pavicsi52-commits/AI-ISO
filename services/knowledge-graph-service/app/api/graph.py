@@ -287,9 +287,7 @@ async def blast_radius(
         context={"affected": result.affected_count, "risk_score": result.risk_score},
     )
     return SuccessResponse(
-        message=(
-            f"{result.affected_count} nodes in the blast radius, " f"severity {result.severity}."
-        ),
+        message=(f"{result.affected_count} nodes in the blast radius, severity {result.severity}."),
         data=AnalysisResponse.model_validate(result.as_dict()),
         meta=_meta(),
     )
@@ -435,7 +433,7 @@ async def delete_relationship(
     expected_parts = 3
     if len(parts) != expected_parts:
         raise ValidationError(
-            f"Relationship key {relationship_key!r} is not in the expected " "'from|TYPE|to' shape."
+            f"Relationship key {relationship_key!r} is not in the expected 'from|TYPE|to' shape."
         )
     from_key, raw_type, to_key = parts
     removed = await graph.delete_relationship(

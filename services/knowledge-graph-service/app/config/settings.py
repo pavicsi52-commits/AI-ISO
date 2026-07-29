@@ -36,6 +36,8 @@ from shared_core.config.settings import (
     RedisSettings,
 )
 
+from app.cypher.builder import MAX_LIMIT_CEILING
+
 
 class KnowledgeGraphServiceSettings(BaseSettings):
     """Fields specific to this service, not covered by any shared_core section."""
@@ -130,12 +132,19 @@ class KnowledgeGraphServiceSettings(BaseSettings):
     """
 
     # Analytics ("GRAPH ANALYTICS").
-    analytics_max_nodes: int = Field(default=20_000, ge=1)
+    analytics_max_nodes: int = Field(default=10_000, ge=1, le=MAX_LIMIT_CEILING)
     """Node ceiling for a centrality or community computation.
 
     Betweenness is O(V*E); running it unbounded on a large estate would
     pin a core for minutes. Above the ceiling the request is refused
     with the actual size, rather than accepted and left to time out.
+
+    Bounded by :data:`~app.cypher.builder.MAX_LIMIT_CEILING` because
+    these algorithms need the whole graph in one read, and a single
+    Cypher read cannot return more rows than that. Configuring a higher
+    number never bought a larger analysis -- it only made every
+    analytics and statistics call fail on its own read limit, which is
+    what the default of 20,000 was quietly doing.
     """
 
     pagerank_iterations: int = Field(default=20, ge=1, le=200)

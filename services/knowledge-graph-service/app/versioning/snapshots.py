@@ -247,8 +247,7 @@ class SnapshotService:
         record = await self._snapshots.require_by_id(snapshot_id)
         if status_of(record) is not JobStatus.SUCCEEDED or record.payload is None:
             raise ConflictError(
-                f"Snapshot {record.label!r} did not complete successfully and "
-                "cannot be restored."
+                f"Snapshot {record.label!r} did not complete successfully and cannot be restored."
             )
         digest = hashlib.sha256(record.payload).hexdigest()
         if record.checksum_sha256 and digest != record.checksum_sha256:

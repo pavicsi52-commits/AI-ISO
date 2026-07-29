@@ -37,6 +37,17 @@ Traversal cost grows exponentially with depth. A configured ceiling can
 be lowered but never raised past this.
 """
 
+MAX_LIMIT_CEILING = 10_000
+"""Hard upper bound on the rows any single Cypher read may return.
+
+The real limit on what one read can deliver, so any setting expressed
+in nodes has to be bounded by it. Configuring a higher analytics
+ceiling does not raise this one -- it just makes a request that reads
+the graph fail on its own limit, which is how
+``analytics_max_nodes = 20_000`` broke every analytics and statistics
+call at default settings until a service test ran one.
+"""
+
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 """What a safe Cypher identifier looks like.
 
@@ -240,6 +251,7 @@ def order_clause(variable: str, property_name: str | None, *, descending: bool =
 
 __all__ = [
     "MAX_DEPTH_CEILING",
+    "MAX_LIMIT_CEILING",
     "label_clause",
     "node_match",
     "order_clause",

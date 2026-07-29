@@ -169,6 +169,7 @@ class GraphRelationship:
     weight: float = 1.0
     properties: dict[str, Any] = field(default_factory=dict)
     created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @property
     def relationship_key(self) -> str:
@@ -186,7 +187,15 @@ class GraphRelationship:
     def from_record(
         cls, record: dict[str, Any], *, from_key: str, to_key: str, relationship_type: str
     ) -> GraphRelationship:
-        """Build a relationship from a Cypher record."""
+        """Build a relationship from a Cypher record.
+
+        Every managed field is popped, **including ``updated_at``**.
+        Leaving one behind does not just misreport the property set: the
+        driver returns its own ``DateTime``, which is not JSON
+        serialisable, so a single unpopped timestamp makes every
+        response carrying a relationship fail to encode -- and makes
+        storing an analysis report raise from inside the JSON column.
+        """
         properties = dict(record or {})
         weight = properties.pop("weight", 1.0)
         return cls(
@@ -195,6 +204,7 @@ class GraphRelationship:
             relationship_type=relationship_type,
             weight=float(weight) if isinstance(weight, int | float) else 1.0,
             created_at=_as_datetime(properties.pop("created_at", None)),
+            updated_at=_as_datetime(properties.pop("updated_at", None)),
             properties=properties,
         )
 
@@ -208,6 +218,7 @@ class GraphRelationship:
             "weight": self.weight,
             "properties": self.properties,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 

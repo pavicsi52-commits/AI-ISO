@@ -15,6 +15,8 @@ also a tenant-isolation test.
 
 from __future__ import annotations
 
+import contextlib
+import json
 import uuid
 
 import pytest
@@ -23,7 +25,7 @@ from shared_core.exceptions.dependency import DependencyError
 from shared_core.exceptions.not_found import NotFoundError
 from shared_core.exceptions.validation import ValidationError
 
-from app.graph.client import GraphClient
+from app.graph.client import GraphClient, QueryResult
 from app.graph.entities import NodeInput, RelationshipInput
 from app.graph.repository import GraphRepository
 from app.graph.schema import GRAPH_NODE_LABEL, describe_schema, is_enterprise, node_labels
@@ -207,7 +209,11 @@ class TestTenantIsolation:
                 other, NodeInput(key="app-1", node_type=NodeType.APPLICATION, name="Theirs")
             )
             result = await seeded_graph.traverse(other, "app-1", depth=3)
-            assert result.node_keys() == set(), "a foreign graph must not be reachable"
+            # Their own app-1 and nothing else. The seeded organization
+            # has a node under the same key with four neighbours; not one
+            # of them may appear here.
+            assert result.node_keys() == {"app-1"}, "a foreign graph must not be reachable"
+            assert result.relationships == []
         finally:
             await seeded_graph.purge_organization(other)
 
@@ -321,7 +327,11 @@ class TestTraversal:
         result = await seeded_graph.traverse(
             organization_id, "app-1", direction=TraversalDirection.OUTGOING, depth=3
         )
-        assert result.node_keys() == {"vm-1", "db-1", "host-1", "vm-2"}
+        # The root is part of its own topology. Omitting it would leave
+        # every edge out of app-1 pointing at a node the subgraph does
+        # not contain -- unrenderable, and dropped outright by
+        # Graph.from_subgraph before any analysis ran.
+        assert result.node_keys() == {"app-1", "vm-1", "db-1", "host-1", "vm-2"}
 
     async def test_incoming_answers_who_breaks_if_i_go_down(
         self, seeded_graph: GraphRepository, organization_id: uuid.UUID
@@ -331,7 +341,7 @@ class TestTraversal:
         result = await seeded_graph.traverse(
             organization_id, "host-1", direction=TraversalDirection.INCOMING, depth=3
         )
-        assert result.node_keys() == {"vm-1", "vm-2", "app-1", "db-1"}
+        assert result.node_keys() == {"host-1", "vm-1", "vm-2", "app-1", "db-1"}
 
     async def test_depth_bounds_the_walk(
         self, seeded_graph: GraphRepository, organization_id: uuid.UUID
@@ -339,7 +349,7 @@ class TestTraversal:
         shallow = await seeded_graph.traverse(
             organization_id, "app-1", direction=TraversalDirection.OUTGOING, depth=1
         )
-        assert shallow.node_keys() == {"vm-1", "db-1"}
+        assert shallow.node_keys() == {"app-1", "vm-1", "db-1"}
 
     async def test_relationship_types_filter_the_walk(
         self, seeded_graph: GraphRepository, organization_id: uuid.UUID
@@ -351,7 +361,7 @@ class TestTraversal:
             relationship_types=[RelationshipType.DEPENDS_ON],
             depth=3,
         )
-        assert result.node_keys() == {"db-1"}
+        assert result.node_keys() == {"app-1", "db-1"}
 
     async def test_node_types_filter_the_result(
         self, seeded_graph: GraphRepository, organization_id: uuid.UUID
@@ -363,7 +373,9 @@ class TestTraversal:
             node_types=[NodeType.PHYSICAL_SERVER],
             depth=3,
         )
-        assert result.node_keys() == {"host-1"}
+        # The node-type filter narrows what the walk *reaches*; it never
+        # removes the node the caller asked about.
+        assert result.node_keys() == {"app-1", "host-1"}
 
     async def test_nodes_are_de_duplicated(
         self, seeded_graph: GraphRepository, organization_id: uuid.UUID
@@ -375,6 +387,43 @@ class TestTraversal:
         )
         keys = [n.key for n in result.nodes]
         assert len(keys) == len(set(keys))
+
+    async def test_an_isolated_node_returns_itself_not_nothing(
+        self, graph: GraphRepository, organization_id: uuid.UUID
+    ) -> None:
+        # "This node has no neighbours" and "there is no such node" are
+        # different answers, and a caller has to be able to tell them
+        # apart. OPTIONAL MATCH is what keeps them distinguishable.
+        await graph.upsert_node(
+            organization_id,
+            NodeInput(key="island", node_type=NodeType.APPLICATION, name="island"),
+        )
+        result = await graph.traverse(organization_id, "island", depth=3)
+        assert result.node_keys() == {"island"}
+        assert result.relationships == []
+
+    async def test_every_edge_endpoint_is_present_in_the_node_set(
+        self, seeded_graph: GraphRepository, organization_id: uuid.UUID
+    ) -> None:
+        # The invariant behind including the root. Graph.from_subgraph
+        # drops edges pointing outside the node set, so a subgraph that
+        # breaks this does not fail loudly -- it quietly analyses a
+        # different graph from the one it returned.
+        result = await seeded_graph.traverse(organization_id, "app-1", depth=3)
+        keys = result.node_keys()
+        endpoints = {one.from_key for one in result.relationships} | {
+            one.to_key for one in result.relationships
+        }
+        assert endpoints <= keys
+
+    async def test_a_traversal_carries_no_driver_native_values(
+        self, seeded_graph: GraphRepository, organization_id: uuid.UUID
+    ) -> None:
+        # The driver's DateTime is not JSON serialisable, and an unpopped
+        # one survives every dict-shaped assertion to fail only at
+        # encode time -- which is to say, in the response, not the test.
+        result = await seeded_graph.traverse(organization_id, "app-1", depth=3)
+        assert json.dumps(result.as_dict())
 
     async def test_an_out_of_range_depth_is_refused(
         self, seeded_graph: GraphRepository, organization_id: uuid.UUID
@@ -479,20 +528,21 @@ class TestReadOnlyEnforcement:
     async def test_the_write_did_not_happen(
         self, graph: GraphRepository, graph_client: GraphClient, organization_id: uuid.UUID
     ) -> None:
-        try:
+        # Suppressed rather than asserted: this test is about the state
+        # of the database afterwards, not about which error came back --
+        # a refusal that still wrote the node would be the real failure.
+        with contextlib.suppress(DependencyError):
             await graph_client.read(
                 "CREATE (n:GraphNode {key: 'sneaky', organization_id: $org}) RETURN n",
                 {"org": str(organization_id)},
             )
-        except DependencyError:
-            pass
         assert await graph.get_node(organization_id, "sneaky") is None
 
     async def test_a_read_still_works(
         self, seeded_graph: GraphRepository, graph_client: GraphClient, organization_id: uuid.UUID
     ) -> None:
         result = await graph_client.read(
-            f"MATCH (n:{GRAPH_NODE_LABEL} {{organization_id: $org}}) " "RETURN count(n) AS total",
+            f"MATCH (n:{GRAPH_NODE_LABEL} {{organization_id: $org}}) RETURN count(n) AS total",
             {"org": str(organization_id)},
         )
         assert result.scalar("total") == 5
@@ -539,7 +589,7 @@ class TestClientBehaviour:
             await graph_client.write_many(
                 [
                     (
-                        f"CREATE (n:{GRAPH_NODE_LABEL} " "{key: 'batch-1', organization_id: $org})",
+                        f"CREATE (n:{GRAPH_NODE_LABEL} {{key: 'batch-1', organization_id: $org}})",
                         {"org": str(organization_id)},
                     ),
                     ("THIS IS NOT CYPHER", {}),
@@ -551,8 +601,6 @@ class TestClientBehaviour:
         assert await graph_client.write_many([]) == 0
 
     async def test_a_query_result_scalar_defaults(self) -> None:
-        from app.graph.client import QueryResult
-
         empty = QueryResult()
         assert empty.scalar("missing", "fallback") == "fallback"
         assert empty.row_count == 0

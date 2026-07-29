@@ -40,6 +40,7 @@ from neo4j import AsyncDriver
 from redis.exceptions import RedisError
 from shared_core.config.settings import DatabaseSettings, Neo4jSettings, RedisSettings
 from shared_core.database.engine import create_engine
+from shared_core.notifications.factory import create_notification_framework
 from shared_core.security.jwt import encode_token
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -111,11 +112,36 @@ os.environ.setdefault("AIIOS_KNOWLEDGE_GRAPH_SERVICE_SYNC_SERVICE_TOKEN", "test-
 from app.api import deps  # noqa: E402  -- see the env var block above
 from app.clients.platform import PlatformSourceClient, SourceEndpoints  # noqa: E402
 from app.core.factory import create_app  # noqa: E402
+from app.dependencies.engine import DependencyEngine  # noqa: E402
+from app.digital_twin.twin import DigitalTwinService  # noqa: E402
 from app.graph.client import GraphClient, create_neo4j_driver  # noqa: E402
 from app.graph.entities import NodeInput, RelationshipInput  # noqa: E402
 from app.graph.repository import GraphRepository  # noqa: E402
 from app.graph.schema import apply_schema  # noqa: E402
 from app.models.enums import NodeType, RelationshipType  # noqa: E402
+from app.notifications.graph_notifications import GraphNotificationService  # noqa: E402
+from app.repositories.graph_audit import GraphAuditRepository  # noqa: E402
+from app.repositories.graph_change_history import GraphChangeHistoryRepository  # noqa: E402
+from app.repositories.graph_export_job import GraphExportJobRepository  # noqa: E402
+from app.repositories.graph_import_job import GraphImportJobRepository  # noqa: E402
+from app.repositories.graph_metadata import GraphMetadataRepository  # noqa: E402
+from app.repositories.graph_query import GraphQueryRepository  # noqa: E402
+from app.repositories.graph_report import GraphReportRepository  # noqa: E402
+from app.repositories.graph_saved_query import GraphSavedQueryRepository  # noqa: E402
+from app.repositories.graph_snapshot import GraphSnapshotRepository  # noqa: E402
+from app.repositories.graph_statistics import GraphStatisticsRepository  # noqa: E402
+from app.repositories.graph_sync_job import GraphSyncJobRepository  # noqa: E402
+from app.repositories.graph_version import GraphVersionRepository  # noqa: E402
+from app.search.engine import SearchEngine  # noqa: E402
+from app.services.analytics import AnalyticsService  # noqa: E402
+from app.services.audit import AuditService  # noqa: E402
+from app.services.graph import GraphService  # noqa: E402
+from app.services.graph_io import GraphIoService  # noqa: E402
+from app.services.query import QueryService  # noqa: E402
+from app.services.statistics import StatisticsService  # noqa: E402
+from app.services.sync import SyncService  # noqa: E402
+from app.synchronization.engine import SynchronizationEngine  # noqa: E402
+from app.versioning.snapshots import SnapshotService  # noqa: E402
 
 UNREACHABLE_ERRORS = (OSError, TimeoutError, ConnectionError, RedisError)
 
@@ -191,16 +217,19 @@ async def db_session(
         yield session
 
 
-_SCHEMA_APPLIED = False
+_SCHEMA_APPLIED: set[bool] = set()
 """Whether the graph schema has been applied in this process.
 
-A module-level flag rather than a session-scoped fixture, because the
+A module-level marker rather than a session-scoped fixture, because the
 driver below has to be **function**-scoped: this suite runs on
 pytest-asyncio's default function-scoped event loop, and an
 ``AsyncDriver`` built on one loop and used from another fails with
 ``NoneType object has no attribute send`` -- an error that names nothing
 useful. Building the driver per test is cheap (it connects lazily); the
 schema is the expensive part, so that is what gets cached.
+
+A set rather than a bool so the fixture mutates it in place instead of
+rebinding a module global.
 """
 
 
@@ -230,10 +259,9 @@ async def graph_schema(neo4j_driver: AsyncDriver) -> None:
     but index creation is the slowest thing in this suite, and doing it
     per test would dominate the runtime.
     """
-    global _SCHEMA_APPLIED
     if not _SCHEMA_APPLIED:
         await apply_schema(GraphClient(neo4j_driver))
-        _SCHEMA_APPLIED = True
+        _SCHEMA_APPLIED.add(True)
 
 
 @pytest.fixture
@@ -425,6 +453,135 @@ async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
         yield ac
 
 
+@pytest.fixture
+def notifications() -> GraphNotificationService:
+    """A real notification service with no channels registered.
+
+    Not a mock: the manager, router, dispatcher, and dead-letter store
+    all run for real, and with no channel registered every send fails
+    the way a misconfigured deployment's would. That is precisely the
+    path worth exercising, because every caller here is meant to survive
+    it -- a sync that completed must not report an error because SMTP
+    was down.
+    """
+    return GraphNotificationService(create_notification_framework())
+
+
+@pytest.fixture
+def audit_service(db_session: AsyncSession) -> AuditService:
+    return AuditService(GraphAuditRepository(db_session))
+
+
+@pytest.fixture
+def graph_service(
+    graph: GraphRepository, db_session: AsyncSession, publisher: RecordingPublisher
+) -> GraphService:
+    return GraphService(
+        graph,
+        GraphChangeHistoryRepository(db_session),
+        GraphMetadataRepository(db_session),
+        publish_event=publisher,
+    )
+
+
+@pytest.fixture
+def query_service(graph_client: GraphClient, db_session: AsyncSession) -> QueryService:
+    return QueryService(
+        graph_client,
+        GraphQueryRepository(db_session),
+        GraphSavedQueryRepository(db_session),
+    )
+
+
+@pytest.fixture
+def twin_service(graph: GraphRepository, db_session: AsyncSession) -> DigitalTwinService:
+    return DigitalTwinService(graph, GraphMetadataRepository(db_session))
+
+
+@pytest.fixture
+def analytics_service(
+    graph: GraphRepository, db_session: AsyncSession, publisher: RecordingPublisher
+) -> AnalyticsService:
+    return AnalyticsService(
+        graph,
+        GraphReportRepository(db_session),
+        GraphMetadataRepository(db_session),
+        DependencyEngine(graph),
+        publish_event=publisher,
+    )
+
+
+@pytest.fixture
+def snapshot_service(graph: GraphRepository, db_session: AsyncSession) -> SnapshotService:
+    return SnapshotService(
+        graph,
+        GraphSnapshotRepository(db_session),
+        GraphVersionRepository(db_session),
+    )
+
+
+@pytest.fixture
+def search_engine(graph_client: GraphClient, db_session: AsyncSession) -> SearchEngine:
+    return SearchEngine(graph_client, GraphMetadataRepository(db_session))
+
+
+@pytest.fixture
+def io_service(
+    graph: GraphRepository,
+    db_session: AsyncSession,
+    notifications: GraphNotificationService,
+) -> GraphIoService:
+    return GraphIoService(
+        graph,
+        GraphImportJobRepository(db_session),
+        GraphExportJobRepository(db_session),
+        notifications,
+    )
+
+
+@pytest.fixture
+def statistics_service(
+    graph: GraphRepository, db_session: AsyncSession, twin_service: DigitalTwinService
+) -> StatisticsService:
+    return StatisticsService(
+        graph,
+        GraphStatisticsRepository(db_session),
+        GraphMetadataRepository(db_session),
+        GraphSyncJobRepository(db_session),
+        twin_service,
+    )
+
+
+@pytest.fixture
+def sync_engine(
+    graph: GraphRepository, db_session: AsyncSession, stub_sources: PlatformSourceClient
+) -> SynchronizationEngine:
+    return SynchronizationEngine(
+        graph,
+        GraphSyncJobRepository(db_session),
+        GraphChangeHistoryRepository(db_session),
+        GraphMetadataRepository(db_session),
+        stub_sources,
+    )
+
+
+@pytest.fixture
+def sync_service(
+    sync_engine: SynchronizationEngine,
+    db_session: AsyncSession,
+    snapshot_service: SnapshotService,
+    notifications: GraphNotificationService,
+    publisher: RecordingPublisher,
+) -> SyncService:
+    return SyncService(
+        sync_engine,
+        GraphSyncJobRepository(db_session),
+        snapshot_service,
+        notifications,
+        publish_event=publisher,
+    )
+
+
 @pytest_asyncio.fixture
 async def seeded_graph(graph: GraphRepository, organization_id: uuid.UUID) -> GraphRepository:
     """A small but genuinely shaped graph: app -> vm -> host, app -> db.
@@ -478,24 +635,36 @@ __all__ = [
     "SAMPLE_ASSETS",
     "AuthHeadersFn",
     "RecordingPublisher",
+    "analytics_service",
     "app",
+    "audit_service",
     "auth_headers",
     "client",
     "db_session",
     "db_session_factory",
     "graph",
     "graph_client",
+    "graph_service",
+    "io_service",
     "jwt_keypair",
     "neo4j_driver",
     "neo4j_test_settings",
+    "notifications",
     "organization_id",
     "pg_engine",
     "postgres_test_settings",
     "publisher",
+    "query_service",
     "redis_test_settings",
+    "search_engine",
     "seeded_graph",
+    "snapshot_service",
     "source_endpoints",
     "source_handler",
+    "statistics_service",
     "stub_sources",
+    "sync_engine",
+    "sync_service",
+    "twin_service",
     "utcnow",
 ]
