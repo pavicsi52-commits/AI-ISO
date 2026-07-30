@@ -5315,3 +5315,154 @@ open it **with no Authorization header** and get `unauthorized` widgets
 → seed both built-in themes → recompute statistics → 6 audit entries →
 delete. Every step behaved as designed, including the two deliberate
 degradations.
+
+---
+
+## Prompt 049 — Knowledge Graph Service (`services/knowledge-graph-service`)
+
+Port 8020, database `aiios_knowledge_graph`, Redis db 22, **Neo4j**.
+12 tables, 45 REST operations over the 20 paths docs/049 names, 699
+tests at **95.28% coverage**, Ruff/Black/MyPy clean across 94 source
+files. Image built and driven end to end against real infrastructure.
+
+The first service in this platform whose primary store is not
+PostgreSQL, and the first whose public API exposes a query language.
+
+### The ceiling bug, made four times independently
+
+Four settings are expressed in **nodes** — `analytics_max_nodes`
+(20,000), `MAX_SNAPSHOT_NODES` (100,000), `max_export_nodes` and
+`max_import_nodes` (50,000) — while a single Cypher read returns at most
+10,000 rows. Each was handed straight to a read. The result:
+
+- every analytics algorithm — broken at default settings
+- `GET /graph/statistics` — broken at default settings
+- `POST /graph/snapshots` — **had never once produced a restorable
+  backup**
+- `POST /graph/export` — broken in all four formats
+
+Four callers, one mistake, made separately each time. The lesson is not
+"check your limits": it is that **a shared constraint expressed in two
+different units will be violated by every caller that does not know
+about the other unit.** The fix was structural —
+`GraphRepository.collect_graph` is now the single paged reader for "the
+whole graph", so a fifth caller cannot repeat it — plus bounding
+`analytics_max_nodes` by the read ceiling in settings, since that one
+genuinely cannot page.
+
+None of this was visible in unit tests: the algorithms operate on
+in-memory `Graph` objects and were all correct. It took running the real
+service against a real database.
+
+### Two things only a live container revealed
+
+**`DENIED` audit entries were being discarded.** The Cypher route
+records a refusal and then *raises* it; `session_scope` rolls the
+request transaction back on that raise and takes the entry with it. A
+live container answered **0 audit entries after five refused
+statements** — the trail whose entire stated purpose is recording a
+probe at that endpoint recorded nothing.
+
+The API test for it passed the whole time. The test harness overrides
+the session with a request-scoped SAVEPOINT, which does not roll back
+the way a real request does. **Where a test's isolation differs from
+production's, the test can only be trusted about things that isolation
+does not touch** — and transaction lifetime is exactly what it touches.
+`record_denied` now commits in its own transaction.
+
+**Two cross-tenant reads.** `GET /graph/history?node_key=X` took an
+organization id and dropped it whenever a node key was supplied; node
+keys are business identifiers (`app-1`, `host-1`), so that is guessable,
+not obscure. `GET /graph/export/{id}/download` took no organization at
+all and did no ownership check, and an export payload is the entire
+graph. Three further by-key repository reads were unscoped but not yet
+API-reachable; all are scoped now. The download answers `404` rather
+than `403` — a 403 confirms the id, which is the one thing the caller
+did not already know.
+
+### The Cypher security boundary
+
+Three layers, and each does a different job:
+
+1. The deployment switch (`allow_custom_cypher`).
+2. `app/cypher/guard.py` — refuses write clauses, procedures, `LOAD
+   CSV`, bare literals, and variable-length ranges, **auditing the
+   refusal before returning**.
+3. Neo4j's own read transaction — `execute_read`, so a write is refused
+   by the database even if the guard missed it.
+
+The guard produces the good error message; Neo4j produces the guarantee.
+A guard-only design is one regex away from a breach; a database-only
+design tells the caller nothing and leaves nothing auditable.
+
+**Variable-length ranges are refused outright**, and this was a real
+find: the literal check is defeated inside `[*1..3]` because the `1` is
+followed by a dot and the `3` preceded by one, so both fail the regex
+word-boundary guards. A "read-only" statement could ask for `[*1..50]`
+and pin the database. Cypher cannot bind a range as a parameter, so
+there is no version that is both safe and expressive.
+
+### The traversal bug worth remembering
+
+`traverse` returned only the nodes it walked *to*, never the root. Every
+edge out of the root therefore pointed at a node the subgraph did not
+contain. Unrenderable, but the quiet consequence is worse:
+`Graph.from_subgraph` deliberately drops edges pointing outside the node
+set, so **every analysis run over a topology silently lost exactly the
+root's own edges**. Now `OPTIONAL MATCH` with the root on every row,
+which also makes an isolated node return itself — "no neighbours" and
+"no such node" are different answers.
+
+Same family: `list_relationships` returned every edge **twice** (an
+undirected pattern matches once per direction while `startNode`/
+`endNode` report the real one). It agreed with nothing —
+`count_relationships` is directed and said 5 where this said 10 — and it
+was invisible until a snapshot was compared edge for edge.
+
+### Neo4j specifics learned here
+
+- **Property-existence constraints are Enterprise-only.** Community
+  5.26.28 refuses them outright. The schema module *probes* the edition
+  and skips with an INFO log rather than attempting and failing.
+- **Labels, relationship types, and variable-length ranges cannot be
+  bound.** They are the only things formatted into query text, and every
+  one is allow-listed against an enum first.
+- **The driver's `DateTime` is not JSON-serialisable.** One unpopped
+  `updated_at` in a relationship's property dict survived every
+  dict-shaped assertion and failed only at `json.dumps` — which is to
+  say, in the response rather than the test.
+- **`AsyncDriver` is bound to its event loop.** A session-scoped driver
+  on pytest-asyncio's function-scoped loops fails with `'NoneType'
+  object has no attribute 'send'`. Function-scoped driver, module-flag
+  schema cache.
+- **Neo4j has no `SAVEPOINT`**, so test isolation is by organization id
+  with a purge afterwards — which makes every test a tenant-isolation
+  test as a side effect.
+- **`SKIP` without `ORDER BY` has no defined meaning.** A paged walk
+  could repeat some rows and miss others.
+
+### Round-trip testing
+
+Three separate bugs meant this service **could not re-import its own
+exports**, which makes snapshot restore a dead end. None was visible by
+reading the code: managed fields rejected as reserved, JSON's nested
+properties read as a property literally named "properties", and the
+Cypher importer understanding only inline keys while the exporter writes
+the correct `MATCH … MERGE` form. Every format is now round-tripped in
+tests *and* again live against the container.
+
+### Verification
+
+Ruff and Black clean; **MyPy run inside the container** as established
+in Prompt 048 (Windows Smart App Control still blocks the `__mypyc`
+extension) — *Success: no issues found in 94 source files*.
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, RabbitMQ, and Neo4j. Container reports `healthy`; readiness shows
+`database ok`, `graph ok`, `cache ok`. 60 end-to-end checks: graph
+writes, traversal including root containment, the three analyses,
+PageRank ranking the host highest, the five-statement Cypher refusal set
+with its audit trail, twins, full-text search, all four export formats
+round-tripping back through import with **zero rejections**,
+snapshot/diff/restore returning the graph whole, tenant isolation, and
+the 45-operation OpenAPI document. All pass.
