@@ -64,7 +64,13 @@ from app.services.policy import PolicyService, status_of
 from app.services.quota import QuotaService
 from app.services.simulation import SimulationService, request_from_payload
 from app.services.statistics import ReportService, StatisticsService
-from tests.conftest import PublishedPolicyFn, RecordingPublisher, simple_rule, utcnow
+from tests.conftest import (
+    PublishedPolicyFn,
+    RecordingPublisher,
+    approve,
+    simple_rule,
+    utcnow,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -286,6 +292,7 @@ class TestRuleAuthoring:
         with pytest.raises(ValidationError):
             await policy_service.set_rule_tree(organization_id, created.id, Rule(name="empty"))
         # The original survived.
+        await approve(policy_service, organization_id, created.id)
         await policy_service.publish(organization_id, created.id)
         found = await policy_service.get_policy(organization_id, created.id)
         assert found.compiled_rule["conditions"]
@@ -311,12 +318,47 @@ class TestPublishingAndRollback:
             organization_id, slug="p1", name="P1", effect=PolicyEffect.DENY
         )
         await policy_service.set_rule_tree(organization_id, created.id, simple_rule())
+        await approve(policy_service, organization_id, created.id)
         published = await policy_service.publish(organization_id, created.id)
 
         assert status_of(published) is PolicyStatus.PUBLISHED
         assert published.compiled_rule["conditions"]
         assert published.semantic_version == "1.0.1"
         assert "PolicyPublished" in publisher.names
+
+    async def test_publishing_is_only_legal_from_approved(
+        self, policy_service: PolicyService, organization_id: uuid.UUID
+    ) -> None:
+        """A draft cannot publish itself, and neither can a live policy.
+
+        ``_ALLOWED_TRANSITIONS`` calls DRAFT -> PUBLISHED the one move
+        that must be impossible, but ``transition`` was the only thing
+        consulting it: ``publish`` performed exactly that move, and it is
+        the only operation in the service that changes live
+        authorization. Every other test in this file had walked the legal
+        path first, so none of them ever tried the illegal one -- the
+        gate was verified open and never verified shut.
+        """
+        created = await policy_service.create_policy(
+            organization_id, slug="p1", name="P1", effect=PolicyEffect.DENY
+        )
+        await policy_service.set_rule_tree(organization_id, created.id, simple_rule())
+
+        with pytest.raises(ConflictError, match="approved"):
+            await policy_service.publish(organization_id, created.id)
+
+        await policy_service.transition(organization_id, created.id, target=PolicyStatus.REVIEW)
+        with pytest.raises(ConflictError, match="approved"):
+            await policy_service.publish(organization_id, created.id)
+
+        await policy_service.transition(organization_id, created.id, target=PolicyStatus.APPROVED)
+        published = await policy_service.publish(organization_id, created.id)
+        assert status_of(published) is PolicyStatus.PUBLISHED
+
+        # And re-issuing a live policy goes back around the loop rather
+        # than bumping the version in place.
+        with pytest.raises(ConflictError, match="approved"):
+            await policy_service.publish(organization_id, created.id)
 
     async def test_publishing_without_rules_is_refused(
         self, policy_service: PolicyService, organization_id: uuid.UUID
@@ -327,6 +369,7 @@ class TestPublishingAndRollback:
             organization_id, slug="p1", name="P1", effect=PolicyEffect.DENY
         )
         with pytest.raises(ValidationError, match="no enabled rules"):
+            await approve(policy_service, organization_id, created.id)
             await policy_service.publish(organization_id, created.id)
 
     @pytest.mark.parametrize(
@@ -344,6 +387,7 @@ class TestPublishingAndRollback:
             organization_id, slug="p1", name="P1", effect=PolicyEffect.DENY
         )
         await policy_service.set_rule_tree(organization_id, created.id, simple_rule())
+        await approve(policy_service, organization_id, created.id)
         published = await policy_service.publish(organization_id, created.id, **kwargs)
         assert published.semantic_version == expected
 
@@ -405,9 +449,11 @@ class TestPublishingAndRollback:
         # identity-mapped instance, so a reference to it silently reflects
         # the second publish and the assertion compares a version with
         # itself.
+        await approve(policy_service, organization_id, created.id)
         first_version = (await policy_service.publish(organization_id, created.id)).semantic_version
 
         await policy_service.set_rule_tree(organization_id, created.id, simple_rule("clearance"))
+        await approve(policy_service, organization_id, created.id)
         second_version = (
             await policy_service.publish(organization_id, created.id)
         ).semantic_version
@@ -424,7 +470,9 @@ class TestPublishingAndRollback:
             organization_id, slug="p1", name="P1", effect=PolicyEffect.DENY
         )
         await policy_service.set_rule_tree(organization_id, created.id, simple_rule())
+        await approve(policy_service, organization_id, created.id)
         first_version = (await policy_service.publish(organization_id, created.id)).semantic_version
+        await approve(policy_service, organization_id, created.id)
         await policy_service.publish(organization_id, created.id)
 
         restored = await policy_service.rollback(organization_id, created.id, version=first_version)

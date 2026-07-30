@@ -390,6 +390,55 @@ class TestRulesAndPublishing:
         )
         return str(created.json()["data"]["id"])
 
+    async def _approve(
+        self,
+        client: AsyncClient,
+        headers: dict[str, str],
+        organization_id: uuid.UUID,
+        policy_id: str,
+    ) -> None:
+        """Walk a draft to APPROVED over HTTP, which publishing requires."""
+        for target in (PolicyStatus.REVIEW, PolicyStatus.APPROVED):
+            response = await client.post(
+                f"/policies/{policy_id}/transition",
+                params=org(organization_id),
+                headers=headers,
+                json={"target": str(target)},
+            )
+            assert response.status_code == HTTP_OK, response.text
+
+    async def test_publishing_an_unapproved_draft_is_a_409(
+        self, client: AsyncClient, auth_headers: AuthHeadersFn, organization_id: uuid.UUID
+    ) -> None:
+        """The one move the lifecycle table calls impossible.
+
+        ``publish`` is the only operation that changes live
+        authorization, so it is the only place the review states can
+        actually be enforced -- and it used to be a second, unlocked door
+        into exactly the state ``transition`` refuses to move a draft
+        into. Found by driving the real API end to end against the built
+        image; every service-level test had dutifully walked the legal
+        path first and so never tried the illegal one.
+        """
+        headers = auth_headers(CALLER)
+        policy_id = await self._draft(client, headers, organization_id)
+        await client.put(
+            f"/policies/{policy_id}/rules",
+            params=org(organization_id),
+            headers=headers,
+            json=rule_payload(),
+        )
+        response = await client.post(
+            "/policies/publish",
+            params={**org(organization_id), "policy_id": policy_id},
+            headers=headers,
+            json={},
+        )
+        # The platform handler returns a deliberately generic message on
+        # 4xx; the reason is asserted at service level, where it is
+        # visible. What matters here is that the door is shut.
+        assert response.status_code == HTTP_CONFLICT
+
     async def test_setting_a_rule_tree_counts_the_conditions(
         self, client: AsyncClient, auth_headers: AuthHeadersFn, organization_id: uuid.UUID
     ) -> None:
@@ -456,6 +505,7 @@ class TestRulesAndPublishing:
             headers=headers,
             json=rule_payload(),
         )
+        await self._approve(client, headers, organization_id, policy_id)
         response = await client.post(
             "/policies/publish",
             params={**org(organization_id), "policy_id": policy_id},
@@ -471,6 +521,7 @@ class TestRulesAndPublishing:
     ) -> None:
         headers = auth_headers(CALLER)
         policy_id = await self._draft(client, headers, organization_id)
+        await self._approve(client, headers, organization_id, policy_id)
         response = await client.post(
             "/policies/publish",
             params={**org(organization_id), "policy_id": policy_id},

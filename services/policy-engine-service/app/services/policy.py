@@ -440,20 +440,42 @@ class PolicyService:
         feature: bool = False,
         actor_id: UUID | None = None,
     ) -> Policy:
-        """Compile the authored rules and make them live.
+        """Compile an approved policy's authored rules and make them live.
 
-        Compilation validates first, so a policy that cannot be evaluated
-        is refused here -- while a person is waiting for an answer --
-        rather than at 03:00 inside a decision nobody is watching.
+        **Only from APPROVED**, which is the same rule
+        :data:`_ALLOWED_TRANSITIONS` states and for the same reason. This
+        is the only operation in the service that changes live
+        authorization, so it is the one place the review states have to
+        be enforced -- a lifecycle table that ``transition`` honours and
+        ``publish`` ignores is not a lifecycle, it is a suggestion with a
+        second door next to it.
+
+        Re-issuing a live policy therefore goes back around:
+        PUBLISHED -> DRAFT -> REVIEW -> APPROVED -> published. That is
+        four calls to change a rule that is already refusing people's
+        work, and deliberately so.
+
+        Compilation validates after that, so a policy that cannot be
+        evaluated is refused here -- while a person is waiting for an
+        answer -- rather than at 03:00 inside a decision nobody is
+        watching.
 
         Raises:
             ValidationError: If the authored rules will not compile.
-            ConflictError: If the policy is archived.
+            ConflictError: If the policy is archived, or has not been
+                approved.
         """
         stored = await self._policies.require_in_org(organization_id, policy_id)
-        if status_of(stored) in _TERMINAL_STATUSES:
+        current = status_of(stored)
+        if current in _TERMINAL_STATUSES:
             raise ConflictError(
                 f"Policy {stored.slug!r} is archived. Move it back to draft before publishing."
+            )
+        if current is not PolicyStatus.APPROVED:
+            raise ConflictError(
+                f"Policy {stored.slug!r} is {str(current)!r} and cannot be published. "
+                "Only an approved policy may go live: move it through review and approval "
+                "first, so that somebody other than its author has seen it."
             )
 
         rules = await self._rules.list_for_policy(organization_id, policy_id)

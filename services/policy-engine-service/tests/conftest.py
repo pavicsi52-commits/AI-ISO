@@ -137,7 +137,7 @@ from app.rules.engine import Condition, Rule  # noqa: E402
 from app.services.approval import ApprovalService  # noqa: E402
 from app.services.compliance import AuditService, ComplianceService  # noqa: E402
 from app.services.decision import DecisionService  # noqa: E402
-from app.services.policy import PolicyService  # noqa: E402
+from app.services.policy import PolicyService, status_of  # noqa: E402
 from app.services.quota import QuotaService  # noqa: E402
 from app.services.simulation import SimulationService  # noqa: E402
 from app.services.statistics import ReportService, StatisticsService  # noqa: E402
@@ -417,6 +417,31 @@ def simple_rule(
     )
 
 
+async def approve(
+    policy_service: PolicyService, organization_id: uuid.UUID, policy_id: uuid.UUID
+) -> None:
+    """Walk a policy to APPROVED from wherever it currently is.
+
+    Publishing is only legal from APPROVED, so every test that wants a
+    live policy has to come through the review states -- including the
+    second time around, since re-issuing a live policy means
+    PUBLISHED -> DRAFT -> REVIEW -> APPROVED again.
+    """
+    route: dict[PolicyStatus, tuple[PolicyStatus, ...]] = {
+        PolicyStatus.DRAFT: (PolicyStatus.REVIEW, PolicyStatus.APPROVED),
+        PolicyStatus.REVIEW: (PolicyStatus.APPROVED,),
+        PolicyStatus.APPROVED: (),
+        PolicyStatus.PUBLISHED: (
+            PolicyStatus.DRAFT,
+            PolicyStatus.REVIEW,
+            PolicyStatus.APPROVED,
+        ),
+    }
+    current = status_of(await policy_service.get_policy(organization_id, policy_id))
+    for target in route[current]:
+        await policy_service.transition(organization_id, policy_id, target=target)
+
+
 PublishedPolicyFn = Callable[..., Any]
 
 
@@ -462,12 +487,10 @@ def make_policy(policy_service: PolicyService, organization_id: uuid.UUID) -> Pu
         await policy_service.set_rule_tree(organization_id, created.id, rule or simple_rule())
         if not publish:
             return created
-        # Draft -> review -> approved -> published. Walked in full
-        # rather than short-circuited, because the lifecycle refusing a
-        # direct draft-to-published move is a rule worth exercising on
-        # every policy this suite builds.
-        for target in (PolicyStatus.REVIEW, PolicyStatus.APPROVED):
-            await policy_service.transition(organization_id, created.id, target=target)
+        # Draft -> review -> approved -> published, in full: publish
+        # refuses anything that is not APPROVED, which is the whole
+        # reason the review states exist.
+        await approve(policy_service, organization_id, created.id)
         return await policy_service.publish(organization_id, created.id)
 
     return _make
