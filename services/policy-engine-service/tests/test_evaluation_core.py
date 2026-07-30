@@ -452,6 +452,145 @@ class TestRuleLogic:
         assert matched is False
 
 
+class TestAttributeComparison:
+    """Comparing one attribute against another -- the core ABAC statement."""
+
+    def _same_org(self, negate: bool = False) -> Condition:
+        return Condition(
+            source=AttributeSource.RESOURCE,
+            path="organization_id",
+            operator=RuleOperator.NOT_EQUALS,
+            value_source=AttributeSource.SUBJECT,
+            value_path="organization_id",
+            negate=negate,
+        )
+
+    def test_two_attributes_can_be_compared(self) -> None:
+        # There is no literal that means "whatever the caller's
+        # organization happens to be", so without this, tenant isolation
+        # is inexpressible as a policy -- you would need one policy per
+        # tenant, which is not governance but a copy of the tenant table.
+        mismatched = EvaluationContext(
+            resource={"organization_id": "org-a"}, subject={"organization_id": "org-b"}
+        )
+        matched, _ = evaluate_rule(rule(self._same_org()), mismatched)
+        assert matched is True
+
+        same = EvaluationContext(
+            resource={"organization_id": "org-a"}, subject={"organization_id": "org-a"}
+        )
+        matched, _ = evaluate_rule(rule(self._same_org()), same)
+        assert matched is False
+
+    def test_a_missing_right_hand_side_never_matches(self) -> None:
+        # The dangerous case. Treating missing as a value would let
+        # "resource.org != subject.org" fire for a request carrying no
+        # subject organization at all -- inverting what it was written to
+        # do, and denying every anonymous request for the wrong reason.
+        context = EvaluationContext(resource={"organization_id": "org-a"}, subject={})
+        matched, trace = evaluate_rule(rule(self._same_org()), context)
+        assert matched is False
+        assert "not present" in trace.conditions[0].detail
+
+    def test_the_trace_names_both_sides(self) -> None:
+        context = EvaluationContext(
+            resource={"organization_id": "org-a"}, subject={"organization_id": "org-b"}
+        )
+        _matched, trace = evaluate_rule(rule(self._same_org()), context)
+        assert "subject.organization_id" in str(trace.conditions[0].expected)
+
+    def test_half_a_reference_is_refused(self) -> None:
+        # Silently ignoring the populated half would turn an attribute
+        # comparison into a literal one against None -- a different rule
+        # that happens to parse.
+        with pytest.raises(ValidationError, match="needs both"):
+            validate_condition(
+                Condition(
+                    source=AttributeSource.RESOURCE,
+                    path="organization_id",
+                    operator=RuleOperator.EQUALS,
+                    value_source=AttributeSource.SUBJECT,
+                )
+            )
+        with pytest.raises(ValidationError, match="needs both"):
+            validate_condition(
+                Condition(
+                    source=AttributeSource.RESOURCE,
+                    path="organization_id",
+                    operator=RuleOperator.EQUALS,
+                    value_path="organization_id",
+                )
+            )
+
+    def test_a_reference_satisfies_the_needs_a_value_rule(self) -> None:
+        # `equals` with no literal is normally refused; with a reference
+        # it has a right-hand side after all.
+        validate_condition(self._same_org())
+
+    def test_a_malformed_value_path_is_refused(self) -> None:
+        with pytest.raises(ValidationError):
+            validate_condition(
+                Condition(
+                    source=AttributeSource.RESOURCE,
+                    path="organization_id",
+                    operator=RuleOperator.EQUALS,
+                    value_source=AttributeSource.SUBJECT,
+                    value_path="has space",
+                )
+            )
+
+    def test_an_attribute_comparison_round_trips_through_storage(self) -> None:
+        original = rule(self._same_org())
+        rebuilt = rule_from_dict(original.as_dict())
+        assert rebuilt.conditions[0].compares_attributes is True
+        assert rebuilt.conditions[0].value_source is AttributeSource.SUBJECT
+        assert rebuilt.conditions[0].value_path == "organization_id"
+
+    def test_a_rebuilt_comparison_decides_identically(self) -> None:
+        context = EvaluationContext(
+            resource={"organization_id": "org-a"}, subject={"organization_id": "org-b"}
+        )
+        original = rule(self._same_org())
+        assert (
+            evaluate_rule(original, context)[0]
+            == evaluate_rule(rule_from_dict(original.as_dict()), context)[0]
+        )
+
+    def test_both_sides_are_reported_as_referenced_attributes(self) -> None:
+        # Conflict detection reads this. Missing the right-hand side
+        # would make two policies that only overlap through a comparison
+        # look unrelated.
+        assert referenced_attributes(rule(self._same_org())) == {
+            ("resource", "organization_id"),
+            ("subject", "organization_id"),
+        }
+
+    def test_a_comparison_works_with_membership_operators_too(self) -> None:
+        # "the resource's owner is one of the subject's teams"
+        context = EvaluationContext(
+            resource={"owner_team": "platform"},
+            subject={"teams": ["platform", "security"]},
+        )
+        matched, _ = evaluate_rule(
+            rule(
+                Condition(
+                    source=AttributeSource.RESOURCE,
+                    path="owner_team",
+                    operator=RuleOperator.IN,
+                    value_source=AttributeSource.SUBJECT,
+                    value_path="teams",
+                )
+            ),
+            context,
+        )
+        assert matched is True
+
+    def test_negation_still_applies_to_a_missing_right_hand_side(self) -> None:
+        context = EvaluationContext(resource={"organization_id": "org-a"}, subject={})
+        matched, _ = evaluate_rule(rule(self._same_org(negate=True)), context)
+        assert matched is True
+
+
 class TestEvaluationTrace:
     """The account of why a decision came out as it did."""
 

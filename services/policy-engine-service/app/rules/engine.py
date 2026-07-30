@@ -43,7 +43,16 @@ MAX_CONDITIONS_PER_RULE = 100
 
 @dataclass(slots=True)
 class Condition:
-    """One comparison: read an attribute, apply an operator."""
+    """One comparison: read an attribute, apply an operator.
+
+    The right-hand side is normally the literal in :attr:`value`. Setting
+    :attr:`value_source` instead compares against **another attribute**,
+    which is what makes the central ABAC statement expressible at all:
+    "the resource's organization must equal the subject's". Without it,
+    tenant isolation cannot be written as a policy -- only as a literal,
+    and there is no literal that means "whatever the caller's
+    organization happens to be".
+    """
 
     source: AttributeSource
     path: str
@@ -51,6 +60,13 @@ class Condition:
     value: Any = None
     negate: bool = False
     description: str = ""
+    value_source: AttributeSource | None = None
+    value_path: str | None = None
+
+    @property
+    def compares_attributes(self) -> bool:
+        """Whether the right-hand side is another attribute."""
+        return self.value_source is not None and self.value_path is not None
 
     def as_dict(self) -> dict[str, Any]:
         """JSON-serialisable form."""
@@ -61,6 +77,8 @@ class Condition:
             "value": self.value,
             "negate": self.negate,
             "description": self.description,
+            "value_source": str(self.value_source) if self.value_source else None,
+            "value_path": self.value_path,
         }
 
 
@@ -164,9 +182,26 @@ def validate_condition(condition: Condition) -> None:
             value it was not given, or a pattern will not compile.
     """
     validate_path(condition.path)
-    if condition.operator in OPERATORS_REQUIRING_VALUE and condition.value is None:
+
+    # Checked first, and before the missing-value rule below, because it
+    # is the more specific diagnosis: an author who set one half of a
+    # reference wants to hear that, not "this operator needs a value".
+    # Half a reference is not a reference -- silently ignoring the
+    # populated half would turn an attribute comparison into a literal
+    # one against None, which is a different rule that happens to parse.
+    if (condition.value_source is None) != (condition.value_path is None):
         raise ValidationError(
-            f"Operator {str(condition.operator)!r} needs a value to compare against."
+            "An attribute comparison needs both 'value_source' and 'value_path'; "
+            f"got value_source={condition.value_source!r}, "
+            f"value_path={condition.value_path!r}."
+        )
+
+    if condition.compares_attributes:
+        validate_path(condition.value_path or "")
+    elif condition.operator in OPERATORS_REQUIRING_VALUE and condition.value is None:
+        raise ValidationError(
+            f"Operator {str(condition.operator)!r} needs a value to compare against, "
+            "either a literal or another attribute via value_source/value_path."
         )
     if condition.operator in (RuleOperator.MATCHES, RuleOperator.NOT_MATCHES):
         compile_pattern(str(condition.value))
@@ -209,13 +244,41 @@ def evaluate_condition(
 ) -> tuple[bool, ConditionTrace]:
     """Evaluate one condition against a context."""
     actual = resolve(context, condition.source, condition.path)
-    result: ComparisonResult = evaluate(condition.operator, actual, condition.value)
+
+    if condition.compares_attributes:
+        expected = resolve(
+            context,
+            condition.value_source,  # type: ignore[arg-type]
+            condition.value_path,  # type: ignore[arg-type]
+        )
+        # A comparison against an attribute that is not there never
+        # matches, whatever the operator. The alternative -- treating
+        # missing as a value and letting `not_equals` succeed -- means a
+        # tenant-isolation rule written as "resource.org != subject.org"
+        # would *fire* for a request carrying no subject organization at
+        # all, which inverts what it was written to do.
+        if is_missing(expected):
+            return condition.negate, ConditionTrace(
+                source=str(condition.source),
+                path=condition.path,
+                operator=str(condition.operator),
+                expected=f"<{condition.value_source}.{condition.value_path}: missing>",
+                actual=actual,
+                matched=condition.negate,
+                detail="the attribute being compared against is not present",
+            )
+        rendered = f"{condition.value_source}.{condition.value_path}={_renderable(expected)}"
+    else:
+        expected = condition.value
+        rendered = _renderable(condition.value)
+
+    result: ComparisonResult = evaluate(condition.operator, actual, expected)
     matched = result.matched != condition.negate
     return matched, ConditionTrace(
         source=str(condition.source),
         path=condition.path,
         operator=str(condition.operator),
-        expected=_renderable(condition.value),
+        expected=rendered,
         actual=actual,
         matched=matched,
         detail=result.detail,
@@ -293,6 +356,10 @@ def rule_from_dict(payload: dict[str, Any], *, name: str = "rule") -> Rule:
                     value=raw.get("value"),
                     negate=bool(raw.get("negate", False)),
                     description=str(raw.get("description") or ""),
+                    value_source=(
+                        AttributeSource(raw["value_source"]) if raw.get("value_source") else None
+                    ),
+                    value_path=(str(raw["value_path"]) if raw.get("value_path") else None),
                 )
             )
         except (KeyError, ValueError) as exc:
@@ -321,6 +388,11 @@ def referenced_attributes(rule: Rule) -> set[tuple[str, str]]:
     over a whole catalogue.
     """
     found = {(str(one.source), one.path) for one in rule.conditions}
+    found |= {
+        (str(one.value_source), one.value_path)
+        for one in rule.conditions
+        if one.compares_attributes and one.value_path is not None
+    }
     for child in rule.children:
         found |= referenced_attributes(child)
     return found
