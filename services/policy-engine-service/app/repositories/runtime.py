@@ -179,7 +179,7 @@ class PolicyViolationRepository(BaseRepository[PolicyViolation]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def require_by_id(self, organization_id: UUID, violation_id: UUID) -> PolicyViolation:
+    async def require_in_org(self, organization_id: UUID, violation_id: UUID) -> PolicyViolation:
         """One violation, scoped to its organization.
 
         Raises:
@@ -190,7 +190,7 @@ class PolicyViolationRepository(BaseRepository[PolicyViolation]):
             .where(PolicyViolation.organization_id == organization_id)
             .where(PolicyViolation.id == violation_id)
         )
-        found = (await self._session.execute(stmt)).scalars().first()
+        found: PolicyViolation | None = (await self._session.execute(stmt)).scalars().first()
         if found is None:
             raise NotFoundError(f"No violation with id {violation_id} in this organization.")
         return found
@@ -291,7 +291,7 @@ class PolicyApprovalRepository(BaseRepository[PolicyApproval]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def require_by_id(self, organization_id: UUID, approval_id: UUID) -> PolicyApproval:
+    async def require_in_org(self, organization_id: UUID, approval_id: UUID) -> PolicyApproval:
         """One approval, scoped to its organization.
 
         Raises:
@@ -302,7 +302,7 @@ class PolicyApprovalRepository(BaseRepository[PolicyApproval]):
             .where(PolicyApproval.organization_id == organization_id)
             .where(PolicyApproval.id == approval_id)
         )
-        found = (await self._session.execute(stmt)).scalars().first()
+        found: PolicyApproval | None = (await self._session.execute(stmt)).scalars().first()
         if found is None:
             raise NotFoundError(f"No approval with id {approval_id} in this organization.")
         return found
@@ -463,7 +463,7 @@ class PolicySimulationRepository(BaseRepository[PolicySimulation]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def require_by_id(self, organization_id: UUID, simulation_id: UUID) -> PolicySimulation:
+    async def require_in_org(self, organization_id: UUID, simulation_id: UUID) -> PolicySimulation:
         """One simulation, scoped to its organization.
 
         Raises:
@@ -474,7 +474,7 @@ class PolicySimulationRepository(BaseRepository[PolicySimulation]):
             .where(PolicySimulation.organization_id == organization_id)
             .where(PolicySimulation.id == simulation_id)
         )
-        found = (await self._session.execute(stmt)).scalars().first()
+        found: PolicySimulation | None = (await self._session.execute(stmt)).scalars().first()
         if found is None:
             raise NotFoundError(f"No simulation with id {simulation_id} in this organization.")
         return found
@@ -510,7 +510,7 @@ class PolicyReportRepository(BaseRepository[PolicyReport]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def require_by_id(self, organization_id: UUID, report_id: UUID) -> PolicyReport:
+    async def require_in_org(self, organization_id: UUID, report_id: UUID) -> PolicyReport:
         """One report, scoped to its organization.
 
         Raises:
@@ -524,7 +524,7 @@ class PolicyReportRepository(BaseRepository[PolicyReport]):
             .where(PolicyReport.organization_id == organization_id)
             .where(PolicyReport.id == report_id)
         )
-        found = (await self._session.execute(stmt)).scalars().first()
+        found: PolicyReport | None = (await self._session.execute(stmt)).scalars().first()
         if found is None:
             raise NotFoundError(f"No report with id {report_id} in this organization.")
         return found

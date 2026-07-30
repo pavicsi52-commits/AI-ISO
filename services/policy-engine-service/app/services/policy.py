@@ -142,7 +142,7 @@ class PolicyService:
         Raises:
             NotFoundError: If it does not exist in this organization.
         """
-        return await self._policies.require_by_id(organization_id, policy_id)
+        return await self._policies.require_in_org(organization_id, policy_id)
 
     async def create_policy(
         self,
@@ -225,7 +225,7 @@ class PolicyService:
         Raises:
             ConflictError: If the policy is a system guardrail.
         """
-        stored = await self._policies.require_by_id(organization_id, policy_id)
+        stored = await self._policies.require_in_org(organization_id, policy_id)
         if stored.is_system:
             raise ConflictError(
                 f"Policy {stored.slug!r} is a platform guardrail and cannot be edited. "
@@ -287,7 +287,7 @@ class PolicyService:
         Raises:
             ConflictError: If it is a platform guardrail.
         """
-        stored = await self._policies.require_by_id(organization_id, policy_id)
+        stored = await self._policies.require_in_org(organization_id, policy_id)
         if stored.is_system:
             raise ConflictError(
                 f"Policy {stored.slug!r} is a platform guardrail and cannot be deleted."
@@ -314,7 +314,7 @@ class PolicyService:
                 states exist so somebody other than the author looks at a
                 rule before it starts refusing people's work.
         """
-        stored = await self._policies.require_by_id(organization_id, policy_id)
+        stored = await self._policies.require_in_org(organization_id, policy_id)
         current = status_of(stored)
         if target not in _ALLOWED_TRANSITIONS[current]:
             allowed = ", ".join(sorted(str(one) for one in _ALLOWED_TRANSITIONS[current]))
@@ -347,7 +347,7 @@ class PolicyService:
             ValidationError: If the tree is unusable.
             ConflictError: If the policy is a platform guardrail.
         """
-        stored = await self._policies.require_by_id(organization_id, policy_id)
+        stored = await self._policies.require_in_org(organization_id, policy_id)
         if stored.is_system:
             raise ConflictError(
                 f"Policy {stored.slug!r} is a platform guardrail and its rules cannot be edited."
@@ -450,7 +450,7 @@ class PolicyService:
             ValidationError: If the authored rules will not compile.
             ConflictError: If the policy is archived.
         """
-        stored = await self._policies.require_by_id(organization_id, policy_id)
+        stored = await self._policies.require_in_org(organization_id, policy_id)
         if status_of(stored) in _TERMINAL_STATUSES:
             raise ConflictError(
                 f"Policy {stored.slug!r} is archived. Move it back to draft before publishing."
@@ -546,7 +546,7 @@ class PolicyService:
             ValidationError: If there is no such version, or nothing to
                 roll back to.
         """
-        stored = await self._policies.require_by_id(organization_id, policy_id)
+        stored = await self._policies.require_in_org(organization_id, policy_id)
         history = await self._versions.list_for_policy(organization_id, policy_id)
         if not history:
             raise ValidationError(
@@ -619,7 +619,7 @@ class PolicyService:
         publishing -- which for the service that authorizes every
         protected operation is the one tampering signal worth having.
         """
-        stored = await self._policies.require_by_id(organization_id, policy_id)
+        stored = await self._policies.require_in_org(organization_id, policy_id)
         latest = await self._versions.latest_for_policy(organization_id, policy_id)
         if latest is None:
             return {

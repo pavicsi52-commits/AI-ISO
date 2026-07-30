@@ -62,9 +62,9 @@ def build_tree(
         by_parent.setdefault(row.parent_rule_id, []).append(row)
 
     conditions_by_rule: dict[UUID, list[PolicyCondition]] = {}
-    for row in sorted(conditions, key=lambda one: (one.display_order, str(one.id))):
-        if row.is_enabled:
-            conditions_by_rule.setdefault(row.rule_id, []).append(row)
+    for condition_row in sorted(conditions, key=lambda one: (one.display_order, str(one.id))):
+        if condition_row.is_enabled:
+            conditions_by_rule.setdefault(condition_row.rule_id, []).append(condition_row)
 
     roots = by_parent.get(None, [])
     if len(roots) != 1:

@@ -331,7 +331,7 @@ class SimulationService:
         Raises:
             NotFoundError: If it does not exist in this organization.
         """
-        return await self._simulations.require_by_id(organization_id, simulation_id)
+        return await self._simulations.require_in_org(organization_id, simulation_id)
 
     async def list_simulations(
         self, organization_id: UUID, *, limit: int = 100

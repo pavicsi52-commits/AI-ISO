@@ -439,7 +439,7 @@ class ReportService:
                 has made, so the ownership check is the difference
                 between a download and a disclosure.
         """
-        return await self._reports.require_by_id(organization_id, report_id)
+        return await self._reports.require_in_org(organization_id, report_id)
 
     async def list_reports(
         self, organization_id: UUID, *, kind: ReportKind | None = None, limit: int = 100

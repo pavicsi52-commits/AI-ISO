@@ -187,7 +187,7 @@ class ComplianceService:
         Raises:
             ConflictError: If it is already resolved or waived.
         """
-        stored = await self._violations.require_by_id(organization_id, violation_id)
+        stored = await self._violations.require_in_org(organization_id, violation_id)
         current = status_of(stored)
         if current in (ViolationStatus.RESOLVED, ViolationStatus.WAIVED):
             raise ConflictError(
@@ -222,7 +222,7 @@ class ComplianceService:
                 "Closing a violation needs a note saying what was done. Without one "
                 "nobody reviewing this later can tell it apart from a dismissal."
             )
-        stored = await self._violations.require_by_id(organization_id, violation_id)
+        stored = await self._violations.require_in_org(organization_id, violation_id)
         stored.status = ViolationStatus.WAIVED if waived else ViolationStatus.RESOLVED
         stored.resolved_at = datetime.now(UTC)
         stored.resolved_by = actor_id

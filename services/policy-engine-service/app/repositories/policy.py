@@ -48,7 +48,7 @@ class PolicyRepository(BaseRepository[Policy]):
             raise NotFoundError(f"No policy with slug {slug!r}.")
         return found
 
-    async def require_by_id(self, organization_id: UUID, policy_id: UUID) -> Policy:
+    async def require_in_org(self, organization_id: UUID, policy_id: UUID) -> Policy:
         """One policy by id, scoped to its organization.
 
         Raises:
@@ -63,7 +63,7 @@ class PolicyRepository(BaseRepository[Policy]):
             .where(Policy.id == policy_id)
         )
         result = await self._session.execute(stmt)
-        found = result.scalars().first()
+        found: Policy | None = result.scalars().first()
         if found is None:
             raise NotFoundError(f"No policy with id {policy_id} in this organization.")
         return found
@@ -228,7 +228,7 @@ class PolicyRuleRepository(BaseRepository[PolicyRule]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def require_by_id(self, organization_id: UUID, rule_id: UUID) -> PolicyRule:
+    async def require_in_org(self, organization_id: UUID, rule_id: UUID) -> PolicyRule:
         """One rule node.
 
         Raises:
@@ -240,7 +240,7 @@ class PolicyRuleRepository(BaseRepository[PolicyRule]):
             .where(PolicyRule.id == rule_id)
         )
         result = await self._session.execute(stmt)
-        found = result.scalars().first()
+        found: PolicyRule | None = result.scalars().first()
         if found is None:
             raise NotFoundError(f"No policy rule with id {rule_id} in this organization.")
         return found

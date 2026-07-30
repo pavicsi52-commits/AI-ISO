@@ -167,7 +167,7 @@ class ApprovalService:
             ConflictError: If the approval is no longer pending.
             ValidationError: If this approver may not answer.
         """
-        stored = await self._approvals.require_by_id(organization_id, approval_id)
+        stored = await self._approvals.require_in_org(organization_id, approval_id)
         current = status_of(stored)
         if current is not ApprovalStatus.PENDING:
             raise ConflictError(
@@ -239,7 +239,7 @@ class ApprovalService:
         Raises:
             ConflictError: If it has already been resolved.
         """
-        stored = await self._approvals.require_by_id(organization_id, approval_id)
+        stored = await self._approvals.require_in_org(organization_id, approval_id)
         if status_of(stored) is not ApprovalStatus.PENDING:
             raise ConflictError(
                 f"This approval is already {status_of(stored)!s} and cannot be cancelled."
@@ -281,7 +281,7 @@ class ApprovalService:
         Raises:
             NotFoundError: If it does not exist in this organization.
         """
-        return await self._approvals.require_by_id(organization_id, approval_id)
+        return await self._approvals.require_in_org(organization_id, approval_id)
 
     async def state_of(self, organization_id: UUID, approval_id: UUID) -> approvals.ApprovalState:
         """Re-derive where an approval stands, from its recorded answers.
@@ -290,7 +290,7 @@ class ApprovalService:
         deadline passed since it was last written reports as expired
         without waiting for the sweep.
         """
-        stored = await self._approvals.require_by_id(organization_id, approval_id)
+        stored = await self._approvals.require_in_org(organization_id, approval_id)
         return approvals.resolve(
             [approvals.decision_from_dict(one) for one in (stored.decisions or [])],
             required=stored.required_levels,
