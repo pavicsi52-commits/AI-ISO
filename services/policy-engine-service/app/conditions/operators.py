@@ -112,7 +112,15 @@ def _as_number(value: Any) -> float | None:
 
 
 def _as_time(value: Any) -> time | None:
-    """Coerce to a wall-clock time, or ``None``."""
+    """Coerce to a wall-clock time, or ``None``.
+
+    Accepts a full timestamp as well as a bare time, because attributes
+    arrive over JSON: ``context.timestamp`` is the string
+    ``"2026-07-30T14:00:00Z"``, not a ``time``. Parsing only the bare
+    form made every maintenance-window policy silently never match --
+    governance that looks present and enforces nothing, which is the
+    worst failure mode this service has.
+    """
     if isinstance(value, time):
         return value
     if isinstance(value, datetime):
@@ -121,7 +129,9 @@ def _as_time(value: Any) -> time | None:
         try:
             return time.fromisoformat(value)
         except ValueError:
-            return None
+            pass
+        moment = _as_datetime(value)
+        return moment.timetz() if moment is not None else None
     return None
 
 
