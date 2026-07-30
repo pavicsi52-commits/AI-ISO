@@ -38,7 +38,12 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from neo4j import AsyncDriver
 from redis.exceptions import RedisError
-from shared_core.config.settings import DatabaseSettings, Neo4jSettings, RedisSettings
+from shared_core.config.settings import (
+    DatabaseSettings,
+    Neo4jSettings,
+    RabbitMQSettings,
+    RedisSettings,
+)
 from shared_core.database.engine import create_engine
 from shared_core.notifications.factory import create_notification_framework
 from shared_core.security.jwt import encode_token
@@ -168,6 +173,18 @@ def redis_test_settings() -> RedisSettings:
         redis_port=6379,
         redis_password="change-me",
         redis_db=22,
+        _env_file=None,
+    )
+
+
+def rabbitmq_test_settings() -> RabbitMQSettings:
+    """The broker the scheduler's job queue runs on."""
+    return RabbitMQSettings(
+        rabbitmq_host=_LOOPBACK,
+        rabbitmq_port=5672,
+        rabbitmq_user="aiios",
+        rabbitmq_password="change-me",
+        rabbitmq_vhost="/aiios",
         _env_file=None,
     )
 
@@ -655,6 +672,7 @@ __all__ = [
     "postgres_test_settings",
     "publisher",
     "query_service",
+    "rabbitmq_test_settings",
     "redis_test_settings",
     "search_engine",
     "seeded_graph",

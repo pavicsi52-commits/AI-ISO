@@ -18,8 +18,8 @@ step around.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Any, TypeVar
 from uuid import UUID
 
 from shared_core.exceptions.not_found import NotFoundError
@@ -53,6 +53,9 @@ logger = get_logger("app.graph.repository")
 
 _NODE_RETURN = "properties(n) AS node"
 _MAX_LIMIT = MAX_LIMIT_CEILING
+
+_Row = TypeVar("_Row")
+"""One row of a paged read: a node or a relationship."""
 
 
 class GraphRepository:
@@ -227,6 +230,73 @@ class GraphRepository:
         )
         result = await self._client.read(cypher, parameters)
         return [GraphNode.from_record(row.get("node", {})) for row in result.records]
+
+    async def collect_graph(
+        self,
+        organization_id: UUID,
+        *,
+        node_types: Sequence[NodeType | str] | None = None,
+        project_id: str | None = None,
+        max_nodes: int,
+    ) -> Subgraph:
+        """The whole organization graph, read in pages.
+
+        **Every caller wanting "all of it" must come through here.** A
+        single Cypher read cannot return more than
+        :data:`~app.cypher.builder.MAX_LIMIT_CEILING` rows, while the
+        ceilings expressed in *nodes* -- the snapshot, export, and import
+        limits -- are all larger. Passing one of those straight to
+        ``list_nodes`` raises ``Limit must be between 1 and 10000``, and
+        it did: analytics, statistics, snapshot capture, and export were
+        each independently broken at their own default settings, because
+        each had made the same mistake separately. One paged reader is
+        what stops the fifth caller repeating it.
+
+        Edges whose endpoints are not in the node set are dropped, so the
+        result is always a graph that can be rendered, analysed, and
+        re-imported rather than one carrying references to nodes it does
+        not contain.
+        """
+        nodes = await self._collect_pages(
+            lambda limit, offset: self.list_nodes(
+                organization_id,
+                node_types=node_types,
+                project_id=project_id,
+                order_by="key",
+                limit=limit,
+                offset=offset,
+            ),
+            max_rows=max_nodes,
+        )
+        relationships = await self._collect_pages(
+            lambda limit, offset: self.list_relationships(
+                organization_id, limit=limit, offset=offset
+            ),
+            max_rows=max_nodes,
+        )
+        present = {node.key for node in nodes}
+        return Subgraph(
+            nodes=nodes,
+            relationships=[
+                edge
+                for edge in relationships
+                if edge.from_key in present and edge.to_key in present
+            ],
+        )
+
+    @staticmethod
+    async def _collect_pages(
+        read: Callable[[int, int], Awaitable[list[_Row]]], *, max_rows: int
+    ) -> list[_Row]:
+        """Walk a paged read to exhaustion or to *max_rows*, whichever first."""
+        collected: list[_Row] = []
+        page_size = min(_MAX_LIMIT, max(1, max_rows))
+        while len(collected) < max_rows:
+            page = await read(page_size, len(collected))
+            collected.extend(page)
+            if len(page) < page_size:
+                break
+        return collected[:max_rows]
 
     async def count_nodes(self, organization_id: UUID) -> int:
         """How many nodes an organization has, counted in the graph."""

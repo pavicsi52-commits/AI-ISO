@@ -132,6 +132,22 @@ class SavedQueryRequest(BaseModel):
     default_parameters: dict[str, Any] = Field(default_factory=dict)
 
 
+class SavedQueryRunRequest(BaseModel):
+    """Run a stored query with the caller's parameters bound.
+
+    A declared model rather than a bare ``dict`` parameter on the route.
+    FastAPI binds an undeclared ``dict`` to the *whole* body, so
+    ``{"parameters": {...}}`` arrived as a parameter map containing one
+    key called "parameters" -- and every parameterised saved query
+    answered 400 saying the parameter it had just been given was
+    missing. It also gives the endpoint a documented body instead of an
+    untyped object in the OpenAPI schema.
+    """
+
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    limit: int = Field(default=200, ge=1, le=5_000)
+
+
 class SavedQueryResponse(BaseModel):
     """One stored query."""
 
@@ -492,6 +508,7 @@ __all__ = [
     "RelationshipResponse",
     "SavedQueryRequest",
     "SavedQueryResponse",
+    "SavedQueryRunRequest",
     "SearchResponse",
     "SnapshotRequest",
     "SnapshotResponse",

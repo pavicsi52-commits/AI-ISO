@@ -40,6 +40,7 @@ from app.schemas.graph import (
     QueryResultResponse,
     SavedQueryRequest,
     SavedQueryResponse,
+    SavedQueryRunRequest,
     SearchResponse,
 )
 from app.schemas.response import ResponseMeta, SuccessResponse
@@ -210,18 +211,17 @@ async def save_query(
 async def run_saved_query(
     slug: str,
     organization_id: UUID,
+    body: SavedQueryRunRequest,
     queries: QuerySvc,
     audit: AuditSvc,
     caller: CurrentUserId,
-    limit: Annotated[int, Query(ge=1, le=5_000)] = 200,
-    parameters: dict[str, object] | None = None,
 ) -> SuccessResponse[QueryResultResponse]:
     """Run a stored query with the caller's parameters bound."""
     outcome = await queries.run_saved(
         organization_id,
         slug,
-        parameters=dict(parameters or {}),
-        limit=limit,
+        parameters=body.parameters,
+        limit=body.limit,
         actor_id=caller,
     )
     await audit.record(

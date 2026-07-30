@@ -50,8 +50,11 @@ def register_statistics_rollup(
         ),
         metadata={"component": "knowledge-graph-statistics"},
     )
-    manager.register_job(job)
-    return job
+    # The manager's return value, not the local `job`. Registration is
+    # what computes the first ``next_run``, and the registry transitions
+    # a *copy* -- so handing back the object built above would give the
+    # caller a job that reads as never scheduled.
+    return manager.register_job(job)
 
 
 __all__ = ["STATISTICS_ROLLUP_JOB_ID", "register_statistics_rollup"]

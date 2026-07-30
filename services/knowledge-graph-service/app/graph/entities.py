@@ -102,9 +102,18 @@ class RelationshipInput(BaseModel):
 
         A self-loop makes every dependency traversal cyclic and every
         blast radius infinite.
+
+        Raises the platform's ``ValidationError``, not a bare
+        ``ValueError``, for the same reason
+        :meth:`_reject_reserved` above does: this model is constructed
+        *inside* request handlers rather than parsed from a body, so a
+        ``ValueError`` gets wrapped by Pydantic into an exception FastAPI
+        has no handler for -- a 500 on what is plainly a bad request. The
+        platform exception propagates to the registered handler and
+        answers 400 with a message naming the key.
         """
         if self.from_key == self.to_key:
-            raise ValueError(
+            raise ValidationError(
                 f"A node cannot relate to itself ({self.from_key!r}); a self-loop "
                 "makes dependency traversal cyclic."
             )

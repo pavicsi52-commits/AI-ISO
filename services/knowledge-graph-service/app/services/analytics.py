@@ -52,7 +52,6 @@ from app.events.graph_events import (
     BlastRadiusCalculatedEvent,
     ImpactAnalysisCompletedEvent,
 )
-from app.graph.entities import Subgraph
 from app.graph.repository import GraphRepository
 from app.models.enums import AnalyticsAlgorithm, QueryKind, RelationshipType
 from app.models.graph_report import GraphReport
@@ -452,9 +451,9 @@ class AnalyticsService:
 
     async def _load(self, organization_id: UUID) -> Graph:
         """Read the organization's graph into an adjacency view."""
-        nodes = await self._graph.list_nodes(organization_id, order_by="key", limit=self._max_nodes)
-        relationships = await self._graph.list_relationships(organization_id, limit=self._max_nodes)
-        return Graph.from_subgraph(Subgraph(nodes=nodes, relationships=relationships))
+        return Graph.from_subgraph(
+            await self._graph.collect_graph(organization_id, max_nodes=self._max_nodes)
+        )
 
     async def _store(
         self,

@@ -29,7 +29,7 @@ from app.api.deps import (
     StatisticsSvc,
     SyncSvc,
 )
-from app.models.enums import AuditAction, SyncSource, SyncStatus
+from app.models.enums import AuditAction, AuditOutcome, JobStatus, SyncSource, SyncStatus
 from app.schemas.graph import (
     AuditEntryResponse,
     ChangeEntryResponse,
@@ -46,6 +46,7 @@ from app.schemas.graph import (
     VersionResponse,
 )
 from app.schemas.response import ResponseMeta, SuccessResponse
+from app.services.graph_io import import_status_of
 
 router = APIRouter(prefix="/graph", tags=["Operations"])
 
@@ -193,6 +194,11 @@ async def import_graph(
         action=AuditAction.IMPORTED,
         entity_type="import",
         entity_key=body.filename,
+        outcome=(
+            AuditOutcome.SUCCESS
+            if import_status_of(job) is JobStatus.SUCCEEDED
+            else AuditOutcome.FAILURE
+        ),
         actor_id=caller,
         context={
             "dry_run": body.dry_run,
@@ -200,6 +206,17 @@ async def import_graph(
             "rejected": job.rejected,
         },
     )
+
+    # A payload that could not be parsed at all is a client error, not a
+    # created job. The job row is written and audited first so the
+    # attempt is still on record -- but answering 201 to someone who
+    # uploaded a corrupt file tells every client that checks only the
+    # status code that their import worked.
+    if import_status_of(job) is JobStatus.FAILED:
+        raise ValidationError(
+            f"The payload in {body.filename!r} could not be imported: {job.error}"
+        )
+
     return SuccessResponse(
         message=(
             f"{'Validated' if body.dry_run else 'Imported'} "

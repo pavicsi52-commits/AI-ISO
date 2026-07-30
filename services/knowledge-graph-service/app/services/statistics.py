@@ -30,7 +30,6 @@ from app.analytics.algorithms import (
 )
 from app.cypher.builder import MAX_LIMIT_CEILING
 from app.digital_twin.twin import DigitalTwinService
-from app.graph.entities import Subgraph
 from app.graph.repository import GraphRepository
 from app.models.graph_statistics import GraphStatistics
 from app.repositories.graph_metadata import GraphMetadataRepository
@@ -136,9 +135,9 @@ class StatisticsService:
                 ),
             }
 
-        nodes = await self._graph.list_nodes(organization_id, order_by="key", limit=self._max_nodes)
-        relationships = await self._graph.list_relationships(organization_id, limit=self._max_nodes)
-        graph = Graph.from_subgraph(Subgraph(nodes=nodes, relationships=relationships))
+        graph = Graph.from_subgraph(
+            await self._graph.collect_graph(organization_id, max_nodes=self._max_nodes)
+        )
         declared = {
             row.node_key: row.criticality
             for row in await self._metadata.list_for_org(organization_id, limit=10_000)

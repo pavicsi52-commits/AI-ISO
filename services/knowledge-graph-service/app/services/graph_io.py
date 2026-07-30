@@ -25,7 +25,6 @@ from uuid import UUID
 from shared_core.logging.logger import get_logger
 
 from app.exporter.formats import FILE_EXTENSIONS, render
-from app.graph.entities import Subgraph
 from app.graph.repository import GraphRepository
 from app.importer.formats import parse
 from app.models.enums import GraphFormat, JobStatus, NodeType
@@ -175,29 +174,22 @@ class GraphIoService:
         )
         started = time.monotonic()
         try:
-            nodes = await self._graph.list_nodes(
+            # collect_graph, not two raw list calls: the export ceiling is
+            # 50,000 nodes and a single read returns at most 10,000, so
+            # asking directly failed every export in every format with
+            # "Limit must be between 1 and 10000, got 50000". It also
+            # drops edges whose endpoints were filtered out, which would
+            # otherwise re-import as rejections from a file this service
+            # had just written.
+            subgraph = await self._graph.collect_graph(
                 organization_id,
                 node_types=node_types,
                 project_id=project_id,
-                order_by="key",
-                limit=self._max_export,
+                max_nodes=self._max_export,
             )
-            relationships = await self._graph.list_relationships(
-                organization_id, limit=self._max_export
-            )
-            # Edges whose endpoints were filtered out would re-import as
-            # rejections, so they are dropped here rather than exported
-            # into a file that cannot be read back cleanly.
-            present = {node.key for node in nodes}
-            relationships = [
-                edge
-                for edge in relationships
-                if edge.from_key in present and edge.to_key in present
-            ]
+            nodes, relationships = subgraph.nodes, subgraph.relationships
 
-            payload, content_type, rendered_extension = render(
-                Subgraph(nodes=nodes, relationships=relationships), graph_format
-            )
+            payload, content_type, rendered_extension = render(subgraph, graph_format)
             job.filename = f"graph-export.{rendered_extension}"
             job.content_type = content_type
             job.payload = payload

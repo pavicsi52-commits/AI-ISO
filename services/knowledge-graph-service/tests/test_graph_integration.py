@@ -20,7 +20,6 @@ import json
 import uuid
 
 import pytest
-from pydantic import ValidationError as PydanticValidationError
 from shared_core.exceptions.dependency import DependencyError
 from shared_core.exceptions.not_found import NotFoundError
 from shared_core.exceptions.validation import ValidationError
@@ -250,7 +249,12 @@ class TestRelationships:
         # directly -- get one rejected row instead of an aborted batch.
         # A self-loop makes every dependency traversal cyclic and every
         # blast radius infinite.
-        with pytest.raises(PydanticValidationError, match="cannot relate to itself"):
+        #
+        # The platform's ValidationError, not a Pydantic-wrapped
+        # ValueError: this model is constructed inside request handlers,
+        # and a ValueError there becomes an exception FastAPI has no
+        # handler for -- a 500 on what is plainly a bad request.
+        with pytest.raises(ValidationError, match="cannot relate to itself"):
             RelationshipInput(
                 from_key="a", to_key="a", relationship_type=RelationshipType.DEPENDS_ON
             )
