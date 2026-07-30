@@ -325,11 +325,11 @@ async def publish_policy(
         entity_type="policy",
         entity_id=published.slug,
         actor_id=caller,
-        after={"version": published.version, "status": str(published.status)},
+        after={"version": published.semantic_version, "status": str(published.status)},
         context={"published": True, "change_summary": body.change_summary},
     )
     return SuccessResponse(
-        message=f"Policy {published.slug!r} published as version {published.version}.",
+        message=f"Policy {published.slug!r} published as version {published.semantic_version}.",
         data=PolicyResponse.model_validate(published),
         meta=_meta(),
     )
@@ -363,11 +363,11 @@ async def rollback_policy(
         entity_type="policy",
         entity_id=restored.slug,
         actor_id=caller,
-        after={"version": restored.version},
+        after={"version": restored.semantic_version},
         context={"rolled_back": True},
     )
     return SuccessResponse(
-        message=f"Policy {restored.slug!r} rolled back to version {restored.version}.",
+        message=f"Policy {restored.slug!r} rolled back to version {restored.semantic_version}.",
         data=PolicyResponse.model_validate(restored),
         meta=_meta(),
     )

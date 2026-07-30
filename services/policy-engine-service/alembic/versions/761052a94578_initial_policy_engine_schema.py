@@ -1,8 +1,8 @@
 """initial policy engine schema
 
-Revision ID: 5276fc02d7f1
+Revision ID: 761052a94578
 Revises: 
-Create Date: 2026-07-30 13:01:43.772875
+Create Date: 2026-07-30 16:40:42.490527
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '5276fc02d7f1'
+revision: str = '761052a94578'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,7 +30,7 @@ def upgrade() -> None:
     sa.Column('effect', sa.String(length=32), nullable=False),
     sa.Column('status', sa.String(length=16), nullable=False),
     sa.Column('priority', sa.Integer(), nullable=False),
-    sa.Column('version', sa.String(length=32), nullable=False),
+    sa.Column('semantic_version', sa.String(length=32), nullable=False),
     sa.Column('subject_types', sa.JSON(), nullable=False),
     sa.Column('resource_types', sa.JSON(), nullable=False),
     sa.Column('actions', sa.JSON(), nullable=False),
@@ -53,6 +53,7 @@ def upgrade() -> None:
     sa.Column('deleted_by', sa.Uuid(), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('version', sa.Integer(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
     sa.Column('project_id', sa.Uuid(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
@@ -480,7 +481,7 @@ def upgrade() -> None:
     op.create_table('policy_versions',
     sa.Column('policy_id', sa.Uuid(), nullable=False),
     sa.Column('sequence', sa.Integer(), nullable=False),
-    sa.Column('version', sa.String(length=32), nullable=False),
+    sa.Column('semantic_version', sa.String(length=32), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('effect', sa.String(length=32), nullable=False),
@@ -505,11 +506,12 @@ def upgrade() -> None:
     sa.Column('deleted_by', sa.Uuid(), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('version', sa.Integer(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
     sa.Column('project_id', sa.Uuid(), nullable=True),
     sa.ForeignKeyConstraint(['policy_id'], ['policies.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('policy_id', 'version', name='uq_policy_version')
+    sa.UniqueConstraint('policy_id', 'semantic_version', name='uq_policy_version')
     )
     op.create_index('ix_policy_version_sequence', 'policy_versions', ['policy_id', 'sequence'], unique=False)
     op.create_index(op.f('ix_policy_versions_policy_id'), 'policy_versions', ['policy_id'], unique=False)

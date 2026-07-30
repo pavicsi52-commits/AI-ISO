@@ -140,7 +140,7 @@ class PolicyResponse(BaseModel):
     effect: PolicyEffect
     status: PolicyStatus
     priority: int
-    version: str
+    semantic_version: str
     subject_types: list[str]
     resource_types: list[str]
     actions: list[str]
@@ -160,7 +160,7 @@ class PolicyVersionResponse(BaseModel):
     id: UUID
     policy_id: UUID
     sequence: int
-    version: str
+    semantic_version: str
     name: str
     effect: PolicyEffect
     priority: int

@@ -281,7 +281,7 @@ class ReportService:
                     "effect": str(one.effect),
                     "category": str(one.category),
                     "priority": one.priority,
-                    "version": one.version,
+                    "version": one.semantic_version,
                     "evaluations": one.evaluation_count,
                 }
                 for one in rows

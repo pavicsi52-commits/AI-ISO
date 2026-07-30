@@ -462,7 +462,7 @@ class PolicyService:
             rules, conditions, policy_slug=stored.slug
         )
 
-        version = next_version(stored.version, breaking=breaking, feature=feature)
+        version = next_version(stored.semantic_version, breaking=breaking, feature=feature)
         sequence = await self._versions.next_sequence(organization_id, policy_id)
         moment = datetime.now(UTC)
 
@@ -471,7 +471,7 @@ class PolicyService:
                 organization_id=organization_id,
                 policy_id=policy_id,
                 sequence=sequence,
-                version=version,
+                semantic_version=version,
                 name=stored.name,
                 description=stored.description,
                 effect=effect_of(stored),
@@ -493,7 +493,7 @@ class PolicyService:
         )
 
         stored.compiled_rule = compiled
-        stored.version = version
+        stored.semantic_version = version
         stored.status = PolicyStatus.PUBLISHED
         stored.published_at = moment
         stored.published_by = actor_id
@@ -555,18 +555,18 @@ class PolicyService:
             )
 
         if version is not None:
-            target = next((one for one in history if one.version == version), None)
+            target = next((one for one in history if one.semantic_version == version), None)
             if target is None:
-                available = ", ".join(one.version for one in history[:10])
+                available = ", ".join(one.semantic_version for one in history[:10])
                 raise ValidationError(
                     f"Policy {stored.slug!r} has no version {version!r}. Available: {available}."
                 )
         else:
-            previous = [one for one in history if one.version != stored.version]
+            previous = [one for one in history if one.semantic_version != stored.semantic_version]
             if not previous:
                 raise ValidationError(
                     f"Policy {stored.slug!r} has only one published version "
-                    f"({stored.version}); there is nothing earlier to roll back to."
+                    f"({stored.semantic_version}); there is nothing earlier to roll back to."
                 )
             target = previous[0]
 
@@ -577,7 +577,7 @@ class PolicyService:
             # Restoring it would make that change live, which is the one
             # outcome an integrity check exists to prevent.
             raise ValidationError(
-                f"Version {target.version} of {stored.slug!r} failed its integrity "
+                f"Version {target.semantic_version} of {stored.slug!r} failed its integrity "
                 f"check ({integrity['reason']}) and will not be restored."
             )
 
@@ -589,7 +589,7 @@ class PolicyService:
         stored.actions = list(target.actions or [])
         stored.obligations = dict(target.obligations or {})
         stored.risk_weight = target.risk_weight
-        stored.version = target.version
+        stored.semantic_version = target.semantic_version
         stored.status = PolicyStatus.PUBLISHED
         stored.updated_by = actor_id
         restored = await self._policies.update(stored)
@@ -600,7 +600,7 @@ class PolicyService:
                 "extra_fields": {
                     "policy_id": str(policy_id),
                     "slug": stored.slug,
-                    "restored_version": target.version,
+                    "restored_version": target.semantic_version,
                 }
             },
         )
@@ -631,7 +631,7 @@ class PolicyService:
         return {
             **result,
             "slug": stored.slug,
-            "version": latest.version,
+            "version": latest.semantic_version,
             "live_checksum": checksum(stored.compiled_rule or {}),
         }
 
@@ -703,7 +703,7 @@ class PolicyService:
                 organization_id=organization_id,
                 policy_id=stored.id,
                 sequence=1,
-                version="1.0.0",
+                semantic_version="1.0.0",
                 name=template.name,
                 description=template.description,
                 effect=template.effect,

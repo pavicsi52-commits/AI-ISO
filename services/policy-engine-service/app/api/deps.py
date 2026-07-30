@@ -197,6 +197,8 @@ def get_simulation_service(
         PolicyRepository(session),
         PolicySimulationRepository(session),
         notifications,
+        PolicyRuleRepository(session),
+        PolicyConditionRepository(session),
         publish_event=publish_event,
         max_requests=settings.max_simulation_requests,
         default_effect=PolicyEffect(settings.default_effect_on_no_match),

@@ -32,8 +32,14 @@ from app.models.enums import (
 )
 from app.models.governance import PolicySimulation
 from app.notifications.policy_notifications import PolicyNotificationService
-from app.repositories.policy import PolicyRepository
+from app.publishing.compiler import compile_policy
+from app.repositories.policy import (
+    PolicyConditionRepository,
+    PolicyRepository,
+    PolicyRuleRepository,
+)
 from app.repositories.runtime import PolicySimulationRepository
+from app.rules.engine import rule_from_dict
 from app.simulation import engine as simulation
 from app.types import EventPublisher
 
@@ -60,6 +66,8 @@ class SimulationService:
         policies: PolicyRepository,
         simulations: PolicySimulationRepository,
         notifications: PolicyNotificationService,
+        rules: PolicyRuleRepository,
+        conditions: PolicyConditionRepository,
         *,
         publish_event: EventPublisher,
         max_requests: int = 1_000,
@@ -70,6 +78,8 @@ class SimulationService:
         self._policies = policies
         self._simulations = simulations
         self._notifications = notifications
+        self._rules = rules
+        self._conditions = conditions
         self._publish_event = publish_event
         self._max_requests = max_requests
         self._default_effect = default_effect
@@ -232,10 +242,62 @@ class SimulationService:
         if draft_policy_ids:
             drafts = await self._policies.list_by_ids(organization_id, draft_policy_ids)
             known = {one.policy_id for one in candidate}
-            for loaded in self._loadable(drafts, is_draft=True):
-                if loaded.policy_id not in known:
+            for row in drafts:
+                if str(row.id) in known:
+                    continue
+                loaded = await self._load_draft(organization_id, row)
+                if loaded is not None:
                     candidate.append(loaded)
         return candidate
+
+    async def _load_draft(self, organization_id: UUID, row: Any) -> EvaluablePolicy | None:
+        """Load an unpublished policy by compiling its authored rules.
+
+        **Compiled here rather than read from ``compiled_rule``.** That
+        column is written at publish time, so a draft's is empty -- and an
+        empty rule evaluates as no-match, which would make the entire
+        draft-preview feature silently do nothing while reporting success.
+        Found by the first test that asked what a draft would change.
+
+        A draft whose rules will not compile is skipped with its reason
+        logged: that is a real answer to "could I publish this?", and it
+        is better delivered as a missing policy in a preview than as a
+        failed simulation.
+        """
+        try:
+            rules = await self._rules.list_for_policy(organization_id, row.id)
+            conditions = await self._conditions.list_for_policy(organization_id, row.id)
+            compiled, _digest, _count = compile_policy(rules, conditions, policy_slug=row.slug)
+        except Exception as exc:
+            logger.warning(
+                "A draft policy could not be compiled for simulation and was left "
+                "out of the candidate catalogue.",
+                extra={
+                    "extra_fields": {
+                        "policy_id": str(row.id),
+                        "slug": row.slug,
+                        "error": str(exc),
+                    }
+                },
+            )
+            return None
+
+        return EvaluablePolicy(
+            policy_id=str(row.id),
+            slug=row.slug,
+            name=row.name,
+            effect=PolicyEffect(str(row.effect)),
+            rule=rule_from_dict(compiled, name=row.slug),
+            priority=row.priority,
+            category=str(row.category),
+            policy_type=str(row.policy_type),
+            subject_types=list(row.subject_types or []),
+            resource_types=list(row.resource_types or []),
+            actions=list(row.actions or []),
+            obligations=dict(row.obligations or {}),
+            risk_weight=float(row.risk_weight or 0.0),
+            is_draft=True,
+        )
 
     @staticmethod
     def _loadable(rows: list[Any], *, is_draft: bool = False) -> list[EvaluablePolicy]:

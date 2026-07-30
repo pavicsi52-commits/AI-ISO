@@ -188,7 +188,7 @@ class PolicyVersionRepository(BaseRepository[PolicyVersion]):
             self._base_select()
             .where(PolicyVersion.organization_id == organization_id)
             .where(PolicyVersion.policy_id == policy_id)
-            .where(PolicyVersion.version == version)
+            .where(PolicyVersion.semantic_version == version)
         )
         result = await self._session.execute(stmt)
         return result.scalars().first()

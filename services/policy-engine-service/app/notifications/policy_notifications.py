@@ -64,7 +64,7 @@ class PolicyNotificationService:
                 f"An attempt to {action} {resource} requires approval before it can "
                 f"proceed. The request expires at {expires_at}."
             ),
-            notification_type=NotificationType.INFO,
+            notification_type=NotificationType.INFORMATION,
         )
 
     async def send_quota_exceeded(
@@ -109,7 +109,7 @@ class PolicyNotificationService:
                 f"Policy {slug!r} version {version} is now live and applying "
                 f"{effect} to matching requests."
             ),
-            notification_type=NotificationType.INFO,
+            notification_type=NotificationType.INFORMATION,
         )
 
     async def send_simulation_completed(self, user_id: str, *, label: str, summary: str) -> None:
@@ -118,7 +118,7 @@ class PolicyNotificationService:
             user_id=user_id,
             subject=f"Policy simulation complete: {label}",
             body=summary,
-            notification_type=NotificationType.INFO,
+            notification_type=NotificationType.INFORMATION,
         )
 
 

@@ -92,14 +92,16 @@ class Policy(BaseModel):
     priority: Mapped[int] = mapped_column(Integer, default=100, index=True)
     """Tie-break within one effect. Higher wins; never crosses effects."""
 
-    version: Mapped[str] = mapped_column(String(32), default="1.0.0")
+    semantic_version: Mapped[str] = mapped_column(String(32), default="1.0.0")
     """Semantic version of the *published* content.
 
-    Named ``version`` in docs/050's sense, and deliberately a string --
-    ``BaseEntityMixin`` already owns an integer ``version`` column for
-    optimistic locking, and this is the one place in this service where
-    the two words would collide. Kept as text so the collision is
-    impossible rather than merely unlikely.
+    **Not named ``version``.** ``BaseEntityMixin`` already owns an integer
+    ``version`` column for optimistic locking, and ``BaseRepository.update``
+    does ``entity.version += 1`` on every write -- so a string column of
+    that name does not merely shadow the counter, it makes *every update
+    to this table raise* ``TypeError: can only concatenate str``. Found by
+    the first integration test that tried to publish a policy, having
+    written a docstring claiming the collision was impossible.
     """
 
     # ---- what this policy applies to ----------------------------------
@@ -177,7 +179,7 @@ class PolicyVersion(BaseModel):
 
     __tablename__ = "policy_versions"
     __table_args__ = (
-        UniqueConstraint("policy_id", "version", name="uq_policy_version"),
+        UniqueConstraint("policy_id", "semantic_version", name="uq_policy_version"),
         Index("ix_policy_version_sequence", "policy_id", "sequence"),
     )
 
@@ -185,7 +187,9 @@ class PolicyVersion(BaseModel):
         ForeignKey("policies.id", ondelete="CASCADE"), index=True
     )
     sequence: Mapped[int] = mapped_column(Integer)
-    version: Mapped[str] = mapped_column(String(32))
+    semantic_version: Mapped[str] = mapped_column(String(32))
+    """The published semantic version. Named to avoid the base
+    optimistic-lock counter -- see :attr:`Policy.semantic_version`."""
 
     name: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text, default=None)
