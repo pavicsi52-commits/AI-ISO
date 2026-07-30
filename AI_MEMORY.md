@@ -5466,3 +5466,121 @@ with its audit trail, twins, full-text search, all four export formats
 round-tripping back through import with **zero rejections**,
 snapshot/diff/restore returning the graph whole, tenant isolation, and
 the 45-operation OpenAPI document. All pass.
+
+---
+
+## Prompt 050 — Policy Engine Service
+
+`services/policy-engine-service`, port **8021**, database
+**`aiios_policy_engine`**, Redis **db 23**, RabbitMQ. The platform's
+authorization authority: ABAC/RBAC authoring with a reviewed lifecycle,
+a pure evaluation engine, quotas, approvals, time-bounded exceptions,
+compliance violations, what-if simulation, an append-only audit trail,
+and statistics. 15 tables, 15 repositories, 9 services, 25 operators,
+43 API operations across 36 paths, 2 workers, 9 domain events.
+
+**536 tests, 95.39% branch coverage.** Ruff, Black clean; MyPy in the
+container — *Success: no issues found in 74 source files*.
+
+### The shape that decides everything else
+
+Every protected operation on the platform asks this service one
+question, so it is in the latency path of everything, its availability
+is the platform's availability, and a wrong answer is a breach or an
+outage rather than a bug in one feature.
+
+- **The engine is pure.** `app/evaluation/engine.py` has no database, no
+  network, and no clock it was not handed. 183 tests drive it directly.
+- **Effect precedence is a table** (`EFFECT_PRECEDENCE`, nine effects,
+  deny at 8). Combination takes the maximum. A tenth effect is a line in
+  a table, not an edit to a conditional somebody reasons about at 03:00.
+- **Fail-closed with `default_effect=deny`, logged at startup.** A
+  request matching no policy is refused, so a fresh organization refuses
+  everything until `POST /policies/guardrails/seed` runs.
+- **Nothing stored is ever executed.** 25 operators as functions over a
+  dispatch table, no `eval`. `MAX_PATTERN_LENGTH = 512` and a 4 KiB
+  match ceiling, because a policy author is a user like any other and a
+  catastrophic pattern here stalls every decision on the platform.
+- **`_MISSING` is not `None`.** An absent attribute must never satisfy a
+  condition by accident.
+
+### A gate verified open is not a gate verified shut
+
+`_ALLOWED_TRANSITIONS` had always named DRAFT → PUBLISHED the one move
+that must be impossible. Only `transition` consulted it. **`publish`
+performed exactly that move**, checking nothing but whether the policy
+was archived — and `publish` is the only operation in the service that
+changes live authorization. The lifecycle was enforced on the door
+nobody needed and left off the one that mattered.
+
+No test caught it, and the reason generalises: every test walked
+DRAFT → REVIEW → APPROVED → publish *correctly*, so none ever attempted
+the illegal move. The conftest fixture's own comment claimed it was
+exercising "the lifecycle refusing a direct draft-to-published move"
+while doing nothing of the sort. **Testing the happy path through a gate
+does not test that the gate is closed.** Found by driving the real API
+against the built image.
+
+### Other bugs worth remembering
+
+- **`Policy.version: Mapped[str]` shadowed the base integer
+  optimistic-lock `version`**, so every write raised `TypeError: can
+  only concatenate str (not "int") to str`. A docstring explaining why
+  the collision was impossible is what created it. **Documenting a
+  hazard is not avoiding it.** Renamed `semantic_version`.
+- **Unregistered domain events 400 the caller.** Every `DomainEvent`
+  subclass needs `@default_registry.register` or the publisher refuses
+  it. Service-level tests missed it because they inject a recording
+  publisher — the same blind spot that hid the lifecycle hole.
+- **Simulation must compile drafts on the fly.** `compiled_rule` is only
+  written at publish time, so reading it would make the entire
+  draft-preview feature silently do nothing while reporting success.
+- **`time_between` could not parse a JSON timestamp**, so every
+  maintenance-window policy silently never matched.
+- **ABAC could not compare two attributes** until `value_source` /
+  `value_path` were added — the only way to say "the resource's
+  organization must equal the subject's", since no literal means
+  "whatever the caller's organization happens to be".
+- **`require_in_org`, not `require_by_id`.** The tenant-scoped lookups
+  took an extra `organization_id` and so violated the base signature.
+  Two same-named methods of different arity on one class make
+  `require_by_id(exception_id)` look correct when it is a cross-tenant
+  read. MyPy flagged it; renaming was the fix, not a `type: ignore`.
+
+### Degrading rather than failing
+
+Four paths swallow their own failure on purpose, and each is tested with
+a real failure rather than a simulated one: an uncompilable draft is
+left out of a preview, an unwritable decision log does not stop the
+decision, an exhausted quota is still counted when the notification
+cannot send, and no notification can block its caller. The fixture's
+notification service is real with **no channel registered**, so every
+send genuinely fails.
+
+Refusing to answer an authorization question because the evidence table
+is full would turn one broken table into an estate-wide outage. The cost
+is a gap in the audit trail; that trade is made deliberately and logged.
+
+### What a SAVEPOINT cannot tell you
+
+The `app` fixture overrides only the request session, which changes
+**transaction lifetime** — so anything depending on transaction lifetime
+is untestable there. `AuditService.record_denied` commits in its own
+`session_scope` so a refused request's audit entry survives the rollback
+of the request that raised; under a SAVEPOINT that distinction vanishes
+and the test passes either way. Tested at service level against the real
+session factory instead. Carried forward from Prompt 049, where the same
+override hid discarded `DENIED` audit entries entirely.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ. Readiness reports `database ok`, `cache ok`.
+**28 end-to-end checks, all passing**: baseline authoring, rule trees,
+the full lifecycle including a 409 on publishing an unapproved draft,
+semantic versioning, a published deny actually refusing a request and
+naming the policy that caused it, a subject the rule excludes still
+being permitted, the decision log, a scoped expiring exception waiving
+the denial and disclosing itself in the obligations, simulation, version
+history, integrity verification, statistics, audit, guardrail seeding,
+Prometheus metrics, and the 43-operation OpenAPI document.
