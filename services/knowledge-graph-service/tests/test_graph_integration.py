@@ -317,6 +317,30 @@ class TestRelationships:
                 f"{edge.from_key}|{edge.relationship_type}|{edge.to_key}"
             )
 
+    async def test_listing_the_whole_edge_set_reports_each_edge_once(
+        self, seeded_graph: GraphRepository, organization_id: uuid.UUID
+    ) -> None:
+        # The undirected pattern matches each edge once per direction
+        # while startNode/endNode report the real one, so without DISTINCT
+        # this returned all five edges twice. It agreed with nothing:
+        # count_relationships is directed and said five.
+        edges = await seeded_graph.list_relationships(organization_id, limit=100)
+        keys = [one.relationship_key for one in edges]
+        assert len(keys) == len(set(keys))
+        assert len(keys) == await seeded_graph.count_relationships(organization_id)
+
+    async def test_the_edge_set_can_be_walked_in_pages(
+        self, seeded_graph: GraphRepository, organization_id: uuid.UUID
+    ) -> None:
+        # A snapshot of a graph with more edges than one read can return
+        # has to page. Ordered, or SKIP would repeat some and miss others.
+        first = await seeded_graph.list_relationships(organization_id, limit=2, offset=0)
+        second = await seeded_graph.list_relationships(organization_id, limit=2, offset=2)
+        third = await seeded_graph.list_relationships(organization_id, limit=2, offset=4)
+        walked = [one.relationship_key for one in (*first, *second, *third)]
+        assert len(walked) == 5
+        assert len(set(walked)) == 5
+
 
 class TestTraversal:
     """Walking the graph, and which way."""

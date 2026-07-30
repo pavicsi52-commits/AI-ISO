@@ -22,15 +22,17 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, TypeVar
 from uuid import UUID
 
 from shared_core.exceptions.conflict import ConflictError
 from shared_core.exceptions.validation import ValidationError
 from shared_core.logging.logger import get_logger
 
+from app.cypher.builder import MAX_LIMIT_CEILING
 from app.exporter.formats import render
 from app.graph.entities import (
     GraphNode,
@@ -56,7 +58,18 @@ The payload is stored inline in PostgreSQL (see
 :class:`~app.models.graph_snapshot.GraphSnapshot` for why), so the
 ceiling is what keeps that choice honest rather than a promise that
 quietly fails on a large estate.
+
+Above :data:`~app.cypher.builder.MAX_LIMIT_CEILING` deliberately: unlike
+the analytics ceiling, a snapshot reads its graph in *pages*, so it is
+not bounded by what one read can return. Backing up only the first
+10,000 nodes of an estate would be the least useful possible behaviour
+for the one feature whose whole job is completeness.
 """
+
+_Row = TypeVar("_Row")
+
+_PagedRead = Callable[[int, int], Awaitable[list[_Row]]]
+"""One page of a paged read: ``(limit, offset) -> rows``."""
 
 
 def status_of(record: GraphSnapshot) -> JobStatus:
@@ -364,10 +377,45 @@ class SnapshotService:
         return len(expired)
 
     async def _collect(self, organization_id: UUID) -> Subgraph:
-        """Read the whole organization graph for serialisation."""
-        nodes = await self._graph.list_nodes(organization_id, order_by="key", limit=self._max_nodes)
-        relationships = await self._graph.list_relationships(organization_id, limit=self._max_nodes)
-        return Subgraph(nodes=nodes, relationships=relationships)
+        """Read the whole organization graph for serialisation.
+
+        **Paged**, because a single Cypher read cannot return more than
+        :data:`~app.cypher.builder.MAX_LIMIT_CEILING` rows while a
+        snapshot is allowed :data:`MAX_SNAPSHOT_NODES` of them. Asking
+        for the ceiling in one read is what made every capture on a
+        default deployment store a FAILED row reading ``Limit must be
+        between 1 and 10000, got 100000`` -- a backup mechanism that had
+        never once produced a restorable backup.
+        """
+        return Subgraph(
+            nodes=await self._page(
+                lambda limit, offset: self._graph.list_nodes(
+                    organization_id, order_by="key", limit=limit, offset=offset
+                )
+            ),
+            relationships=await self._page(
+                lambda limit, offset: self._graph.list_relationships(
+                    organization_id, limit=limit, offset=offset
+                )
+            ),
+        )
+
+    async def _page(self, read: _PagedRead[_Row]) -> list[_Row]:
+        """Walk one paged read up to the snapshot ceiling.
+
+        Stops on a short page, and refuses to loop past the ceiling: a
+        snapshot silently holding the first page of a larger graph is
+        worse than one that fails, because nothing about restoring it
+        looks wrong until the missing half is noticed.
+        """
+        collected: list[_Row] = []
+        page_size = min(MAX_LIMIT_CEILING, self._max_nodes)
+        while len(collected) < self._max_nodes:
+            page = await read(page_size, len(collected))
+            collected.extend(page)
+            if len(page) < page_size:
+                break
+        return collected
 
     async def _load(self, snapshot_id: UUID) -> Subgraph:
         """Parse one stored snapshot back into a subgraph.

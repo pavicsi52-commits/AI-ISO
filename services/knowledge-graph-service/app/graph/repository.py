@@ -355,8 +355,17 @@ class GraphRepository:
         relationship_types: Sequence[RelationshipType | str] | None = None,
         direction: TraversalDirection = TraversalDirection.BOTH,
         limit: int = 200,
+        offset: int = 0,
     ) -> list[GraphRelationship]:
-        """Relationships for one organization, optionally around one node."""
+        """Relationships for one organization, optionally around one node.
+
+        Paged like :meth:`list_nodes`, and for a reason that is not
+        cosmetic: a single read cannot return more than
+        :data:`~app.cypher.builder.MAX_LIMIT_CEILING` rows, so anything
+        wanting the *whole* edge set -- a snapshot, above all -- has to
+        walk it. Without an offset such a caller either fails loudly or,
+        worse, silently keeps the first page and calls it a backup.
+        """
         safe_limit = validate_limit(limit, ceiling=_MAX_LIMIT)
         pattern = traversal_pattern(
             direction=direction, types=relationship_types, ceiling=self._max_depth
@@ -364,6 +373,7 @@ class GraphRepository:
         parameters: dict[str, Any] = {
             "organization_id": str(organization_id),
             "limit": safe_limit,
+            "offset": max(0, offset),
         }
         if node_key is not None:
             match = (
@@ -382,9 +392,21 @@ class GraphRepository:
 
         cypher = (
             f"{match} "
-            "RETURN startNode(r).key AS from_key, endNode(r).key AS to_key, "
+            # DISTINCT, because the undirected pattern matches each edge
+            # once per direction while startNode/endNode report the real
+            # one -- so without it every organization-wide listing
+            # returned every edge exactly twice. Invisible against
+            # count_relationships, which is directed and answered 5 while
+            # this answered 10, and invisible in a snapshot until the
+            # restored graph was compared edge for edge.
+            "RETURN DISTINCT startNode(r).key AS from_key, endNode(r).key AS to_key, "
             "       type(r) AS edge_type, properties(r) AS edge "
-            "LIMIT $limit"
+            # Ordered, because SKIP without an ORDER BY has no defined
+            # meaning: Neo4j may return rows in a different order between
+            # pages, so a paged walk could repeat some edges and miss
+            # others entirely.
+            "ORDER BY from_key, edge_type, to_key "
+            "SKIP $offset LIMIT $limit"
         )
         result = await self._client.read(cypher, parameters)
         return [_edge_from_row(row) for row in result.records]
