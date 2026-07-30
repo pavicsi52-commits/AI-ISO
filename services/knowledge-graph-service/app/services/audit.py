@@ -25,7 +25,9 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from shared_core.database.session import session_scope
 from shared_core.logging.logger import get_logger
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.enums import AuditAction, AuditOutcome
 from app.models.graph_audit import GraphAudit
@@ -53,8 +55,14 @@ def outcome_of(entry: GraphAudit) -> AuditOutcome:
 class AuditService:
     """Writes and reads the knowledge-graph audit trail."""
 
-    def __init__(self, audits: GraphAuditRepository) -> None:
+    def __init__(
+        self,
+        audits: GraphAuditRepository,
+        *,
+        session_factory: async_sessionmaker[AsyncSession] | None = None,
+    ) -> None:
         self._audits = audits
+        self._session_factory = session_factory
 
     async def record(
         self,
@@ -74,8 +82,36 @@ class AuditService:
         Returns the stored entry, or ``None`` if it could not be written
         -- see this module's docstring for why that is not raised.
         """
+        return await self._record_on(
+            self._audits,
+            organization_id=organization_id,
+            action=action,
+            entity_type=entity_type,
+            entity_key=entity_key,
+            actor_id=actor_id,
+            outcome=outcome,
+            reason=reason,
+            context=context,
+            project_id=project_id,
+        )
+
+    @staticmethod
+    async def _record_on(
+        audits: GraphAuditRepository,
+        *,
+        organization_id: UUID,
+        action: AuditAction,
+        entity_type: str,
+        entity_key: str | None,
+        actor_id: UUID | None,
+        outcome: AuditOutcome,
+        reason: str | None,
+        context: dict[str, Any] | None,
+        project_id: UUID | None = None,
+    ) -> GraphAudit | None:
+        """Append one entry through a given repository, best-effort."""
         try:
-            return await self._audits.create(
+            return await audits.create(
                 GraphAudit(
                     organization_id=organization_id,
                     project_id=project_id,
@@ -114,17 +150,53 @@ class AuditService:
         actor_id: UUID | None = None,
         context: dict[str, Any] | None = None,
     ) -> GraphAudit | None:
-        """Append a ``DENIED`` entry for a refused action."""
-        return await self.record(
-            organization_id=organization_id,
-            action=action,
-            entity_type=entity_type,
-            entity_key=entity_key,
-            actor_id=actor_id,
-            outcome=AuditOutcome.DENIED,
-            reason=reason,
-            context=context,
-        )
+        """Append a ``DENIED`` entry for a refused action.
+
+        **Committed in its own transaction**, unlike every other write
+        here, and that is the whole reason this method exists separately.
+        A refusal is recorded and then the refusal is *raised* -- which
+        rolls the request's transaction back and takes any entry written
+        inside it with it. The trail that exists specifically to record
+        somebody probing ``POST /graph/cypher`` recorded nothing at all
+        until a live container was asked for it: a request-scoped
+        SAVEPOINT in a test never rolls back the way a real request does,
+        so the test passed.
+        """
+        if self._session_factory is None:
+            # No independent factory (a unit test, or a caller that owns
+            # its own transaction boundary). Recorded on the shared
+            # session, which is better than not recorded.
+            return await self._record_on(
+                self._audits,
+                organization_id=organization_id,
+                action=action,
+                entity_type=entity_type,
+                entity_key=entity_key,
+                actor_id=actor_id,
+                outcome=AuditOutcome.DENIED,
+                reason=reason,
+                context=context,
+            )
+
+        try:
+            async with session_scope(self._session_factory) as session:
+                return await self._record_on(
+                    GraphAuditRepository(session),
+                    organization_id=organization_id,
+                    action=action,
+                    entity_type=entity_type,
+                    entity_key=entity_key,
+                    actor_id=actor_id,
+                    outcome=AuditOutcome.DENIED,
+                    reason=reason,
+                    context=context,
+                )
+        except Exception as exc:
+            logger.error(
+                "Failed to write a DENIED audit entry in its own transaction.",
+                extra={"extra_fields": {"action": str(action), "error": str(exc)}},
+            )
+            return None
 
     async def list_for_org(
         self,
@@ -136,9 +208,11 @@ class AuditService:
         """Audit entries for one organization, most recent first."""
         return await self._audits.list_for_org(organization_id, action=action, limit=limit)
 
-    async def list_for_entity(self, entity_key: str, *, limit: int = 100) -> list[GraphAudit]:
+    async def list_for_entity(
+        self, organization_id: UUID, entity_key: str, *, limit: int = 100
+    ) -> list[GraphAudit]:
         """Everything audited against one entity, most recent first."""
-        return await self._audits.list_for_entity(entity_key, limit=limit)
+        return await self._audits.list_for_entity(organization_id, entity_key, limit=limit)
 
     async def summarise(self, organization_id: UUID, *, limit: int = 1_000) -> dict[str, Any]:
         """Counts per action and per outcome.

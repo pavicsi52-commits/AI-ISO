@@ -34,10 +34,19 @@ class GraphAuditRepository(BaseRepository[GraphAudit]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_for_entity(self, entity_key: str, *, limit: int = 100) -> list[GraphAudit]:
-        """Everything audited against one entity, most recent first."""
+    async def list_for_entity(
+        self, organization_id: UUID, entity_key: str, *, limit: int = 100
+    ) -> list[GraphAudit]:
+        """Everything audited against one entity, most recent first.
+
+        Scoped to the organization like every other read here. A key
+        is a business identifier -- "app-1", "host-1" -- so an
+        unscoped lookup lets any tenant read another's rows by
+        guessing one.
+        """
         stmt = (
             self._base_select()
+            .where(GraphAudit.organization_id == organization_id)
             .where(GraphAudit.entity_key == entity_key)
             .order_by(desc(GraphAudit.occurred_at))
             .limit(limit)

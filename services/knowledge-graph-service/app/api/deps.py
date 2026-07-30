@@ -337,9 +337,19 @@ def get_statistics_service(
 StatisticsSvc = Annotated[StatisticsService, Depends(get_statistics_service)]
 
 
-def get_audit_service(session: DbSession) -> AuditService:
-    """The current request's audit service."""
-    return AuditService(GraphAuditRepository(session))
+def get_audit_service(request: Request, session: DbSession) -> AuditService:
+    """The current request's audit service.
+
+    Given the application's session factory as well as the request's
+    session, so ``record_denied`` can commit in a transaction of its
+    own. A refusal is recorded and then *raised*, and the raise rolls
+    the request transaction back -- so a DENIED entry written on the
+    shared session never survives the request that produced it.
+    """
+    return AuditService(
+        GraphAuditRepository(session),
+        session_factory=request.app.state.db_session_factory,
+    )
 
 
 AuditSvc = Annotated[AuditService, Depends(get_audit_service)]

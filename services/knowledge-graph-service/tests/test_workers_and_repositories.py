@@ -281,7 +281,7 @@ class TestRepositoryReads:
                 )
             )
         assert len(await changes.list_for_org(organization_id)) == 2
-        assert len(await changes.list_for_node("app-1")) == 1
+        assert len(await changes.list_for_node(organization_id, "app-1")) == 1
 
     async def test_change_history_reads_by_sync_job(
         self, db_session: AsyncSession, organization_id: uuid.UUID
@@ -300,7 +300,7 @@ class TestRepositoryReads:
                 occurred_at=utcnow(),
             )
         )
-        assert len(await changes.list_for_sync_job(job.id)) == 1
+        assert len(await changes.list_for_sync_job(organization_id, job.id)) == 1
 
     async def test_sync_jobs_filter_by_source_and_status(
         self, db_session: AsyncSession, organization_id: uuid.UUID
@@ -417,7 +417,7 @@ class TestRepositoryReads:
         await audits.create(_audit(organization_id, AuditAction.CYPHER_EXECUTED, None))
         assert len(await audits.list_for_org(organization_id)) == 2
         assert len(await audits.list_for_org(organization_id, action=AuditAction.NODE_CHANGED)) == 1
-        assert len(await audits.list_for_entity("app-1")) == 1
+        assert len(await audits.list_for_entity(organization_id, "app-1")) == 1
 
     async def test_reports_read_back_by_organization_and_kind(
         self, db_session: AsyncSession, organization_id: uuid.UUID
@@ -435,7 +435,7 @@ class TestRepositoryReads:
         # "What have we said about this node before?" during an incident.
         reports = GraphReportRepository(db_session)
         await reports.create(_report(organization_id, QueryKind.IMPACT_ANALYSIS, root="host-1"))
-        assert len(await reports.list_for_root("host-1")) == 1
+        assert len(await reports.list_for_root(organization_id, "host-1")) == 1
 
     async def test_import_and_export_jobs_list_for_an_organization(
         self, db_session: AsyncSession, organization_id: uuid.UUID

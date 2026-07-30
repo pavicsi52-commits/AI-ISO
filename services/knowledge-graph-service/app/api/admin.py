@@ -264,19 +264,25 @@ async def export_graph(
 
 
 @router.get("/export/{export_id}/download", summary="Download an export")
-async def download_export(export_id: UUID, io: IoSvc, caller: CurrentUserId) -> Response:
+async def download_export(
+    export_id: UUID, organization_id: UUID, io: IoSvc, caller: CurrentUserId
+) -> Response:
     """Return the rendered bytes, verified against their digest.
 
     A download that silently serves corrupted bytes is worse than one
     that refuses, and the recorded digest is the only thing that can
     tell the difference.
 
+    Takes ``organization_id`` like every other route here. It did not,
+    and an export payload is the whole graph -- so any authenticated
+    caller holding an id could read another tenant's entire estate.
+
     Raises:
-        NotFoundError: If no such export exists.
+        NotFoundError: If no such export exists in this organization.
         ValidationError: If it holds no payload or fails verification.
     """
     del caller
-    job = await io.get_export(export_id)
+    job = await io.get_export(organization_id, export_id)
     verification = io.verify(job)
     if not verification["valid"] or job.payload is None:
         raise ValidationError(

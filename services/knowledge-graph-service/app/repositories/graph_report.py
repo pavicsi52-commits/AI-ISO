@@ -34,10 +34,19 @@ class GraphReportRepository(BaseRepository[GraphReport]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_for_root(self, root_key: str, *, limit: int = 50) -> list[GraphReport]:
-        """Analyses rooted at one node, newest first."""
+    async def list_for_root(
+        self, organization_id: UUID, root_key: str, *, limit: int = 50
+    ) -> list[GraphReport]:
+        """Analyses rooted at one node, newest first.
+
+        Scoped to the organization like every other read here. A key
+        is a business identifier -- "app-1", "host-1" -- so an
+        unscoped lookup lets any tenant read another's rows by
+        guessing one.
+        """
         stmt = (
             self._base_select()
+            .where(GraphReport.organization_id == organization_id)
             .where(GraphReport.root_key == root_key)
             .order_by(desc(GraphReport.generated_at))
             .limit(limit)

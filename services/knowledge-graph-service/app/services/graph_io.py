@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from shared_core.exceptions.not_found import NotFoundError
 from shared_core.logging.logger import get_logger
 
 from app.exporter.formats import FILE_EXTENSIONS, render
@@ -226,13 +227,27 @@ class GraphIoService:
         """Export runs, newest first."""
         return await self._exports.list_for_org(organization_id, limit=limit)
 
-    async def get_export(self, export_id: UUID) -> GraphExportJob:
+    async def get_export(self, organization_id: UUID, export_id: UUID) -> GraphExportJob:
         """One export job, payload included, for download.
 
+        **Ownership is checked here, not left to the id.** An export
+        payload is the organization's entire graph, and an id alone is
+        obscurity rather than authorization -- one identifier appearing
+        in a log, a ticket, or a shared URL should not become a read of
+        another tenant's whole estate.
+
+        A mismatch raises ``NotFoundError`` rather than a permission
+        error, deliberately: telling a caller that an export exists but
+        is not theirs confirms the id, which is the one thing they did
+        not already know.
+
         Raises:
-            NotFoundError: If no such job exists.
+            NotFoundError: If no such job exists in this organization.
         """
-        return await self._exports.require_by_id(export_id)
+        job = await self._exports.require_by_id(export_id)
+        if job.organization_id != organization_id:
+            raise NotFoundError(f"No export with id {export_id} in this organization.")
+        return job
 
     def verify(self, job: GraphExportJob) -> dict[str, Any]:
         """Check a stored export against its recorded digest.

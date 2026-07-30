@@ -20,12 +20,13 @@ import uuid
 from typing import Any
 
 import pytest
+from shared_core.database.session import session_scope
 from shared_core.enums.health_status import HealthStatus
 from shared_core.enums.severity import Severity
 from shared_core.exceptions.conflict import ConflictError
 from shared_core.exceptions.not_found import NotFoundError
 from shared_core.exceptions.validation import ValidationError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.dependencies.engine import DependencyEngine
 from app.graph.entities import NodeInput, RelationshipInput
@@ -42,6 +43,7 @@ from app.models.enums import (
     TraversalDirection,
     TwinType,
 )
+from app.repositories.graph_audit import GraphAuditRepository
 from app.repositories.graph_metadata import GraphMetadataRepository
 from app.repositories.graph_query import GraphQueryRepository
 from app.repositories.graph_report import GraphReportRepository
@@ -366,6 +368,35 @@ class TestAuditService:
         assert outcome_of(entries[0]) is AuditOutcome.DENIED
         assert "DETACH DELETE" in (entries[0].reason or "")
 
+    async def test_a_denied_entry_survives_the_rollback_of_the_request_that_raised(
+        self,
+        db_session: AsyncSession,
+        db_session_factory: async_sessionmaker[AsyncSession],
+        organization_id: uuid.UUID,
+    ) -> None:
+        # The shape of the real thing: the route records a refusal and
+        # then *raises* the refusal, and `session_scope` rolls the
+        # request's transaction back on the way out. An entry written on
+        # that shared session goes with it -- so the trail whose entire
+        # purpose is recording a probe at POST /graph/cypher recorded
+        # nothing at all. A request-scoped SAVEPOINT never rolls back the
+        # way a real request does, which is why the API test passed and
+        # only a live container disagreed.
+        service = AuditService(GraphAuditRepository(db_session), session_factory=db_session_factory)
+        with pytest.raises(ValidationError):
+            async with session_scope(db_session_factory):
+                await service.record_denied(
+                    organization_id=organization_id,
+                    action=AuditAction.CYPHER_EXECUTED,
+                    entity_type="cypher",
+                    reason="DETACH DELETE is a write clause",
+                )
+                raise ValidationError("refused")
+
+        async with db_session_factory() as reader:
+            entries = await GraphAuditRepository(reader).list_for_org(organization_id)
+        assert [outcome_of(one) for one in entries] == [AuditOutcome.DENIED]
+
     async def test_a_storage_failure_does_not_fail_the_audited_action(
         self, audit_service: AuditService, organization_id: uuid.UUID
     ) -> None:
@@ -401,7 +432,7 @@ class TestAuditService:
                 entity_type="Application",
                 entity_key="app-1",
             )
-        assert len(await audit_service.list_for_entity("app-1")) == 2
+        assert len(await audit_service.list_for_entity(organization_id, "app-1")) == 2
 
     async def test_the_summary_counts_by_action_and_outcome(
         self, audit_service: AuditService, organization_id: uuid.UUID

@@ -1165,18 +1165,52 @@ class TestImportExportRoutes:
         export_id = created.json()["data"]["id"]
 
         downloaded = await client.get(
-            f"/graph/export/{export_id}/download", headers=auth_headers(CALLER)
+            f"/graph/export/{export_id}/download",
+            params=org(organization_id),
+            headers=auth_headers(CALLER),
         )
         assert downloaded.status_code == HTTP_OK
         assert downloaded.content
 
     async def test_downloading_an_unknown_export_is_a_404(
-        self, client: AsyncClient, auth_headers: AuthHeadersFn
+        self, client: AsyncClient, auth_headers: AuthHeadersFn, organization_id: uuid.UUID
     ) -> None:
         response = await client.get(
-            f"/graph/export/{uuid.uuid4()}/download", headers=auth_headers(CALLER)
+            f"/graph/export/{uuid.uuid4()}/download",
+            params=org(organization_id),
+            headers=auth_headers(CALLER),
         )
         assert response.status_code == HTTP_NOT_FOUND
+
+    async def test_another_organization_cannot_download_an_export(
+        self,
+        client: AsyncClient,
+        auth_headers: AuthHeadersFn,
+        seeded_graph: GraphRepository,
+        organization_id: uuid.UUID,
+    ) -> None:
+        # An export payload is the whole graph. The route took no
+        # organization at all, so any authenticated caller holding an id
+        # -- from a log line, a ticket, a shared URL -- could read another
+        # tenant's entire estate.
+        del seeded_graph
+        created = await client.post(
+            "/graph/export",
+            params=org(organization_id),
+            headers=auth_headers(CALLER),
+            json={"graph_format": GraphFormat.JSON},
+        )
+        export_id = created.json()["data"]["id"]
+
+        stolen = await client.get(
+            f"/graph/export/{export_id}/download",
+            params=org(uuid.uuid4()),
+            headers=auth_headers(CALLER),
+        )
+        # 404 rather than 403: telling a caller the export exists but is
+        # not theirs confirms the id, which is the one thing they did not
+        # already know.
+        assert stolen.status_code == HTTP_NOT_FOUND
 
 
 class TestSnapshotRoutes:
@@ -1402,6 +1436,37 @@ class TestTenantScoping:
             assert response.json()["data"] == []
         finally:
             await graph.purge_organization(other)
+
+    async def test_change_history_for_a_node_key_does_not_cross_tenants(
+        self,
+        client: AsyncClient,
+        auth_headers: AuthHeadersFn,
+        graph: GraphRepository,
+        organization_id: uuid.UUID,
+    ) -> None:
+        # Node keys are business identifiers -- "app-1", "host-1" -- so an
+        # unscoped by-key read is guessable, not obscure. The service
+        # dropped the organization whenever node_key was supplied.
+        del graph
+        await client.post(
+            "/graph/nodes",
+            params=org(organization_id),
+            headers=auth_headers(CALLER),
+            json={"key": "app-1", "node_type": NodeType.APPLICATION, "name": "Billing"},
+        )
+        mine = await client.get(
+            "/graph/history",
+            params={**org(organization_id), "node_key": "app-1"},
+            headers=auth_headers(CALLER),
+        )
+        assert len(mine.json()["data"]) == 1
+
+        theirs = await client.get(
+            "/graph/history",
+            params={"organization_id": str(uuid.uuid4()), "node_key": "app-1"},
+            headers=auth_headers(CALLER),
+        )
+        assert theirs.json()["data"] == []
 
     async def test_a_node_in_another_organization_is_a_404(
         self,

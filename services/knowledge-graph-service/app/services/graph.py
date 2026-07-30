@@ -351,7 +351,7 @@ class GraphService:
     ) -> list[GraphChangeHistory]:
         """What changed, organization-wide or for one node."""
         if node_key is not None:
-            return await self._changes.list_for_node(node_key, limit=limit)
+            return await self._changes.list_for_node(organization_id, node_key, limit=limit)
         return await self._changes.list_for_org(organization_id, limit=limit)
 
     async def counts(self, organization_id: UUID) -> dict[str, Any]:
