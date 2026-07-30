@@ -1,6 +1,10 @@
 """Domain events this service publishes (docs/050 "EVENTS").
 
-Integrates ``shared_core.events`` (Prompt 020).
+Integrates ``shared_core.events`` (Prompt 020). Every class is
+registered with :data:`shared_core.events.registry.default_registry`
+at import time -- the publisher refuses an unregistered event, so
+without that decorator every policy write raises and the caller gets
+a 400 for a request that did nothing wrong.
 
 **``PolicyEvaluated`` is deliberately not published per decision.** This
 service answers every protected operation on the platform, so an event
@@ -15,17 +19,20 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from shared_core.events import default_registry
 from shared_core.events.base import DomainEvent
 
 SOURCE_SERVICE = "policy-engine-service"
 
 
+@default_registry.register
 class PolicyCreatedEvent(DomainEvent):
     """A policy was authored."""
 
     event_name: ClassVar[str] = "PolicyCreated"
 
 
+@default_registry.register
 class PolicyUpdatedEvent(DomainEvent):
     """A policy's metadata changed.
 
@@ -36,6 +43,7 @@ class PolicyUpdatedEvent(DomainEvent):
     event_name: ClassVar[str] = "PolicyUpdated"
 
 
+@default_registry.register
 class PolicyPublishedEvent(DomainEvent):
     """A policy became live.
 
@@ -48,6 +56,7 @@ class PolicyPublishedEvent(DomainEvent):
     event_name: ClassVar[str] = "PolicyPublished"
 
 
+@default_registry.register
 class PolicyEvaluatedEvent(DomainEvent):
     """A decision was made.
 
@@ -59,30 +68,35 @@ class PolicyEvaluatedEvent(DomainEvent):
     event_name: ClassVar[str] = "PolicyEvaluated"
 
 
+@default_registry.register
 class PolicyDeniedEvent(DomainEvent):
     """A request was refused."""
 
     event_name: ClassVar[str] = "PolicyDenied"
 
 
+@default_registry.register
 class PolicyApprovedEvent(DomainEvent):
     """An approval obligation was satisfied."""
 
     event_name: ClassVar[str] = "PolicyApproved"
 
 
+@default_registry.register
 class PolicyViolationDetectedEvent(DomainEvent):
     """A compliance rule was broken."""
 
     event_name: ClassVar[str] = "PolicyViolationDetected"
 
 
+@default_registry.register
 class QuotaExceededEvent(DomainEvent):
     """A consumption budget was exhausted."""
 
     event_name: ClassVar[str] = "QuotaExceeded"
 
 
+@default_registry.register
 class SimulationCompletedEvent(DomainEvent):
     """A policy simulation finished."""
 
