@@ -544,6 +544,22 @@ TERMINAL_ASSESSMENT_STATUSES: Final[frozenset[AssessmentStatus]] = frozenset(
 )
 
 
+RISK_CRITICAL_AT: Final[int] = 15
+RISK_HIGH_AT: Final[int] = 9
+RISK_MODERATE_AT: Final[int] = 4
+"""Thresholds on the 5x5 likelihood-by-impact product, 1-25.
+
+Named because these are the numbers an organization's risk committee
+argues about, and a committee that cannot find them will not be able to
+tell whether the tool agrees with its own policy.
+"""
+
+GRADE_EXCELLENT_AT: Final[float] = 95.0
+GRADE_GOOD_AT: Final[float] = 85.0
+GRADE_FAIR_AT: Final[float] = 70.0
+GRADE_POOR_AT: Final[float] = 50.0
+
+
 def severity_for(likelihood: RiskLikelihood, impact: RiskImpact) -> RiskSeverity:
     """Band a likelihood/impact pair onto the standard 5x5 matrix.
 
@@ -553,24 +569,24 @@ def severity_for(likelihood: RiskLikelihood, impact: RiskImpact) -> RiskSeverity
     ones who own the risk.
     """
     score = LIKELIHOOD_VALUES[likelihood] * IMPACT_VALUES[impact]
-    if score >= 15:
+    if score >= RISK_CRITICAL_AT:
         return RiskSeverity.CRITICAL
-    if score >= 9:
+    if score >= RISK_HIGH_AT:
         return RiskSeverity.HIGH
-    if score >= 4:
+    if score >= RISK_MODERATE_AT:
         return RiskSeverity.MODERATE
     return RiskSeverity.LOW
 
 
 def grade_for(score: float) -> ScoreGrade:
     """Band a 0-100 compliance score for an executive summary."""
-    if score >= 95.0:
+    if score >= GRADE_EXCELLENT_AT:
         return ScoreGrade.EXCELLENT
-    if score >= 85.0:
+    if score >= GRADE_GOOD_AT:
         return ScoreGrade.GOOD
-    if score >= 70.0:
+    if score >= GRADE_FAIR_AT:
         return ScoreGrade.FAIR
-    if score >= 50.0:
+    if score >= GRADE_POOR_AT:
         return ScoreGrade.POOR
     return ScoreGrade.CRITICAL
 
@@ -696,10 +712,17 @@ def report_format_of(value: str | ReportFormat) -> ReportFormat:
 __all__ = [
     "FAILING_STATUSES",
     "FINDING_SEVERITY_FOR_CONTROL",
+    "GRADE_EXCELLENT_AT",
+    "GRADE_FAIR_AT",
+    "GRADE_GOOD_AT",
+    "GRADE_POOR_AT",
     "IMPACT_VALUES",
     "LIKELIHOOD_VALUES",
     "LIVE_EXCEPTION_STATUSES",
     "OPEN_FINDING_STATUSES",
+    "RISK_CRITICAL_AT",
+    "RISK_HIGH_AT",
+    "RISK_MODERATE_AT",
     "SCORED_STATUSES",
     "SEVERITY_WEIGHTS",
     "TERMINAL_ASSESSMENT_STATUSES",
