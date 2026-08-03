@@ -167,7 +167,7 @@ class CatalogueService:
         that cannot name the framework it measured is not a report.
         """
         stored = await self._frameworks.require_in_org(organization_id, framework_id)
-        if framework_status_of(stored) in _TERMINAL_FRAMEWORK_STATUSES:
+        if framework_status_of(stored.status) in _TERMINAL_FRAMEWORK_STATUSES:
             raise ConflictError(f"Framework {stored.slug!r} is already archived.")
         stored.status = FrameworkStatus.ARCHIVED
         stored.updated_by = actor_id

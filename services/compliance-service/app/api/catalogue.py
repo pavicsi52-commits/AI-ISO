@@ -6,7 +6,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
-from shared_core.responses.success import SuccessResponse
+from shared_core.logging.context import get_log_context
 
 from app.api.deps import AuditSvc, CatalogueSvc, CurrentUserId
 from app.models.enums import (
@@ -29,8 +29,19 @@ from app.schemas.compliance import (
     FrameworkUpdateRequest,
     RulePayload,
 )
+from app.schemas.response import ResponseMeta, SuccessResponse
 
 router = APIRouter(prefix="/compliance", tags=["catalogue"])
+
+
+def _meta() -> ResponseMeta:
+    """Response metadata carrying this request's id.
+
+    The id is what ties a response a caller is holding to the log lines
+    the request produced -- without it, "my assessment returned the
+    wrong number" is unanswerable.
+    """
+    return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
 def rule_from_payload(payload: RulePayload) -> Rule:
@@ -71,6 +82,7 @@ async def list_frameworks(
         organization_id, status=status_filter, limit=limit, offset=offset
     )
     return SuccessResponse(
+        meta=_meta(),
         data=[FrameworkResponse.model_validate(one) for one in rows],
         message="Frameworks listed.",
     )
@@ -114,7 +126,9 @@ async def create_framework(
         summary=f"Registered framework {created.slug!r}.",
     )
     return SuccessResponse(
-        data=FrameworkResponse.model_validate(created), message="Framework registered."
+        meta=_meta(),
+        data=FrameworkResponse.model_validate(created),
+        message="Framework registered.",
     )
 
 
@@ -146,6 +160,7 @@ async def seed_frameworks(
             changes={"seeded": [one.slug for one in seeded]},
         )
     return SuccessResponse(
+        meta=_meta(),
         data=[FrameworkResponse.model_validate(one) for one in seeded],
         message=f"Seeded {len(seeded)} framework(s).",
     )
@@ -161,7 +176,9 @@ async def get_framework(
 ) -> SuccessResponse[FrameworkResponse]:
     """One framework."""
     found = await catalogue.get_framework(organization_id, framework_id)
-    return SuccessResponse(data=FrameworkResponse.model_validate(found), message="Framework read.")
+    return SuccessResponse(
+        meta=_meta(), data=FrameworkResponse.model_validate(found), message="Framework read."
+    )
 
 
 @router.put(
@@ -199,7 +216,7 @@ async def update_framework(
         changes=body.model_dump(exclude_none=True),
     )
     return SuccessResponse(
-        data=FrameworkResponse.model_validate(updated), message="Framework updated."
+        meta=_meta(), data=FrameworkResponse.model_validate(updated), message="Framework updated."
     )
 
 
@@ -232,7 +249,7 @@ async def archive_framework(
         summary=f"Archived framework {archived.slug!r}.",
     )
     return SuccessResponse(
-        data=FrameworkResponse.model_validate(archived), message="Framework archived."
+        meta=_meta(), data=FrameworkResponse.model_validate(archived), message="Framework archived."
     )
 
 
@@ -264,6 +281,7 @@ async def list_controls(
         offset=offset,
     )
     return SuccessResponse(
+        meta=_meta(),
         data=[ControlResponse.model_validate(one) for one in rows],
         message="Controls listed.",
     )
@@ -311,7 +329,9 @@ async def create_control(
         actor_id=str(caller),
         summary=f"Added control {created.code!r}.",
     )
-    return SuccessResponse(data=ControlResponse.model_validate(created), message="Control added.")
+    return SuccessResponse(
+        meta=_meta(), data=ControlResponse.model_validate(created), message="Control added."
+    )
 
 
 @router.get(
@@ -324,7 +344,9 @@ async def get_control(
 ) -> SuccessResponse[ControlResponse]:
     """One control."""
     found = await catalogue.get_control(organization_id, control_id)
-    return SuccessResponse(data=ControlResponse.model_validate(found), message="Control read.")
+    return SuccessResponse(
+        meta=_meta(), data=ControlResponse.model_validate(found), message="Control read."
+    )
 
 
 @router.put(
@@ -364,7 +386,9 @@ async def update_control(
         summary=f"Updated control {updated.code!r}.",
         changes=body.model_dump(exclude_none=True),
     )
-    return SuccessResponse(data=ControlResponse.model_validate(updated), message="Control updated.")
+    return SuccessResponse(
+        meta=_meta(), data=ControlResponse.model_validate(updated), message="Control updated."
+    )
 
 
 @router.put(
@@ -393,7 +417,9 @@ async def set_control_rule(
         actor_id=str(caller),
         summary=f"Set the rule for control {updated.code!r}.",
     )
-    return SuccessResponse(data=ControlResponse.model_validate(updated), message="Rule set.")
+    return SuccessResponse(
+        meta=_meta(), data=ControlResponse.model_validate(updated), message="Rule set."
+    )
 
 
 @router.get(
@@ -406,7 +432,7 @@ async def related_controls(
 ) -> SuccessResponse[list[dict]]:
     """What else this control answers, in either direction."""
     related = await catalogue.related_controls(organization_id, control_id)
-    return SuccessResponse(data=related, message="Related controls listed.")
+    return SuccessResponse(meta=_meta(), data=related, message="Related controls listed.")
 
 
 @router.post(
@@ -444,7 +470,9 @@ async def map_controls(
         ),
     )
     return SuccessResponse(
-        data=ControlMappingResponse.model_validate(created), message="Controls mapped."
+        meta=_meta(),
+        data=ControlMappingResponse.model_validate(created),
+        message="Controls mapped.",
     )
 
 
@@ -462,6 +490,7 @@ async def implementation_summary(
     it as such makes a finished programme look permanently incomplete.
     """
     return SuccessResponse(
+        meta=_meta(),
         data=await catalogue.implementation_summary(organization_id),
         message="Implementation summary computed.",
     )

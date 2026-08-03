@@ -7,7 +7,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
-from shared_core.responses.success import SuccessResponse
+from shared_core.logging.context import get_log_context
 
 from app.api.deps import (
     AssessmentSvc,
@@ -45,8 +45,19 @@ from app.schemas.compliance import (
     ScanResponse,
     TargetPayload,
 )
+from app.schemas.response import ResponseMeta, SuccessResponse
 
 router = APIRouter(prefix="/compliance", tags=["assessments"])
+
+
+def _meta() -> ResponseMeta:
+    """Response metadata carrying this request's id.
+
+    The id is what ties a response a caller is holding to the log lines
+    the request produced -- without it, "my assessment returned the
+    wrong number" is unanswerable.
+    """
+    return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
 def _target(payload: TargetPayload) -> Target:
@@ -81,6 +92,7 @@ async def list_assessments(
         offset=offset,
     )
     return SuccessResponse(
+        meta=_meta(),
         data=[AssessmentResponse.model_validate(one) for one in rows],
         message="Assessments listed.",
     )
@@ -122,7 +134,7 @@ async def create_assessment(
         summary=f"Planned assessment {created.name!r}.",
     )
     return SuccessResponse(
-        data=AssessmentResponse.model_validate(created), message="Assessment planned."
+        meta=_meta(), data=AssessmentResponse.model_validate(created), message="Assessment planned."
     )
 
 
@@ -200,7 +212,9 @@ async def run_assessment(
         ),
     )
     return SuccessResponse(
-        data=AssessmentResponse.model_validate(finished), message="Assessment complete."
+        meta=_meta(),
+        data=AssessmentResponse.model_validate(finished),
+        message="Assessment complete.",
     )
 
 
@@ -215,7 +229,7 @@ async def get_assessment(
     """One assessment."""
     found = await assessments.get(organization_id, assessment_id)
     return SuccessResponse(
-        data=AssessmentResponse.model_validate(found), message="Assessment read."
+        meta=_meta(), data=AssessmentResponse.model_validate(found), message="Assessment read."
     )
 
 
@@ -237,7 +251,9 @@ async def list_results(
         organization_id, assessment_id, status=status_filter, limit=limit, offset=offset
     )
     return SuccessResponse(
-        data=[ResultResponse.model_validate(one) for one in rows], message="Results listed."
+        meta=_meta(),
+        data=[ResultResponse.model_validate(one) for one in rows],
+        message="Results listed.",
     )
 
 
@@ -255,7 +271,9 @@ async def cancel_assessment(
     """Stop a planned or running assessment."""
     cancelled = await assessments.cancel(organization_id, assessment_id, actor_id=caller)
     return SuccessResponse(
-        data=AssessmentResponse.model_validate(cancelled), message="Assessment cancelled."
+        meta=_meta(),
+        data=AssessmentResponse.model_validate(cancelled),
+        message="Assessment cancelled.",
     )
 
 
@@ -328,7 +346,9 @@ async def record_scan(
         actor_id=str(caller),
         summary=f"Recorded scan {finished.name!r} over {len(body.targets)} target(s).",
     )
-    return SuccessResponse(data=ScanResponse.model_validate(finished), message="Scan recorded.")
+    return SuccessResponse(
+        meta=_meta(), data=ScanResponse.model_validate(finished), message="Scan recorded."
+    )
 
 
 @router.get(
@@ -348,7 +368,9 @@ async def list_scans(
         organization_id, assessment_id=assessment_id, limit=limit, offset=offset
     )
     return SuccessResponse(
-        data=[ScanResponse.model_validate(one) for one in rows], message="Scans listed."
+        meta=_meta(),
+        data=[ScanResponse.model_validate(one) for one in rows],
+        message="Scans listed.",
     )
 
 
@@ -378,6 +400,7 @@ async def list_evidence(
         offset=offset,
     )
     return SuccessResponse(
+        meta=_meta(),
         data=[EvidenceResponse.model_validate(one) for one in rows],
         message="Evidence listed.",
     )
@@ -426,7 +449,7 @@ async def create_evidence(
         summary=f"Recorded evidence {created.title!r} (digest {created.digest[:12]}).",
     )
     return SuccessResponse(
-        data=EvidenceResponse.model_validate(created), message="Evidence recorded."
+        meta=_meta(), data=EvidenceResponse.model_validate(created), message="Evidence recorded."
     )
 
 
@@ -442,6 +465,7 @@ async def get_evidence(
     found = await evidence.get(organization_id, evidence_id)
     intact = evidence.verify(found)
     return SuccessResponse(
+        meta=_meta(),
         data=EvidenceResponse.model_validate(found),
         message=(
             "Evidence read; integrity verified."
@@ -494,7 +518,9 @@ async def supersede_evidence(
         changes={"superseded": str(evidence_id), "reason": body.reason},
     )
     return SuccessResponse(
-        data=EvidenceResponse.model_validate(replacement), message="Evidence superseded."
+        meta=_meta(),
+        data=EvidenceResponse.model_validate(replacement),
+        message="Evidence superseded.",
     )
 
 
@@ -515,6 +541,7 @@ async def verify_evidence(
     """
     report = await evidence.verify_all(organization_id, limit=limit)
     return SuccessResponse(
+        meta=_meta(),
         data=report,
         message=(
             f"Verified {report['checked']} evidence record(s); all intact."

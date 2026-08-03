@@ -8,7 +8,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Response, status
-from shared_core.responses.success import SuccessResponse
+from shared_core.logging.context import get_log_context
 
 from app.api.deps import (
     AuditSvc,
@@ -24,8 +24,19 @@ from app.schemas.compliance import (
     ReportResponse,
     StatisticResponse,
 )
+from app.schemas.response import ResponseMeta, SuccessResponse
 
 router = APIRouter(prefix="/compliance", tags=["analytics"])
+
+
+def _meta() -> ResponseMeta:
+    """Response metadata carrying this request's id.
+
+    The id is what ties a response a caller is holding to the log lines
+    the request produced -- without it, "my assessment returned the
+    wrong number" is unanswerable.
+    """
+    return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
 @router.get(
@@ -47,6 +58,7 @@ async def current_score(
     """
     found = await scoring.current(organization_id, scope=scope, scope_id=scope_id)
     return SuccessResponse(
+        meta=_meta(),
         data=found or {},
         message=(
             "Score read." if found else "No score has been computed yet; run an assessment first."
@@ -68,6 +80,7 @@ async def score_history(
 ) -> SuccessResponse[dict]:
     """A scope's score over time, with a deadbanded trend."""
     return SuccessResponse(
+        meta=_meta(),
         data=await scoring.history(organization_id, scope=scope, scope_id=scope_id, days=days),
         message="Score history read.",
     )
@@ -85,6 +98,7 @@ async def framework_scores(
 ) -> SuccessResponse[list[dict]]:
     """One score per framework."""
     return SuccessResponse(
+        meta=_meta(),
         data=await scoring.framework_scores(organization_id, limit=limit),
         message="Framework scores read.",
     )
@@ -103,6 +117,7 @@ async def score_assessment(
 ) -> SuccessResponse[dict]:
     """Recompute and store the scores for one run."""
     return SuccessResponse(
+        meta=_meta(),
         data=await scoring.score_assessment(organization_id, assessment_id, actor_id=caller),
         message="Assessment scored.",
     )
@@ -126,6 +141,7 @@ async def score_targets(
     where to go.
     """
     return SuccessResponse(
+        meta=_meta(),
         data=await scoring.score_targets(
             organization_id, assessment_id, limit=limit, actor_id=caller
         ),
@@ -141,7 +157,9 @@ async def score_targets(
 async def dashboard(organization_id: UUID, statistics: StatisticsSvc) -> SuccessResponse[dict]:
     """Everything a compliance dashboard needs, in one call."""
     return SuccessResponse(
-        data=await statistics.dashboard(organization_id), message="Dashboard computed."
+        meta=_meta(),
+        data=await statistics.dashboard(organization_id),
+        message="Dashboard computed.",
     )
 
 
@@ -158,6 +176,7 @@ async def statistics_windows(
     """Recent windows, newest first."""
     rows = await statistics.recent(organization_id, limit=limit)
     return SuccessResponse(
+        meta=_meta(),
         data=[StatisticResponse.model_validate(one) for one in rows],
         message="Statistics windows listed.",
     )
@@ -183,7 +202,7 @@ async def rollup(
         actor_id=caller,
     )
     return SuccessResponse(
-        data=StatisticResponse.model_validate(record), message="Window rolled up."
+        meta=_meta(), data=StatisticResponse.model_validate(record), message="Window rolled up."
     )
 
 
@@ -201,7 +220,9 @@ async def list_reports(
     """Reports, newest first."""
     rows = await reports.list_reports(organization_id, limit=limit, offset=offset)
     return SuccessResponse(
-        data=[ReportResponse.model_validate(one) for one in rows], message="Reports listed."
+        meta=_meta(),
+        data=[ReportResponse.model_validate(one) for one in rows],
+        message="Reports listed.",
     )
 
 
@@ -244,7 +265,9 @@ async def generate_report(
         succeeded=record.error is None,
         summary=f"Generated {str(body.kind)!r} report {record.title!r}.",
     )
-    return SuccessResponse(data=ReportResponse.model_validate(record), message="Report generated.")
+    return SuccessResponse(
+        meta=_meta(), data=ReportResponse.model_validate(record), message="Report generated."
+    )
 
 
 @router.get(
@@ -257,7 +280,9 @@ async def get_report(
 ) -> SuccessResponse[ReportResponse]:
     """One report, with its content."""
     found = await reports.get(organization_id, report_id)
-    return SuccessResponse(data=ReportResponse.model_validate(found), message="Report read.")
+    return SuccessResponse(
+        meta=_meta(), data=ReportResponse.model_validate(found), message="Report read."
+    )
 
 
 @router.get(
@@ -318,7 +343,9 @@ async def list_audit(
         offset=offset,
     )
     return SuccessResponse(
-        data=[AuditResponse.model_validate(one) for one in rows], message="Audit trail read."
+        meta=_meta(),
+        data=[AuditResponse.model_validate(one) for one in rows],
+        message="Audit trail read.",
     )
 
 
@@ -334,5 +361,7 @@ async def audit_summary(
 ) -> SuccessResponse[dict]:
     """How much of each action has happened lately."""
     return SuccessResponse(
-        data=await audit.summary(organization_id, days=days), message="Audit summary computed."
+        meta=_meta(),
+        data=await audit.summary(organization_id, days=days),
+        message="Audit summary computed.",
     )

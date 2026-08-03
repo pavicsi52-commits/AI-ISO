@@ -6,7 +6,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
-from shared_core.responses.success import SuccessResponse
+from shared_core.logging.context import get_log_context
 
 from app.api.deps import (
     AuditSvc,
@@ -42,8 +42,19 @@ from app.schemas.compliance import (
     RiskResponse,
     RiskTransitionRequest,
 )
+from app.schemas.response import ResponseMeta, SuccessResponse
 
 router = APIRouter(prefix="/compliance", tags=["governance"])
+
+
+def _meta() -> ResponseMeta:
+    """Response metadata carrying this request's id.
+
+    The id is what ties a response a caller is holding to the log lines
+    the request produced -- without it, "my assessment returned the
+    wrong number" is unanswerable.
+    """
+    return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
 # ---- findings ----------------------------------------------------------
@@ -85,7 +96,9 @@ async def list_findings(
         offset=offset,
     )
     return SuccessResponse(
-        data=[FindingResponse.model_validate(one) for one in rows], message="Findings listed."
+        meta=_meta(),
+        data=[FindingResponse.model_validate(one) for one in rows],
+        message="Findings listed.",
     )
 
 
@@ -97,7 +110,9 @@ async def list_findings(
 async def finding_summary(organization_id: UUID, findings: FindingSvc) -> SuccessResponse[dict]:
     """Open counts by severity, and how many are overdue."""
     return SuccessResponse(
-        data=await findings.summary(organization_id), message="Finding summary computed."
+        meta=_meta(),
+        data=await findings.summary(organization_id),
+        message="Finding summary computed.",
     )
 
 
@@ -114,6 +129,7 @@ async def overdue_findings(
     """Open findings past their due date."""
     rows = await findings.overdue(organization_id, limit=limit)
     return SuccessResponse(
+        meta=_meta(),
         data=[FindingResponse.model_validate(one) for one in rows],
         message="Overdue findings listed.",
     )
@@ -129,7 +145,9 @@ async def get_finding(
 ) -> SuccessResponse[FindingResponse]:
     """One finding."""
     found = await findings.get(organization_id, finding_id)
-    return SuccessResponse(data=FindingResponse.model_validate(found), message="Finding read.")
+    return SuccessResponse(
+        meta=_meta(), data=FindingResponse.model_validate(found), message="Finding read."
+    )
 
 
 @router.post(
@@ -158,7 +176,7 @@ async def assign_finding(
         summary=f"Assigned finding to {body.assignee_id}.",
     )
     return SuccessResponse(
-        data=FindingResponse.model_validate(updated), message="Finding assigned."
+        meta=_meta(), data=FindingResponse.model_validate(updated), message="Finding assigned."
     )
 
 
@@ -194,7 +212,9 @@ async def transition_finding(
         summary=f"Moved finding to {str(body.status)!r}.",
         changes={"status": str(body.status), "note": body.note},
     )
-    return SuccessResponse(data=FindingResponse.model_validate(updated), message="Finding updated.")
+    return SuccessResponse(
+        meta=_meta(), data=FindingResponse.model_validate(updated), message="Finding updated."
+    )
 
 
 # ---- exceptions ---------------------------------------------------------
@@ -222,6 +242,7 @@ async def list_exceptions(
         offset=offset,
     )
     return SuccessResponse(
+        meta=_meta(),
         data=[ExceptionResponse.model_validate(one) for one in rows],
         message="Exceptions listed.",
     )
@@ -272,7 +293,7 @@ async def request_exception(
         changes={"justification": body.business_justification},
     )
     return SuccessResponse(
-        data=ExceptionResponse.model_validate(created), message="Exception requested."
+        meta=_meta(), data=ExceptionResponse.model_validate(created), message="Exception requested."
     )
 
 
@@ -289,6 +310,7 @@ async def expiring_exceptions(
     """Waivers about to lapse, optionally warning somebody."""
     rows = await exceptions.warn_expiring(organization_id, notify_user_id=notify_user_id)
     return SuccessResponse(
+        meta=_meta(),
         data=[ExceptionResponse.model_validate(one) for one in rows],
         message="Expiring exceptions listed.",
     )
@@ -307,6 +329,7 @@ async def overused_exceptions(
     """Waivers relied on so often they are no longer exceptions."""
     rows = await exceptions.overused(organization_id, threshold=threshold)
     return SuccessResponse(
+        meta=_meta(),
         data=[ExceptionResponse.model_validate(one) for one in rows],
         message="Overused exceptions listed.",
     )
@@ -323,6 +346,7 @@ async def exceptions_due_for_review(
     """Live waivers whose review date has passed, permanent ones included."""
     rows = await exceptions.due_for_review(organization_id)
     return SuccessResponse(
+        meta=_meta(),
         data=[ExceptionResponse.model_validate(one) for one in rows],
         message="Exceptions due for review listed.",
     )
@@ -338,7 +362,9 @@ async def get_exception(
 ) -> SuccessResponse[ExceptionResponse]:
     """One exception."""
     found = await exceptions.get(organization_id, exception_id)
-    return SuccessResponse(data=ExceptionResponse.model_validate(found), message="Exception read.")
+    return SuccessResponse(
+        meta=_meta(), data=ExceptionResponse.model_validate(found), message="Exception read."
+    )
 
 
 @router.post(
@@ -379,7 +405,7 @@ async def decide_exception(
         changes={"decided_by": body.decided_by, "reason": body.reason},
     )
     return SuccessResponse(
-        data=ExceptionResponse.model_validate(decided), message="Exception decided."
+        meta=_meta(), data=ExceptionResponse.model_validate(decided), message="Exception decided."
     )
 
 
@@ -418,7 +444,7 @@ async def review_exception(
         ),
     )
     return SuccessResponse(
-        data=ExceptionResponse.model_validate(reviewed), message="Exception reviewed."
+        meta=_meta(), data=ExceptionResponse.model_validate(reviewed), message="Exception reviewed."
     )
 
 
@@ -449,7 +475,7 @@ async def revoke_exception(
         summary=f"Revoked exception {revoked.title!r}: {body.reason}",
     )
     return SuccessResponse(
-        data=ExceptionResponse.model_validate(revoked), message="Exception revoked."
+        meta=_meta(), data=ExceptionResponse.model_validate(revoked), message="Exception revoked."
     )
 
 
@@ -480,7 +506,9 @@ async def list_risks(
         offset=offset,
     )
     return SuccessResponse(
-        data=[RiskResponse.model_validate(one) for one in rows], message="Risk register listed."
+        meta=_meta(),
+        data=[RiskResponse.model_validate(one) for one in rows],
+        message="Risk register listed.",
     )
 
 
@@ -528,7 +556,9 @@ async def register_risk(
         actor_id=str(caller),
         summary=f"Registered risk {created.reference} at {str(created.severity)!r}.",
     )
-    return SuccessResponse(data=RiskResponse.model_validate(created), message="Risk registered.")
+    return SuccessResponse(
+        meta=_meta(), data=RiskResponse.model_validate(created), message="Risk registered."
+    )
 
 
 @router.get(
@@ -542,6 +572,7 @@ async def risks_due_for_review(
     """Open risks whose review date has passed."""
     rows = await risks.due_for_review(organization_id)
     return SuccessResponse(
+        meta=_meta(),
         data=[RiskResponse.model_validate(one) for one in rows],
         message="Risks due for review listed.",
     )
@@ -557,7 +588,9 @@ async def get_risk(
 ) -> SuccessResponse[RiskResponse]:
     """One risk."""
     found = await risks.get(organization_id, risk_id)
-    return SuccessResponse(data=RiskResponse.model_validate(found), message="Risk read.")
+    return SuccessResponse(
+        meta=_meta(), data=RiskResponse.model_validate(found), message="Risk read."
+    )
 
 
 @router.put(
@@ -593,7 +626,9 @@ async def assess_risk(
         summary=f"Re-scored risk {updated.reference} to {str(updated.severity)!r}.",
         changes=body.model_dump(exclude_none=True),
     )
-    return SuccessResponse(data=RiskResponse.model_validate(updated), message="Risk re-scored.")
+    return SuccessResponse(
+        meta=_meta(), data=RiskResponse.model_validate(updated), message="Risk re-scored."
+    )
 
 
 @router.post(
@@ -623,7 +658,9 @@ async def transition_risk(
         summary=f"Moved risk {updated.reference} to {str(body.status)!r}.",
         changes={"status": str(body.status), "reason": body.reason},
     )
-    return SuccessResponse(data=RiskResponse.model_validate(updated), message="Risk updated.")
+    return SuccessResponse(
+        meta=_meta(), data=RiskResponse.model_validate(updated), message="Risk updated."
+    )
 
 
 @router.post(
@@ -636,7 +673,9 @@ async def review_risk(
 ) -> SuccessResponse[RiskResponse]:
     """Note that somebody looked at a risk, and reset its clock."""
     reviewed = await risks.record_review(organization_id, risk_id, actor_id=caller)
-    return SuccessResponse(data=RiskResponse.model_validate(reviewed), message="Risk reviewed.")
+    return SuccessResponse(
+        meta=_meta(), data=RiskResponse.model_validate(reviewed), message="Risk reviewed."
+    )
 
 
 # ---- remediation ----------------------------------------------------------
@@ -664,6 +703,7 @@ async def list_remediations(
         offset=offset,
     )
     return SuccessResponse(
+        meta=_meta(),
         data=[RemediationResponse.model_validate(one) for one in rows],
         message="Remediation tasks listed.",
     )
@@ -707,7 +747,9 @@ async def propose_remediation(
         summary=f"Proposed remediation {created.title!r}.",
     )
     return SuccessResponse(
-        data=RemediationResponse.model_validate(created), message="Remediation proposed."
+        meta=_meta(),
+        data=RemediationResponse.model_validate(created),
+        message="Remediation proposed.",
     )
 
 
@@ -722,7 +764,7 @@ async def get_remediation(
     """One remediation task."""
     found = await remediation.get(organization_id, task_id)
     return SuccessResponse(
-        data=RemediationResponse.model_validate(found), message="Remediation read."
+        meta=_meta(), data=RemediationResponse.model_validate(found), message="Remediation read."
     )
 
 
@@ -747,7 +789,9 @@ async def transition_remediation(
         organization_id, task_id, target=body.status, note=body.note, actor_id=caller
     )
     return SuccessResponse(
-        data=RemediationResponse.model_validate(updated), message="Remediation updated."
+        meta=_meta(),
+        data=RemediationResponse.model_validate(updated),
+        message="Remediation updated.",
     )
 
 
@@ -792,6 +836,7 @@ async def verify_remediation(
         ),
     )
     return SuccessResponse(
+        meta=_meta(),
         data=RemediationResponse.model_validate(verified),
         message=(
             "Remediation verified; the finding is closed."
@@ -815,6 +860,7 @@ async def remediation_for_finding(
     """Every attempt to fix one finding."""
     rows = await remediation.for_finding(organization_id, finding_id)
     return SuccessResponse(
+        meta=_meta(),
         data=[RemediationResponse.model_validate(one) for one in rows],
         message="Remediation attempts listed.",
     )

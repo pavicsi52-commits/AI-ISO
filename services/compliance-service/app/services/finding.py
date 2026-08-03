@@ -111,7 +111,7 @@ class FindingService:
                 finding_severity_of(existing.severity),
                 detection_count=existing.detection_count,
             )
-            if finding_status_of(existing) in _CLOSED_STATUSES:
+            if finding_status_of(existing.status) in _CLOSED_STATUSES:
                 # Reopened rather than duplicated. The resolution fields
                 # are cleared because they describe a fix that evidently
                 # did not hold, and leaving them would let a report claim
@@ -225,11 +225,11 @@ class FindingService:
             ConflictError: If it is already closed.
         """
         stored = await self._findings.require_in_org(organization_id, finding_id)
-        if finding_status_of(stored) in _CLOSED_STATUSES:
+        if finding_status_of(stored.status) in _CLOSED_STATUSES:
             raise ConflictError("This finding is closed; reopen it before assigning it.")
         stored.assignee_id = assignee_id
         stored.assigned_at = datetime.now(UTC)
-        if finding_status_of(stored) is FindingStatus.OPEN:
+        if finding_status_of(stored.status) is FindingStatus.OPEN:
             stored.status = FindingStatus.ACKNOWLEDGED
         stored.updated_by = actor_id
         return await self._findings.update(stored)

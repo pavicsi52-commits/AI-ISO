@@ -145,7 +145,7 @@ class AssessmentService:
                 been shown, and the correct action is a new assessment.
         """
         stored = await self._assessments.require_in_org(organization_id, assessment_id)
-        current = assessment_status_of(stored)
+        current = assessment_status_of(stored.status)
         if current is not AssessmentStatus.PENDING:
             raise ConflictError(
                 f"Assessment {stored.name!r} is {str(current)!r} and cannot be run again. "
@@ -442,7 +442,7 @@ class AssessmentService:
             ConflictError: If it has already finished.
         """
         stored = await self._assessments.require_in_org(organization_id, assessment_id)
-        current = assessment_status_of(stored)
+        current = assessment_status_of(stored.status)
         if current in (
             AssessmentStatus.COMPLETED,
             AssessmentStatus.FAILED,

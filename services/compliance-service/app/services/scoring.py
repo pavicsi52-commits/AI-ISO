@@ -80,7 +80,7 @@ class ScoringService:
         return [
             ScoredResult(
                 control_id=str(one.control_id),
-                status=result_status_of(one),
+                status=result_status_of(one.status),
                 severity=severity_of.get(one.control_id, ControlSeverity.MEDIUM),
                 framework_id=str(one.framework_id) if one.framework_id else None,
                 target_id=one.target_id,

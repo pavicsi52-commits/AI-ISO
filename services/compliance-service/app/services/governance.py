@@ -192,7 +192,7 @@ class ExceptionService:
                 decision somebody deliberately took back.
         """
         stored = await self._exceptions.require_in_org(organization_id, exception_id)
-        current = exception_status_of(stored)
+        current = exception_status_of(stored.status)
         if current is not ExceptionStatus.REQUESTED:
             raise ConflictError(f"This exception is {str(current)!r}, not awaiting a decision.")
         now = datetime.now(UTC)
@@ -217,7 +217,7 @@ class ExceptionService:
             ConflictError: If it is not awaiting a decision.
         """
         stored = await self._exceptions.require_in_org(organization_id, exception_id)
-        if exception_status_of(stored) is not ExceptionStatus.REQUESTED:
+        if exception_status_of(stored.status) is not ExceptionStatus.REQUESTED:
             raise ConflictError("This exception is not awaiting a decision.")
         stored.status = ExceptionStatus.REJECTED
         stored.rejected_reason = reason
@@ -238,7 +238,7 @@ class ExceptionService:
             ConflictError: If it is not currently in force.
         """
         stored = await self._exceptions.require_in_org(organization_id, exception_id)
-        if exception_status_of(stored) not in LIVE_EXCEPTION_STATUSES:
+        if exception_status_of(stored.status) not in LIVE_EXCEPTION_STATUSES:
             raise ConflictError("This exception is not in force.")
         stored.status = ExceptionStatus.REVOKED
         stored.revoked_at = datetime.now(UTC)
@@ -514,7 +514,7 @@ class RiskService:
                 auditor will ask about.
         """
         stored = await self._risks.require_in_org(organization_id, risk_id)
-        if risk_status_of(stored) is RiskStatus.CLOSED:
+        if risk_status_of(stored.status) is RiskStatus.CLOSED:
             raise ConflictError("This risk is already closed.")
         if target is RiskStatus.CLOSED:
             if not (reason or "").strip():
@@ -704,7 +704,7 @@ class RemediationService:
             ConflictError: If the fix has not been completed yet.
         """
         stored = await self._remediations.require_in_org(organization_id, task_id)
-        if remediation_status_of(stored) not in (
+        if remediation_status_of(stored.status) not in (
             RemediationStatus.COMPLETED,
             RemediationStatus.FAILED,
         ):
@@ -730,7 +730,7 @@ class RemediationService:
         )
 
         now = datetime.now(UTC)
-        passed = latest is not None and result_status_of(latest) in (
+        passed = latest is not None and result_status_of(latest.status) in (
             ResultStatus.PASS,
             ResultStatus.NOT_APPLICABLE,
         )
