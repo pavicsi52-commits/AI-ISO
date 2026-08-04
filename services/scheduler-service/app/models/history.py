@@ -59,6 +59,18 @@ class JobFailure(BaseModel):
     """Set once retries are exhausted -- this failure is not going to
     self-heal on its own; someone or something has to act on it."""
 
+    retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    """When the retry sweep should attempt this job again -- ``None``
+    once ``is_terminal`` is set. Computed at failure time from the
+    job's retry policy, not re-derived at sweep time, so a policy an
+    operator edits mid-backoff does not retroactively rewrite a delay
+    already committed to."""
+
+    retried: Mapped[bool] = mapped_column(Boolean, default=False)
+    """Whether the retry sweep has already dispatched the next attempt
+    for this failure -- guards against dispatching it twice if a sweep
+    tick overlaps its own previous one."""
+
     recovery_action: Mapped[RecoveryAction | None] = mapped_column(String(32), default=None)
     recovered: Mapped[bool] = mapped_column(Boolean, default=False)
     recovered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
