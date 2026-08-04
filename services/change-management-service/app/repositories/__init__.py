@@ -8,46 +8,51 @@ is how a cross-tenant read gets written.
 
 from __future__ import annotations
 
+from app.repositories.approval import ChangeApprovalRepository
+from app.repositories.cab import ChangeCabRepository, ChangeCabVoteRepository
+from app.repositories.calendar import ChangeCalendarRepository
 from app.repositories.catalogue import (
-    IncidentCategoryRepository,
-    IncidentPriorityRepository,
-    IncidentStatusRepository,
+    ChangeCategoryRepository,
+    ChangePriorityRepository,
+    ChangeStatusRepository,
+    ChangeTypeRepository,
 )
-from app.repositories.governance import AuditRepository, ReportRepository, StatisticRepository
-from app.repositories.impact import AssetImpactRepository, ImpactRepository, ServiceImpactRepository
-from app.repositories.incident import IncidentRepository
-from app.repositories.major import (
-    MajorIncidentRepository,
-    WarRoomParticipantRepository,
-    WarRoomRepository,
+from app.repositories.change import ChangeRelationshipRepository, ChangeRequestRepository
+from app.repositories.conflict import ChangeConflictRepository
+from app.repositories.governance import (
+    ChangeAuditRepository,
+    ChangeReportRepository,
+    ChangeStatisticRepository,
 )
-from app.repositories.postmortem import ActionItemRepository, PostmortemRepository
-from app.repositories.rca import KnownErrorRepository, ProblemRepository, RootCauseRepository
-from app.repositories.sla import EscalationRepository, SlaRepository
-from app.repositories.timeline import AssignmentRepository, TimelineRepository, WorklogRepository
+from app.repositories.implementation import (
+    ChangeImplementationRepository,
+    ChangeRollbackRepository,
+    ChangeTaskRepository,
+    ChangeValidationRepository,
+)
+from app.repositories.pir import ChangePostReviewActionItemRepository, ChangePostReviewRepository
+from app.repositories.risk import ChangeRiskAssessmentRepository
 
 __all__ = [
-    "ActionItemRepository",
-    "AssetImpactRepository",
-    "AssignmentRepository",
-    "AuditRepository",
-    "EscalationRepository",
-    "ImpactRepository",
-    "IncidentCategoryRepository",
-    "IncidentPriorityRepository",
-    "IncidentRepository",
-    "IncidentStatusRepository",
-    "KnownErrorRepository",
-    "MajorIncidentRepository",
-    "PostmortemRepository",
-    "ProblemRepository",
-    "ReportRepository",
-    "RootCauseRepository",
-    "ServiceImpactRepository",
-    "SlaRepository",
-    "StatisticRepository",
-    "TimelineRepository",
-    "WarRoomParticipantRepository",
-    "WarRoomRepository",
-    "WorklogRepository",
+    "ChangeApprovalRepository",
+    "ChangeAuditRepository",
+    "ChangeCabRepository",
+    "ChangeCabVoteRepository",
+    "ChangeCalendarRepository",
+    "ChangeCategoryRepository",
+    "ChangeConflictRepository",
+    "ChangeImplementationRepository",
+    "ChangePostReviewActionItemRepository",
+    "ChangePostReviewRepository",
+    "ChangePriorityRepository",
+    "ChangeRelationshipRepository",
+    "ChangeReportRepository",
+    "ChangeRequestRepository",
+    "ChangeRiskAssessmentRepository",
+    "ChangeRollbackRepository",
+    "ChangeStatisticRepository",
+    "ChangeStatusRepository",
+    "ChangeTaskRepository",
+    "ChangeTypeRepository",
+    "ChangeValidationRepository",
 ]
