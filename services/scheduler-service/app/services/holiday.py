@@ -59,7 +59,7 @@ class HolidayService:
             NotFoundError: If it does not exist here.
         """
         stored = await self._holidays.require_in_org(organization_id, holiday_id)
-        await self._holidays.delete(stored)
+        await self._holidays.delete(stored.id)
 
     async def dates_for_year(self, organization_id: UUID, *, year: int) -> frozenset[date]:
         """Every concrete holiday date that applies within *year*."""

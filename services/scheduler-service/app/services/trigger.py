@@ -130,7 +130,7 @@ class TriggerService:
         """
         stored = await self._triggers.require_in_org(organization_id, trigger_id)
         job_id = stored.job_id
-        await self._triggers.delete(stored)
+        await self._triggers.delete(stored.id)
         await self.recompute_schedule(organization_id, job_id)
 
     async def recompute_schedule(

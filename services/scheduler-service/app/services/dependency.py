@@ -70,7 +70,7 @@ class DependencyService:
             NotFoundError: If it does not exist here.
         """
         stored = await self._dependencies.require_in_org(organization_id, dependency_id)
-        await self._dependencies.delete(stored)
+        await self._dependencies.delete(stored.id)
 
     async def list_for_job(self, organization_id: UUID, job_id: UUID) -> list[JobDependency]:
         """Every dependency naming this job as the dependent (child) side."""

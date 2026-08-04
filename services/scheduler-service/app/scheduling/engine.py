@@ -135,6 +135,22 @@ _CRON_WEEKDAY_DEFAULT = 1
 weekday a ``WEEKLY`` rule fires on when *config* does not say."""
 
 
+def _as_int(value: object, *, default: int) -> int:
+    """Coerce one loosely-typed ``calendar_config`` entry to ``int``.
+
+    *config* is a caller-supplied ``dict[str, object]`` (it round-trips
+    through a JSON column), so a value read from it is never statically
+    known to be ``int``-constructible -- this is the one place that
+    truth gets asserted, rather than scattering ``# type: ignore``
+    comments across every call site.
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        raise ValidationError(f"Expected a whole number in calendar_config, got {value!r}.")
+    return int(value)
+
+
 def calendar_rule_to_cron(kind: CalendarRuleKind, config: dict[str, object]) -> str:
     """Translate a friendly calendar recurrence into a 5-field cron expression.
 
@@ -164,11 +180,11 @@ def calendar_rule_to_cron(kind: CalendarRuleKind, config: dict[str, object]) -> 
     if kind is CalendarRuleKind.NONE:
         raise ValidationError("A calendar rule of NONE has no recurring cron form.")
 
-    minute = int(config.get("minute", 0))  # type: ignore[arg-type]
-    hour = int(config.get("hour", 0))  # type: ignore[arg-type]
-    day_of_month = int(config.get("day_of_month", 1))  # type: ignore[arg-type]
-    month = int(config.get("month", 1))  # type: ignore[arg-type]
-    weekday = int(config.get("weekday", _CRON_WEEKDAY_DEFAULT))  # type: ignore[arg-type]
+    minute = _as_int(config.get("minute"), default=0)
+    hour = _as_int(config.get("hour"), default=0)
+    day_of_month = _as_int(config.get("day_of_month"), default=1)
+    month = _as_int(config.get("month"), default=1)
+    weekday = _as_int(config.get("weekday"), default=_CRON_WEEKDAY_DEFAULT)
 
     builders: dict[CalendarRuleKind, str] = {
         CalendarRuleKind.DAILY: f"{minute} {hour} * * *",

@@ -5939,3 +5939,134 @@ created a change over HTTP, submitted it, ran a risk assessment against
 it, read it back with the correctly derived `risk_level` (`medium`) and
 `cab_required` (`false`), and confirmed all three actions recorded in
 the append-only audit trail — end-to-end through the actual built image.
+
+## Prompt 054 — Enterprise Scheduler Service
+
+`services/scheduler-service`, port **8025**, database
+**`aiios_scheduler`**, Redis **db 27**, RabbitMQ. Distributed job
+scheduling — cron, calendar, interval, one-time, event-driven, and
+dependency-driven triggers, priority-based dispatch with escalation,
+fixed/linear/exponential retry policies with a dead letter path, manual
+failure recovery, maintenance windows and holiday calendars that
+suppress and reshape dispatch, and rolled-up statistics, generated
+reports, and an append-only audit trail. 15 tables, 15 repositories, 11
+services, 4 pure engines, 46 API routes under `/scheduler/*`, 4
+leader-elected workers, 9 domain events. This service dispatches jobs —
+publishes `JobStarted` with the job's payload — and never performs a
+job's own work itself, per the prompt's own "DO NOT IMPLEMENT ...
+Business-specific Scheduling Logic."
+
+**404 tests, 97.04% branch coverage** against real PostgreSQL, Redis,
+and RabbitMQ. Ruff, Black clean; MyPy in the container — *Success: no
+issues found in 75 source files*. Roughly 340 of the 404 tests were
+written by four agents working in parallel against a shared
+`tests/conftest.py` — one per functional slice (job/trigger/dependency
+services; execution/priority/recovery services; maintenance/holiday/
+reporting services plus workers/registrar/telemetry; the full HTTP API)
+after the conftest's own composite fixtures (`make_job_with_cron_trigger`,
+etc.) were hand-verified against real infra first. Mid-session, all four
+first-wave agents were cut short simultaneously by the account hitting
+its own session usage limit, mid-task — two had already written
+substantial, passing test files before being cut off; the other two had
+written nothing yet. Both were simply relaunched with the identical
+brief once the limit's effect passed, and both completed cleanly the
+second time — the standing "if an issue stops it, continue picks the
+work back up" instruction applied exactly as intended, at the
+tool-orchestration layer rather than the top-level conversation layer.
+
+### Reuse the platform's own scheduling primitives; do not reimplement them
+
+This prompt's own ROLE section says it directly: "Use every previously
+implemented platform framework. Do NOT redesign the platform." Every
+engine in this service is a thin adapter onto `shared_core.scheduler`
+(Prompt 026), not a parallel implementation — `app/scheduling/engine.py`
+delegates cron parsing and next-run computation to
+`shared_core.scheduler.cron`/`.engine`; `app/dependencies/engine.py`'s
+cycle detection is `shared_core.scheduler.dependency.DependencyGraph`'s
+own depth-first search, called directly; `app/retries/engine.py`'s
+`FIXED` retry type is `shared_core.queue.retry.compute_backoff_delay`
+with its multiplier pinned to `1.0`, not a fourth backoff formula. The
+one real gap the shared framework leaves — docs/054's own
+`CalendarRuleKind` (daily/weekly/monthly/quarterly/yearly/business-days/
+weekends) is richer than `shared_core.scheduler.calendar`'s single
+recurring weekly window — is closed by *translating* into a cron
+expression and handing that to the same shared cron engine, rather than
+computing a due time with new date math.
+
+### This service dispatches; it never performs a job's own work
+
+`ExecutionService.dispatch()`'s whole "unit of work" is publishing
+`JobStarted` with the job's payload — whichever platform service owns
+that job's `job_type` is presumed to act on it. A dispatch that
+successfully publishes is recorded `COMPLETED` immediately; this is a
+documented scope boundary, not an unfinished feature, and it is why
+`dispatch()`'s own `try` block wraps the publish call itself — a
+publisher that raises routes straight into the same
+retry/dead-letter/`JobFailure` machinery a real downstream failure
+would.
+
+### Holiday-skipping and maintenance suppression are both deliberately narrow
+
+Only a `calendar`-type trigger whose rule is exactly `BUSINESS_DAYS`
+gets its next run advanced past a configured holiday — a plain `cron`
+trigger makes no promise about calendar days and skipping it would be a
+silent, unrequested behaviour change. Maintenance-window suppression is
+one rule applied uniformly regardless of `kind`
+(`STANDARD`/`EMERGENCY`/`BLACKOUT`): every active window suppresses
+dispatch, and `allow_critical_override` is the one escape hatch,
+identical across every kind.
+
+### Bugs worth remembering
+
+- **A repository `.delete()` call passed the wrong type, in three
+  different services' own remove/delete methods.**
+  `shared_core.database.repository.BaseRepository.delete()` takes an
+  `entity_id: UUID`, not the entity object — `TriggerService.remove()`,
+  `DependencyService.remove()`, and `HolidayService.delete()` each
+  called `self._repo.delete(stored)` (the full ORM row) instead of
+  `self._repo.delete(stored.id)`. SQLAlchemy's own coercion layer raised
+  immediately and specifically (`ArgumentError: SQL expression element
+  or literal value expected, got <... object>`) the first time a real
+  test exercised any of the three paths — caught by the first wave of
+  agent-written tests, confirmed by re-running the exact failing tests
+  after the one-line fix at all three call sites. The same class of
+  mistake, made three times independently while writing three different
+  services in the same sitting — worth watching for in every future
+  `remove()`/`delete()` method written against this base repository.
+- **`app/telemetry/tracing.py` was written correct from the start**,
+  specifically *because* Prompt 053's identical file was found the same
+  session to be silently dropping every span attribute
+  (`start_span(tracer, name, *, span_type=None, **attributes)` has no
+  parameter actually named `attributes`, so a literal `attributes={...}`
+  keyword smuggles the whole dict into that catch-all under one wrong
+  key). This service's own copy unpacks via `**{...}` at every call
+  site, and a dedicated real-in-memory-OTel-exporter test suite
+  confirmed every span's attributes actually exported correctly, not
+  merely that the code didn't crash.
+- **A `# type: ignore` comment that didn't match the error it was
+  supposed to silence, five times over.** `calendar_rule_to_cron()`
+  reads `dict[str, object]` values (the column round-trips through
+  JSON, so nothing in it is statically `int`-constructible) — an
+  earlier version silenced MyPy with `# type: ignore[arg-type]` at five
+  call sites, each of which MyPy flagged as both an *unused* ignore
+  (wrong error code) and the *actual* underlying error
+  (`call-overload`, then `no-any-return` once the code was corrected to
+  match) — two new findings layered on the one being silenced, for
+  every one of the five sites. Fixed by replacing all five with one
+  `_as_int()` helper that validates the real type and raises
+  `ValidationError` for anything that isn't a whole number, rather than
+  telling MyPy the same untrue thing five separate times.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ, with a freshly generated JWT keypair mounted over
+the image's own `keys/jwt_public_key.pem`. `/health`, `/liveness`, and
+`/readiness` all correct, and all four leader-elected background jobs
+(due-schedule sweep, retry sweep, statistics rollup, maintenance sweep)
+registered with one node acquiring scheduler leadership on startup. A
+signed JWT round-trip created a job over HTTP, attached a cron trigger,
+read back its computed `next_run_at`, manually dispatched it
+(`COMPLETED`, `run_count` incremented to 1), and confirmed both the
+append-only audit trail and the live statistics dashboard reflected it
+— end-to-end through the actual built image.

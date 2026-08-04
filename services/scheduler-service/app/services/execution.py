@@ -124,21 +124,21 @@ class ExecutionService:
         execution.started_at = moment
         await self._executions.update(execution)
 
-        await self._publish_event(
-            JobStartedEvent(
-                source_service=SOURCE_SERVICE,
-                payload={
-                    "organization_id": str(organization_id),
-                    "job_id": str(job_id),
-                    "execution_id": str(execution.id),
-                    "job_type": str(job.job_type),
-                    "payload": execution.payload_snapshot,
-                    "attempt_number": attempt_number,
-                },
-            )
-        )
-
         try:
+            await self._publish_event(
+                JobStartedEvent(
+                    source_service=SOURCE_SERVICE,
+                    payload={
+                        "organization_id": str(organization_id),
+                        "job_id": str(job_id),
+                        "execution_id": str(execution.id),
+                        "job_type": str(job.job_type),
+                        "payload": execution.payload_snapshot,
+                        "attempt_number": attempt_number,
+                    },
+                )
+            )
+
             finished = datetime.now(UTC)
             validate_execution_transition(ExecutionStatus.RUNNING, ExecutionStatus.COMPLETED)
             execution.status = ExecutionStatus.COMPLETED
