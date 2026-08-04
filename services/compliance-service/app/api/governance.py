@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
@@ -104,10 +104,12 @@ async def list_findings(
 
 @router.get(
     "/findings/summary",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="How the finding queue stands",
 )
-async def finding_summary(organization_id: UUID, findings: FindingSvc) -> SuccessResponse[dict]:
+async def finding_summary(
+    organization_id: UUID, findings: FindingSvc
+) -> SuccessResponse[dict[str, Any]]:
     """Open counts by severity, and how many are overdue."""
     return SuccessResponse(
         meta=_meta(),

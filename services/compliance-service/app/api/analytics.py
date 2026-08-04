@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Response, status
@@ -41,7 +41,7 @@ def _meta() -> ResponseMeta:
 
 @router.get(
     "/scores",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="Read the current compliance score",
 )
 async def current_score(
@@ -49,7 +49,7 @@ async def current_score(
     scoring: ScoringSvc,
     scope: ScoreScope = ScoreScope.OVERALL,
     scope_id: Annotated[str | None, Query(max_length=255)] = None,
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """The most recent score for one scope.
 
     Its ``breakdown`` carries ``coverage`` alongside the score, because a
@@ -68,7 +68,7 @@ async def current_score(
 
 @router.get(
     "/scores/history",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="Read a score's history and direction",
 )
 async def score_history(
@@ -77,7 +77,7 @@ async def score_history(
     scope: ScoreScope = ScoreScope.OVERALL,
     scope_id: Annotated[str | None, Query(max_length=255)] = None,
     days: Annotated[int, Query(ge=1, le=3_650)] = 365,
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """A scope's score over time, with a deadbanded trend."""
     return SuccessResponse(
         meta=_meta(),
@@ -88,14 +88,14 @@ async def score_history(
 
 @router.get(
     "/scores/frameworks",
-    response_model=SuccessResponse[list[dict]],
+    response_model=SuccessResponse[list[dict[str, Any]]],
     summary="Read the newest score for every framework",
 )
 async def framework_scores(
     organization_id: UUID,
     scoring: ScoringSvc,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
-) -> SuccessResponse[list[dict]]:
+) -> SuccessResponse[list[dict[str, Any]]]:
     """One score per framework."""
     return SuccessResponse(
         meta=_meta(),
@@ -106,7 +106,7 @@ async def framework_scores(
 
 @router.post(
     "/scores/assessments/{assessment_id}",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="Score one assessment",
 )
 async def score_assessment(
@@ -114,7 +114,7 @@ async def score_assessment(
     assessment_id: UUID,
     scoring: ScoringSvc,
     caller: CurrentUserId,
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """Recompute and store the scores for one run."""
     return SuccessResponse(
         meta=_meta(),
@@ -125,7 +125,7 @@ async def score_assessment(
 
 @router.get(
     "/scores/assessments/{assessment_id}/targets",
-    response_model=SuccessResponse[list[dict]],
+    response_model=SuccessResponse[list[dict[str, Any]]],
     summary="Score every asset in one assessment",
 )
 async def score_targets(
@@ -134,7 +134,7 @@ async def score_targets(
     scoring: ScoringSvc,
     caller: CurrentUserId,
     limit: Annotated[int, Query(ge=1, le=1_000)] = 200,
-) -> SuccessResponse[list[dict]]:
+) -> SuccessResponse[list[dict[str, Any]]]:
     """Per-asset scores, worst first.
 
     The estate-wide number says whether there is a problem; this says
@@ -151,10 +151,12 @@ async def score_targets(
 
 @router.get(
     "/statistics",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="Read the compliance dashboard",
 )
-async def dashboard(organization_id: UUID, statistics: StatisticsSvc) -> SuccessResponse[dict]:
+async def dashboard(
+    organization_id: UUID, statistics: StatisticsSvc
+) -> SuccessResponse[dict[str, Any]]:
     """Everything a compliance dashboard needs, in one call."""
     return SuccessResponse(
         meta=_meta(),
@@ -351,14 +353,14 @@ async def list_audit(
 
 @router.get(
     "/audit/summary",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="Summarise the audit trail",
 )
 async def audit_summary(
     organization_id: UUID,
     audit: AuditSvc,
     days: Annotated[int, Query(ge=1, le=3_650)] = 30,
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """How much of each action has happened lately."""
     return SuccessResponse(
         meta=_meta(),

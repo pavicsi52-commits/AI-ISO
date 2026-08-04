@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 from uuid import UUID
 
 from shared_core.database.repository import BaseRepository
 from shared_core.database.tenant import TenantScope
 from shared_core.exceptions.not_found import NotFoundError
-from sqlalchemy import func, select, update
+from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import (
@@ -324,13 +325,18 @@ class ExceptionRepository(BaseRepository[ComplianceException]):
         loop because the sweep runs against every organization and the
         set can be large after a long outage.
         """
-        result = await self._session.execute(
-            update(ComplianceException)
-            .where(ComplianceException.organization_id == organization_id)
-            .where(ComplianceException.status.in_([str(one) for one in LIVE_EXCEPTION_STATUSES]))
-            .where(ComplianceException.expires_at.isnot(None))
-            .where(ComplianceException.expires_at <= now)
-            .values(status=str(ExceptionStatus.EXPIRED))
+        result = cast(
+            "CursorResult[Any]",
+            await self._session.execute(
+                update(ComplianceException)
+                .where(ComplianceException.organization_id == organization_id)
+                .where(
+                    ComplianceException.status.in_([str(one) for one in LIVE_EXCEPTION_STATUSES])
+                )
+                .where(ComplianceException.expires_at.isnot(None))
+                .where(ComplianceException.expires_at <= now)
+                .values(status=str(ExceptionStatus.EXPIRED))
+            ),
         )
         return int(result.rowcount or 0)
 

@@ -5584,3 +5584,119 @@ being permitted, the decision log, a scoped expiring exception waiving
 the denial and disclosing itself in the obligations, simulation, version
 history, integrity verification, statistics, audit, guardrail seeding,
 Prometheus metrics, and the 43-operation OpenAPI document.
+
+## Prompt 051 — Compliance Service
+
+`services/compliance-service`, port **8022**, database
+**`aiios_compliance`**, Redis **db 24**, RabbitMQ. Continuous compliance
+assessment against CIS, NIST 800-53, ISO 27001, IEC 62443, and SOC 2:
+cross-framework control catalogues, content-hashed immutable evidence,
+fingerprint-deduplicated findings, time-bounded exceptions, a derived
+risk register, re-assessment-gated remediation, weighted scoring
+reported beside its coverage, and an append-only audit trail. 16
+tables, 16 repositories, 11 services, 29 operators, 73 API operations
+across 61 paths, 2 workers, 8 domain events.
+
+**393 tests, 95.17% branch coverage** against real PostgreSQL, Redis,
+and RabbitMQ. Ruff, Black clean; MyPy in the container — *Success: no
+issues found in 70 source files* (after fixing 23 real errors this
+session, once Docker recovered from a multi-day outage — see below).
+
+### Nothing is ever assumed compliant
+
+`app/assessments/engine.py` evaluates one control against one target in
+a fixed guard order, and the order is the whole design: `NOT_APPLICABLE`
+short-circuits everything; a control that is not automatable or has no
+evidence resolves to `NOT_ASSESSED`, never `PASS`; only then is the rule
+evaluated, and only a *failure* consults the waivers. Defaulting an
+unreachable collector to a pass is how compliance tools come to report
+green estates they never inspected — the single most important guard in
+the module exists to make that impossible.
+
+### Scoring says what it excluded
+
+Every control is weighted by `SEVERITY_WEIGHTS` (informational carries
+zero weight), and **coverage is computed alongside every score** — a
+100% score across 4% coverage is not compliance, and printing both
+numbers together is what stops the first from being read as if it were
+the second. An excepted control counts as satisfied, not failed, so a
+well-governed exception process does not make an organization's score
+look worse than one that never files any waiver — with exceptions
+counted and reported separately so that stays an honest trade rather
+than a loophole.
+
+### Findings deduplicate by fingerprint, not by luck
+
+`fingerprint()` deliberately excludes the assessment id, timestamp, and
+observed values, so a thousand-host daily assessment updates one finding
+per problem instead of raising a fresh one every run. A closed finding
+that recurs **reopens** with its resolution fields cleared, rather than
+duplicating — a resolution that did not hold must not survive the
+reopening it disproves.
+
+### Bugs worth remembering
+
+- **`status_of(stored)` instead of `status_of(stored.status)`, ten
+  times across four services.** `assessment_status_of`,
+  `framework_status_of`, `exception_status_of`, `finding_status_of`,
+  `risk_status_of`, and `remediation_status_of` were all called on the
+  ORM *record* instead of its `.status` column. Every call site would
+  have raised `ValueError` on first real use — archiving a framework,
+  cancelling an assessment, approving an exception. Caught by service
+  tests, not by review, and not by the normaliser's own docstring
+  explaining exactly what it expected. **A correct-looking call that
+  silently takes the wrong argument shape is not something a docstring
+  fixes** — the same lesson Prompt 050 learned from
+  `require_by_id`/`require_in_org` confusion, recurring in a new shape.
+- **Wrong `SuccessResponse` imported across every route.**
+  `shared_core.responses.success.SuccessResponse` has no `meta` field;
+  `app.schemas.response.SuccessResponse` does. Importing the shared-core
+  one type-checks cleanly and 500s every endpoint's own success path.
+  Every route now imports the app-local one explicitly.
+- **`exceptions.finding_id` was dropped before it ever shipped.** One
+  exception waives *many* findings, so the relationship belongs on the
+  many side as `ComplianceFinding.exception_id` — a column on the
+  exception could only name one finding and closed a foreign-key cycle
+  no `CREATE TABLE` ordering could satisfy.
+- **A shipped catalogue is only worth as much as its automation.** Every
+  built-in control is tested to actually *fail* against an unrelated
+  evidence payload, not just to compile — a control that passes
+  unconditionally certifies an estate nobody looked at.
+
+### 23 real MyPy errors surfaced once Docker came back
+
+Windows Smart App Control blocks MyPy's compiled `__mypyc` extension
+locally, so this service's `app/` had never actually been type-checked
+— Ruff, Black, and pytest all ran fine throughout, but MyPy could only
+run inside the container, and Docker Desktop was down for most of the
+session. When it recovered: bare `dict` (not `dict[str, Any]`) in nine
+route signatures across `analytics.py`, `catalogue.py`, `assessments.py`,
+and `governance.py`, plus `Result[Any]` has no `.rowcount` in
+`ExceptionRepository.expire_lapsed` (fixed with
+`cast("CursorResult[Any]", ...)`, since the async session's declared
+return type doesn't expose the DML-specific attribute the object
+actually has at runtime). All 23 fixed; 393 tests still pass afterward.
+**A lint suite that never ran cannot be trusted as clean** — the gap
+between "Ruff passes" and "MyPy passes" sat undetected for the length of
+an entire prompt's development.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ, with the scheduler disabled for the one-off
+verification container. `/health`, `/liveness`, `/readiness`,
+`/metrics`, and `/openapi.json` (61 paths) all 200. A POST without a
+bearer token 401s; a token signed with `services/authentication-service`
+'s private key against the same platform RSA keypair the container's
+`keys/jwt_public_key.pem` verifies against 201s, persists a real
+framework row in `aiios_compliance`, and reads it back — end-to-end
+through the actual built image, not the test harness.
+
+One debugging note for future sessions: an early attempt at this same
+check failed with `AMQPInternalError: one of ['Connection.OpenOk']`
+against RabbitMQ. The cause was **Git Bash's own path-conversion**
+mangling the literal argument `-e AIIOS_RABBITMQ_VHOST=/aiios` into a
+Windows path before Docker ever saw it, not a bug in the service or in
+`shared_core.queue`. Any `docker run`/`docker exec` argument starting
+with `/` on this machine needs `MSYS_NO_PATHCONV=1`, vhost strings very
+much included.

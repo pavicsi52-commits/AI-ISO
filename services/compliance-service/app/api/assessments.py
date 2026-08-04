@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
@@ -526,14 +526,14 @@ async def supersede_evidence(
 
 @router.get(
     "/evidence/verify/all",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="Verify every evidence digest",
 )
 async def verify_evidence(
     organization_id: UUID,
     evidence: EvidenceSvc,
     limit: Annotated[int, Query(ge=1, le=10_000)] = 1_000,
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """Recompute every digest and report any that no longer match.
 
     Includes superseded rows: a tampered historical record is exactly

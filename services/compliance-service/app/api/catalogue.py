@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
@@ -424,12 +424,12 @@ async def set_control_rule(
 
 @router.get(
     "/controls/{control_id}/related",
-    response_model=SuccessResponse[list[dict]],
+    response_model=SuccessResponse[list[dict[str, Any]]],
     summary="List controls mapped to this one",
 )
 async def related_controls(
     organization_id: UUID, control_id: UUID, catalogue: CatalogueSvc
-) -> SuccessResponse[list[dict]]:
+) -> SuccessResponse[list[dict[str, Any]]]:
     """What else this control answers, in either direction."""
     related = await catalogue.related_controls(organization_id, control_id)
     return SuccessResponse(meta=_meta(), data=related, message="Related controls listed.")
@@ -478,12 +478,12 @@ async def map_controls(
 
 @router.get(
     "/controls/summary/implementation",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="How far through its control programme an organization is",
 )
 async def implementation_summary(
     organization_id: UUID, catalogue: CatalogueSvc
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """Implemented over *applicable*, not over total.
 
     A control formally scoped out is not outstanding work, and counting
