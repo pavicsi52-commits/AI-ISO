@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import pytest
 from shared_core.exceptions.not_found import NotFoundError
-from shared_core.notifications.exceptions import TemplateRenderError
+from shared_core.exceptions.validation import ValidationError
 
 from app.models.enums import NotificationCategory, TemplateFormat
 from app.services.template import TemplateService
@@ -36,7 +36,7 @@ class TestCreate:
     async def test_raises_template_render_error_for_invalid_body_syntax(
         self, template_service: TemplateService, organization_id
     ) -> None:
-        with pytest.raises(TemplateRenderError):
+        with pytest.raises(ValidationError):
             await template_service.create(
                 organization_id,
                 template_key="bad.template",
@@ -47,7 +47,7 @@ class TestCreate:
     async def test_does_not_persist_a_row_when_validation_fails(
         self, template_service: TemplateService, organization_id
     ) -> None:
-        with pytest.raises(TemplateRenderError):
+        with pytest.raises(ValidationError):
             await template_service.create(
                 organization_id,
                 template_key="bad.template",
@@ -60,7 +60,7 @@ class TestCreate:
     async def test_raises_template_render_error_for_invalid_subject_syntax(
         self, template_service: TemplateService, organization_id
     ) -> None:
-        with pytest.raises(TemplateRenderError):
+        with pytest.raises(ValidationError):
             await template_service.create(
                 organization_id,
                 template_key="bad.subject",
@@ -239,7 +239,7 @@ class TestUpdate:
         self, template_service: TemplateService, organization_id, make_template
     ) -> None:
         created = await make_template(body_template="Hello {{ name }}.")
-        with pytest.raises(TemplateRenderError):
+        with pytest.raises(ValidationError):
             await template_service.update(organization_id, created.id, body_template=_INVALID_BODY)
 
     async def test_raises_not_found_for_a_missing_template(

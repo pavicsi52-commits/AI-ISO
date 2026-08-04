@@ -16,6 +16,8 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
+from shared_core.exceptions.validation import ValidationError
+from shared_core.notifications.exceptions import TemplateRenderError
 from shared_core.notifications.renderer import RenderedNotification
 
 from app.models.enums import NotificationCategory, TemplateFormat
@@ -55,17 +57,16 @@ class TemplateService:
         """Register a new template, validating its syntax first.
 
         Raises:
-            shared_core.notifications.exceptions.TemplateRenderError: If
-                the subject or body has invalid Jinja2 syntax.
+            ValidationError: If the subject or body has invalid Jinja2
+                syntax -- a caller-supplied mistake, not caught until
+                render time otherwise.
         """
-        rendering_engine.validate(
-            rendering_engine.to_shared_template(
-                template_key=template_key,
-                body_template=body_template,
-                template_format=template_format,
-                locale=locale,
-                subject_template=subject_template,
-            )
+        self._validate_syntax(
+            template_key=template_key,
+            body_template=body_template,
+            template_format=template_format,
+            locale=locale,
+            subject_template=subject_template,
         )
         return await self._templates.create(
             NotificationTemplate(
@@ -115,10 +116,22 @@ class TemplateService:
         """Edit a template's editable fields, versioning it if content changed.
 
         Silently ignores any key in *fields* outside the editable set.
+
+        Raises:
+            ValidationError: If a changed subject or body has invalid
+                Jinja2 syntax.
         """
         stored = await self._templates.require_in_org(organization_id, template_id)
+        # `None` means "the caller did not send this field" -- the route
+        # always forwards every `TemplateUpdateRequest` field, set or not,
+        # so `field in fields` is true even for ones left out of the
+        # request body. Without the `is not None` guard, an update that
+        # only touches `name` would still compare `fields["body_template"]
+        # (None)` against the stored body and treat that mismatch as a
+        # content change, spuriously versioning and bumping every update.
         changed_content = any(
-            field in fields and fields[field] != getattr(stored, field) for field in _CONTENT_FIELDS
+            field in fields and fields[field] is not None and fields[field] != getattr(stored, field)
+            for field in _CONTENT_FIELDS
         )
         if changed_content:
             await self._versions.create(
@@ -136,18 +149,48 @@ class TemplateService:
             if field in _EDITABLE_FIELDS and value is not None:
                 setattr(stored, field, value)
         if changed_content:
-            rendering_engine.validate(
-                rendering_engine.to_shared_template(
-                    template_key=stored.template_key,
-                    body_template=stored.body_template,
-                    template_format=stored.format,
-                    locale=stored.locale,
-                    subject_template=stored.subject_template,
-                )
+            self._validate_syntax(
+                template_key=stored.template_key,
+                body_template=stored.body_template,
+                template_format=stored.format,
+                locale=stored.locale,
+                subject_template=stored.subject_template,
             )
             stored.current_version += 1
         stored.updated_by = UUID(actor_id) if actor_id else None
         return await self._templates.update(stored)
+
+    @staticmethod
+    def _validate_syntax(
+        *,
+        template_key: str,
+        body_template: str,
+        template_format: TemplateFormat,
+        locale: str,
+        subject_template: str | None,
+    ) -> None:
+        """Validate a template's Jinja2 syntax, translating a render-time error into a client one.
+
+        `shared_core.notifications.exceptions.TemplateRenderError` is a
+        ``500`` by design there (a stored, previously-valid template
+        failing to render is this platform's own fault) -- but here the
+        same error is raised against syntax a caller just supplied,
+        before anything is stored. That is a validation failure, not an
+        internal one, so it is re-raised as :class:`ValidationError`
+        (``400``) rather than left to reach the caller as a 500.
+        """
+        try:
+            rendering_engine.validate(
+                rendering_engine.to_shared_template(
+                    template_key=template_key,
+                    body_template=body_template,
+                    template_format=template_format,
+                    locale=locale,
+                    subject_template=subject_template,
+                )
+            )
+        except TemplateRenderError as exc:
+            raise ValidationError(str(exc)) from exc
 
     async def list_versions(
         self, organization_id: UUID, template_id: UUID

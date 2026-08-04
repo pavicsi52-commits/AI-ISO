@@ -259,8 +259,21 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
 
+    # `notifications_router` is registered *last*, deliberately. Its own
+    # `GET/DELETE /{notification_id}` (and the `/{notification_id}/...`
+    # lifecycle routes) match any single path segment under
+    # `/notifications/` -- FastAPI/Starlette resolve routes in
+    # registration order, so had it been registered first, that catch-all
+    # would have intercepted `GET /notifications/preferences`,
+    # `/templates`, `/subscriptions`, `/channels`, `/announcements`,
+    # `/dead-letters`, `/statistics`, `/reports`, and `/audit` before any
+    # of those routers' own literal routes were ever tried (a UUID path
+    # conversion failure on e.g. "preferences", surfaced as a 400 instead
+    # of reaching the intended router at all). Every other router's own
+    # literal sub-paths are never a real notification id, so trying them
+    # first is always correct and this reordering changes no other route's
+    # behaviour.
     app.include_router(health_router)
-    app.include_router(notifications_router)
     app.include_router(preferences_router)
     app.include_router(templates_router)
     app.include_router(subscriptions_router)
@@ -268,6 +281,7 @@ def create_app() -> FastAPI:
     app.include_router(announcements_router)
     app.include_router(deliveries_router)
     app.include_router(analytics_router)
+    app.include_router(notifications_router)
 
     Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=True)
 
