@@ -1,8 +1,8 @@
 """change management service schema
 
-Revision ID: 678760a2f307
+Revision ID: be5b4f31c811
 Revises: 
-Create Date: 2026-08-04 14:01:40.155538
+Create Date: 2026-08-04 15:41:41.302690
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '678760a2f307'
+revision: str = 'be5b4f31c811'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -222,6 +222,8 @@ def upgrade() -> None:
     sa.Column('incident_id', sa.String(length=64), nullable=True),
     sa.Column('problem_id', sa.String(length=64), nullable=True),
     sa.Column('known_error_id', sa.String(length=64), nullable=True),
+    sa.Column('submitted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('scheduled_start_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('scheduled_end_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('actual_start_at', sa.DateTime(timezone=True), nullable=True),

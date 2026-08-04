@@ -109,6 +109,12 @@ class ChangeRequest(BaseModel):
     database, and an emergency change exists specifically to answer "an
     incident forced this."""
 
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    """Set when the change's approval chain (and CAB review, if one was
+    required) resolves -- the moment that actually unblocks scheduling,
+    not the moment a caller happened to invoke ``schedule()``."""
+
     scheduled_start_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None, index=True
     )
