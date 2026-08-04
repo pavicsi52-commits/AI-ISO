@@ -125,6 +125,27 @@ class IncidentNotificationService:
             notification_type=NotificationType.SUCCESS,
         )
 
+    async def send_status_update_overdue(
+        self, user_id: str, *, reference: str, title: str, minutes_since_last_update: int
+    ) -> None:
+        """Remind an incident commander that stakeholders are owed an update.
+
+        What the maintenance sweep sends when a major incident's own
+        ``status_update_interval_minutes`` has elapsed with nothing
+        recorded -- see
+        :meth:`~app.services.major_incident.MajorIncidentService.record_status_update`,
+        the call that resets the clock this checks.
+        """
+        await self._send(
+            user_id=user_id,
+            subject=f"Status update due: {reference}",
+            body=(
+                f"{reference} -- {title} -- has had no stakeholder update in "
+                f"{minutes_since_last_update} minute(s)."
+            ),
+            notification_type=NotificationType.WARNING,
+        )
+
     async def send_postmortem_due(
         self, user_id: str, *, reference: str, title: str, resolved_days_ago: int
     ) -> None:

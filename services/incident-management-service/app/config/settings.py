@@ -93,6 +93,12 @@ class IncidentManagementServiceSettings(BaseSettings):
     not, which is worse for the next incident than one that was
     properly closed."""
 
+    postmortem_due_days: int = Field(default=5, ge=1, le=90)
+    """How long after a major incident resolves before the maintenance
+    sweep starts reminding its commander that no postmortem exists yet.
+    The reminder a "blameless learning culture" actually depends on --
+    see ``IncidentNotificationService.send_postmortem_due``."""
+
     # ---- reporting and workers ---------------------------------------------
 
     max_report_rows: int = Field(default=10_000, ge=1, le=1_000_000)

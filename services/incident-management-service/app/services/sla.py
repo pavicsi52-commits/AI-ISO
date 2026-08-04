@@ -199,6 +199,12 @@ class SlaService:
         row.status = SlaStatus.RUNNING
         return await self._slas.update(row)
 
+    async def list_for_incident(
+        self, organization_id: UUID, incident_id: UUID
+    ) -> list[IncidentSla]:
+        """Every SLA clock on one incident."""
+        return await self._slas.list_for_incident(organization_id, incident_id)
+
     async def sweep(self, organization_id: UUID, *, now: datetime | None = None) -> dict[str, int]:
         """Check every running clock for warnings and breaches.
 

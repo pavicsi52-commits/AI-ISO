@@ -130,11 +130,15 @@ class WarRoomRepository(BaseRepository[WarRoom]):
     async def list_stale(
         self, organization_id: UUID, *, idle_since: datetime, limit: int = 200
     ) -> list[WarRoom]:
-        """Active war rooms with no timeline activity since *idle_since*.
+        """Open or active war rooms with no timeline activity since *idle_since*.
 
         What the maintenance sweep uses to flag a forgotten room for
         stand-down -- see ``app/config/settings.py``'s
-        ``war_room_idle_close_minutes``.
+        ``war_room_idle_close_minutes``. Matches both ``OPEN`` (every
+        room's starting status -- see
+        :meth:`~app.services.major_incident.MajorIncidentService.declare`)
+        and ``ACTIVE``: a room already ``STANDING_DOWN`` has someone
+        already closing it out and does not need flagging again.
         """
         recent_activity = sa_exists().where(
             IncidentTimeline.incident_id == WarRoom.incident_id,
@@ -144,7 +148,7 @@ class WarRoomRepository(BaseRepository[WarRoom]):
         stmt = (
             self._base_select()
             .where(WarRoom.organization_id == organization_id)
-            .where(WarRoom.status == str(WarRoomStatus.ACTIVE))
+            .where(WarRoom.status.in_([str(WarRoomStatus.OPEN), str(WarRoomStatus.ACTIVE)]))
             .where(~recent_activity)
             .limit(limit)
         )

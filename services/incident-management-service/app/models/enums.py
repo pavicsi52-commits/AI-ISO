@@ -511,6 +511,11 @@ def report_format_of(value: str | ReportFormat) -> ReportFormat:
     return value if isinstance(value, ReportFormat) else ReportFormat(value)
 
 
+def job_status_of(value: str | JobStatus) -> JobStatus:
+    """Coerce a stored value to :class:`JobStatus`."""
+    return value if isinstance(value, JobStatus) else JobStatus(value)
+
+
 __all__ = [
     "DEFAULT_SLA_MINUTES",
     "IMPACT_ORDER",
@@ -547,6 +552,7 @@ __all__ = [
     "incident_category_of",
     "incident_priority_of",
     "incident_status_of",
+    "job_status_of",
     "postmortem_status_of",
     "priority_at_least",
     "problem_status_of",
