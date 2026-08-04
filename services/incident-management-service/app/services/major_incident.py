@@ -158,6 +158,12 @@ class MajorIncidentService:
     ) -> WarRoomParticipant:
         """Add a participant to a war room, in a given role.
 
+        Idempotent when *participant_id* already currently holds *role*:
+        the existing row is returned rather than inserting a duplicate,
+        which the ``(organization_id, war_room_id, participant_id,
+        role)`` uniqueness constraint applies to every role, singleton
+        or not, and would otherwise reject.
+
         Raises:
             ConflictError: If *role* is a singleton role
                 (:data:`~app.models.enums.SINGLETON_WAR_ROOM_ROLES`)
@@ -168,11 +174,25 @@ class MajorIncidentService:
 
         if role in SINGLETON_WAR_ROOM_ROLES:
             holder = await self._participants.holder_of(organization_id, war_room_id, str(role))
-            if holder is not None and holder.participant_id != participant_id:
-                raise ConflictError(
-                    f"{role!s} is already held by {holder.participant_id}. "
-                    "Reassign it explicitly before assigning someone else."
-                )
+            if holder is not None:
+                if holder.participant_id != participant_id:
+                    raise ConflictError(
+                        f"{role!s} is already held by {holder.participant_id}. "
+                        "Reassign it explicitly before assigning someone else."
+                    )
+                return holder
+        else:
+            current = await self._participants.list_current(organization_id, war_room_id)
+            existing = next(
+                (
+                    one
+                    for one in current
+                    if one.participant_id == participant_id and one.role == str(role)
+                ),
+                None,
+            )
+            if existing is not None:
+                return existing
 
         return await self._participants.create(
             WarRoomParticipant(
@@ -296,6 +316,18 @@ class MajorIncidentService:
     ) -> MajorIncidentEvent | None:
         """The declaration for one incident, if it has been declared major."""
         return await self._major_incidents.get_for_incident(organization_id, incident_id)
+
+    async def get_war_room_for_incident(
+        self, organization_id: UUID, incident_id: UUID
+    ) -> WarRoom | None:
+        """The open war room for one incident, if it has one.
+
+        What a caller who has just declared an incident major needs
+        next: ``declare`` opens the war room but its own response is the
+        declaration alone, and nothing else on this incident's own
+        record carries the war room's id.
+        """
+        return await self._war_rooms.get_open_for_incident(organization_id, incident_id)
 
     async def list_active(self, organization_id: UUID) -> list[MajorIncidentEvent]:
         """Every major incident not yet stood down."""

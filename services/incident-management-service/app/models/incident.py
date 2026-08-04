@@ -144,8 +144,19 @@ class Incident(BaseModel):
     risk_level: Mapped[RiskLevel] = mapped_column(String(32), default=RiskLevel.LOW)
     is_major: Mapped[bool] = mapped_column(default=False, index=True)
     major_incident_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("incident_major_events.id", ondelete="SET NULL"), default=None
+        ForeignKey(
+            "incident_major_events.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_incident_major_incident",
+        ),
+        default=None,
     )
+    """``use_alter=True``: ``incident_major_events.incident_id`` also
+    points back at this table, and a genuine mutual foreign key between
+    two tables has no valid ``CREATE TABLE`` order -- whichever table is
+    created first would reference one that does not exist yet. Deferring
+    this constraint to a post-create ``ALTER TABLE`` breaks the cycle."""
 
     merged_into_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("incidents.id", ondelete="SET NULL"), default=None
@@ -159,8 +170,16 @@ class Incident(BaseModel):
         ForeignKey("problem_records.id", ondelete="SET NULL"), default=None
     )
     root_cause_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("incident_root_causes.id", ondelete="SET NULL"), default=None
+        ForeignKey(
+            "incident_root_causes.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_incident_root_cause",
+        ),
+        default=None,
     )
+    """``use_alter=True`` for the same reason as ``major_incident_id``:
+    ``incident_root_causes.incident_id`` points back at this table."""
 
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)

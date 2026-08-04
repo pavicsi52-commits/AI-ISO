@@ -95,27 +95,29 @@ class StatisticsService:
         )
 
         existing = await self._statistics.get_for_window(organization_id, window_start=window_start)
-        row = existing or IncidentStatistic(
+        window = existing or IncidentStatistic(
             organization_id=organization_id, window_start=window_start
         )
-        row.window_end = window_end
-        row.incidents_created = len(created)
-        row.incidents_resolved = resolved
-        row.incidents_closed = closed
-        row.incidents_reopened = reopened
-        row.major_incidents = major
-        row.open_total = open_total
-        row.avg_mtta_seconds = (sum(mttas) / len(mttas)) if mttas else None
-        row.avg_mttr_seconds = (sum(mttrs) / len(mttrs)) if mttrs else None
-        row.p90_mttr_seconds = percentile(mttrs, pct=90)
-        row.sla_met_count = met
-        row.sla_breached_count = breached
-        row.sla_compliance_rate = compliance_rate(met=met, breached=breached)
-        row.escalations_triggered = escalations_triggered
-        row.by_category = by_category
-        row.by_priority = by_priority
+        window.window_end = window_end
+        window.incidents_created = len(created)
+        window.incidents_resolved = resolved
+        window.incidents_closed = closed
+        window.incidents_reopened = reopened
+        window.major_incidents = major
+        window.open_total = open_total
+        window.avg_mtta_seconds = (sum(mttas) / len(mttas)) if mttas else None
+        window.avg_mttr_seconds = (sum(mttrs) / len(mttrs)) if mttrs else None
+        window.p90_mttr_seconds = percentile(mttrs, pct=90)
+        window.sla_met_count = met
+        window.sla_breached_count = breached
+        window.sla_compliance_rate = compliance_rate(met=met, breached=breached)
+        window.escalations_triggered = escalations_triggered
+        window.by_category = by_category
+        window.by_priority = by_priority
 
-        return await (self._statistics.update(row) if existing else self._statistics.create(row))
+        return await (
+            self._statistics.update(window) if existing else self._statistics.create(window)
+        )
 
     async def dashboard(self, organization_id: UUID) -> dict[str, Any]:
         """The live snapshot a dashboard reads on load."""

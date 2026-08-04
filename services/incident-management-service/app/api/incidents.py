@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
@@ -319,7 +319,7 @@ async def get_timeline(
 
 @router.post(
     "/{incident_id}/notes",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     status_code=status.HTTP_201_CREATED,
     summary="Add a note to an incident's timeline",
 )
@@ -329,7 +329,7 @@ async def add_note(
     body: TimelineNoteRequest,
     incidents: IncidentSvc,
     caller: CurrentUserId,
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """Append a free-text note."""
     await incidents.add_note(organization_id, incident_id, summary=body.summary, actor_id=caller)
     return SuccessResponse(meta=_meta(), data={}, message="Note added.")

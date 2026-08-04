@@ -155,10 +155,19 @@ async def get_report(
 @router.get(
     "/reports/{report_id}/download",
     summary="Download a report's content",
-    response_class=PlainTextResponse,
 )
 async def download_report(organization_id: UUID, report_id: UUID, reports: ReportSvc) -> Any:
     """A report's content, rendered as CSV, Markdown, or JSON.
+
+    No route-level ``response_class``: CSV and Markdown return an
+    explicit :class:`PlainTextResponse`, which FastAPI passes through
+    unchanged, while JSON returns a plain :class:`SuccessResponse` for
+    FastAPI's default JSON handling to serialise. Pinning the whole
+    route to ``PlainTextResponse`` would hand that JSON branch's
+    Pydantic model straight to a renderer that only accepts ``str`` or
+    ``bytes``, 500ing with ``AttributeError: 'dict' object has no
+    attribute 'encode'`` on the one format this endpoint's own default
+    is supposed to support.
 
     Raises:
         NotFoundError: If the report has not finished building, so there

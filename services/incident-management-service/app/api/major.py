@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, status
@@ -109,6 +110,26 @@ async def get_major_incident(
         meta=_meta(),
         data=data,
         message="Declaration found." if declaration else "No major incident declaration exists.",
+    )
+
+
+@router.get(
+    "/{incident_id}/war-room",
+    response_model=SuccessResponse[WarRoomResponse | None],
+    summary="Read the open war room for an incident",
+)
+async def get_war_room_for_incident(
+    organization_id: UUID, incident_id: UUID, major_incidents: MajorIncidentSvc
+) -> SuccessResponse[WarRoomResponse | None]:
+    """The open war room for one incident, if it has one.
+
+    What a caller who just declared an incident major needs next --
+    ``declare`` opens the war room but returns only the declaration.
+    """
+    room = await major_incidents.get_war_room_for_incident(organization_id, incident_id)
+    data = WarRoomResponse.model_validate(room) if room else None
+    return SuccessResponse(
+        meta=_meta(), data=data, message="War room found." if room else "No open war room exists."
     )
 
 
@@ -234,7 +255,7 @@ async def list_participants(
 
 @war_room_router.post(
     "/{war_room_id}/leave",
-    response_model=SuccessResponse[dict],
+    response_model=SuccessResponse[dict[str, Any]],
     summary="Mark a participant as having left",
 )
 async def leave_war_room(
@@ -242,7 +263,7 @@ async def leave_war_room(
     war_room_id: UUID,
     body: WarRoomLeaveRequest,
     major_incidents: MajorIncidentSvc,
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """Mark one participant as having left."""
     await major_incidents.leave(organization_id, war_room_id, participant_id=body.participant_id)
     return SuccessResponse(meta=_meta(), data={}, message="Participant left.")

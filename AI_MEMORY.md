@@ -5700,3 +5700,125 @@ Windows path before Docker ever saw it, not a bug in the service or in
 `shared_core.queue`. Any `docker run`/`docker exec` argument starting
 with `/` on this machine needs `MSYS_NO_PATHCONV=1`, vhost strings very
 much included.
+
+## Prompt 052 — Incident Management Service
+
+`services/incident-management-service`, port **8023**, database
+**`aiios_incident_management`**, Redis **db 25**, RabbitMQ. Where an
+outage becomes a coordinated response: fingerprint correlation,
+priority-driven SLA clocks against a configurable business calendar, an
+escalation ladder anchored on the earliest breach, on-call/skill/load
+assignment, major-incident declaration with a coordinated war room, root
+cause and problem management with known errors, postmortems that refuse
+approval while action items are unowned, and rolled-up statistics,
+generated reports, and an append-only audit trail. 23 tables, 23
+repositories, 9 services, 5 pure engines, 54 API paths / 60 business
+operations, 4 leader-elected workers, 9 domain events.
+
+**337 tests, 95.42% branch coverage** against real PostgreSQL, Redis,
+and RabbitMQ. Ruff, Black clean; MyPy in the container — *Success: no
+issues found in 85 source files*. Built entirely during the same
+session Docker was down for most of, then recovered mid-session — see
+Prompt 051's entry for the outage; this service's code, 118 pure-engine
+tests, and lint were all finished blind before verification could run.
+
+### Correlation is the point, not an afterthought
+
+`app/incidents/engine.py::correlates()` gates a recurring firing onto an
+existing open incident on three conditions at once: a matching
+fingerprint, the existing incident still open, and within an activity
+window. A closed incident that recurs **reopens** rather than
+duplicates, with its resolution fields cleared — a fix that did not
+hold must not survive the reopening it disproves.
+
+### A breach is stamped when it is discovered, not when it happened
+
+`breached_at` is set to sweep time, not backdated to a clock's actual
+due date. This matters beyond honesty: the escalation ladder anchors on
+the earliest `breached_at` among an incident's clocks, so a sweep
+delayed by an outage of its own still produces a ladder anchored on
+*when the platform found out*, and `due_steps()` fires every rung that
+is overdue against that anchor in one pass rather than one level per
+tick — a delayed sweep catches up instead of taking longer to reach the
+top the worse things get.
+
+### Assignment prefers "reachable now" over "matches on paper"
+
+`app/assignment/engine.py::assign()` tries on-call before a skill match
+on purpose: an on-call responder lacking the exact skill tag is still
+the person whose job is to be reachable right now, which matters more at
+the moment of assignment than a skill match correctable by reassignment
+once someone is actually looking.
+
+### Bugs worth remembering
+
+- **A singleton-role guard that passed still hit a duplicate key.**
+  `MajorIncidentService.assign_role` only rejected assigning a singleton
+  war room role to someone *else*; reassigning the same person to the
+  same role passed the check and then unconditionally inserted a second
+  row, colliding with `(organization_id, war_room_id, participant_id,
+  role)`'s own uniqueness constraint. The same gap existed for every
+  non-singleton role too, since those skipped the check entirely. Fixed
+  to return the existing row when the exact triple already exists.
+  Caught by a test asserting the operation should be idempotent, not by
+  review — the failure was a real `DuplicateRecordError` from Postgres.
+- **A war room could never actually be found stale.** Every war room is
+  created `WarRoomStatus.OPEN`; nothing ever transitions one to
+  `ACTIVE`. `WarRoomRepository.list_stale` filtered for `ACTIVE` alone,
+  so the idle-war-room maintenance sweep it feeds could not have matched
+  a single row it was written to catch — caught while wiring the sweep
+  worker itself, before any test ran, by reading what the query actually
+  compared against what `declare()` actually wrote.
+- **Declaring a major incident opened a war room the API then had no
+  way to find.** `MajorIncidentResponse` carries only the declaration;
+  nothing else on an incident's record names its war room's id, and no
+  endpoint took an incident id and returned one. Added
+  `MajorIncidentService.get_war_room_for_incident` and
+  `GET /major-incidents/{incident_id}/war-room`. Found by writing the
+  war-room API tests and having no way to get a war room id to test with.
+- **A route pinned to a fixed `response_class` 500ed on its own default
+  format.** `GET /reports/{report_id}/download` supports CSV, Markdown,
+  and JSON; setting `response_class=PlainTextResponse` at the route
+  level to satisfy the first two handed the JSON branch's
+  `SuccessResponse` Pydantic model straight to a renderer expecting
+  `str`/`bytes` — `AttributeError: 'dict' object has no attribute
+  'encode'`, a full 500 on the endpoint's own default. Fixed by dropping
+  the route-level `response_class` and returning explicit
+  `PlainTextResponse` instances from the two branches that need one,
+  letting FastAPI's ordinary JSON handling take the third. Caught by an
+  HTTP-level test exercising all three formats — a service-level test
+  calling `ReportService` directly would never have seen it, since the
+  bug lived entirely in the route's response-class wiring.
+- **A loop variable's name outlived its loop.** `StatisticsService
+  .rollup` bound `row` to `Incident` in a `for row in created:` loop,
+  then reused the same name afterward for the unrelated
+  `IncidentStatistic` being built and saved. Ruff, Black, and 337 tests
+  all passed throughout — only MyPy, runnable solely inside the
+  container because Windows Smart App Control blocks its compiled
+  extension locally, flagged that the second assignment didn't match the
+  type the name had already committed to. Renamed to `window`. The same
+  lesson as Prompt 051's nine bare-`dict` misses: **a lint suite that
+  cannot run is not a lint suite that has passed**, and this session's
+  Docker outage meant that gap sat open for this entire prompt's
+  development, not just part of it.
+- **Two foreign keys had no valid `CREATE TABLE` order.**
+  `incidents.major_incident_id` → `incident_major_events.id` and
+  `incident_major_events.incident_id` → `incidents.id` are a genuine
+  mutual reference, as are `incidents.root_cause_id` and
+  `incident_root_causes.incident_id` — whichever table Alembic's
+  autogenerate tried to create first would reference one that did not
+  exist yet. Both `Incident`-side columns now declare
+  `ForeignKey(..., use_alter=True, name=...)`, deferring the constraint
+  to a post-create `ALTER TABLE`. Caught on the very first
+  `alembic upgrade head`, not by review.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ, scheduler disabled for the one-off verification
+container. `/health`, `/liveness`, `/readiness`, `/metrics`, and
+`/openapi.json` (54 paths) all correct. A signed JWT round-trip opened
+an incident, transitioned and assigned it, declared it major, opened
+and read back its war room through the endpoint added to close that gap,
+and confirmed all four actions in the audit trail — end-to-end through
+the actual built image.
