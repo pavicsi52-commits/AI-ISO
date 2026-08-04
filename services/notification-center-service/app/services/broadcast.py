@@ -110,7 +110,6 @@ class BroadcastService:
                 source_service=SOURCE_SERVICE,
                 source_event_type="broadcast",
                 correlation_id=str(broadcast.id),
-                actor_id=initiated_by,
             )
             deliveries = await self._delivery.dispatch(
                 organization_id, notification, requested_channel=channel
