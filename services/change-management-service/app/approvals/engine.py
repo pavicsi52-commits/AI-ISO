@@ -45,13 +45,23 @@ def level_status(steps: list[ApprovalStep]) -> ApprovalStatus:
     approver at it agrees, not a majority of them. A level with no steps
     at all is, definitionally, pending: there is nothing for it to have
     resolved from.
+
+    A ``DELEGATED`` step is excluded from "every step must agree": it
+    was closed out precisely because a fresh step at the same level now
+    carries its resolution (see ``ApprovalService.delegate``), and
+    counting the closed-out original against the level forever would
+    mean a delegated level could never resolve, no matter what its
+    delegate went on to decide.
     """
     if not steps:
         return ApprovalStatus.PENDING
-    if any(one.status is ApprovalStatus.REJECTED for one in steps):
+    active = [one for one in steps if one.status is not ApprovalStatus.DELEGATED]
+    if not active:
+        return ApprovalStatus.PENDING
+    if any(one.status is ApprovalStatus.REJECTED for one in active):
         return ApprovalStatus.REJECTED
-    if all(one.status in _RESOLVED_APPROVED for one in steps):
-        if any(one.status is ApprovalStatus.CONDITIONAL for one in steps):
+    if all(one.status in _RESOLVED_APPROVED for one in active):
+        if any(one.status is ApprovalStatus.CONDITIONAL for one in active):
             return ApprovalStatus.CONDITIONAL
         return ApprovalStatus.APPROVED
     return ApprovalStatus.PENDING

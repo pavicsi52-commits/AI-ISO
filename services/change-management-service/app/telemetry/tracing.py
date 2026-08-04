@@ -36,7 +36,7 @@ def trace_change_create(
         tracer,
         "change.create",
         span_type=SpanType.REST_API,
-        attributes={
+        **{
             "change.type": change_type,
             "change.category": category,
             "change.priority": priority,
@@ -55,7 +55,7 @@ def trace_change_transition(
         tracer,
         "change.transition",
         span_type=SpanType.REST_API,
-        attributes={
+        **{
             "change.from_status": from_status,
             "change.to_status": to_status,
             **attributes,
@@ -73,7 +73,7 @@ def trace_risk_assessment(
         tracer,
         "change.risk.assess",
         span_type=SpanType.REST_API,
-        attributes={
+        **{
             "change.risk.level": risk_level,
             "change.risk.automated_score": automated_score,
             **attributes,
@@ -96,7 +96,7 @@ def trace_approval_decide(
         tracer,
         "change.approval.decide",
         span_type=SpanType.REST_API,
-        attributes={
+        **{
             "change.approval.level": level,
             "change.approval.decision": decision,
             **attributes,
@@ -114,7 +114,7 @@ def trace_cab_close(
         tracer,
         "change.cab.close",
         span_type=SpanType.REST_API,
-        attributes={
+        **{
             "change.cab.outcome": outcome or "none",
             "change.cab.quorum_met": quorum_met,
             "change.cab.votes": votes,
@@ -131,7 +131,7 @@ def trace_implementation(tracer: Tracer, *, phase: str, **attributes: object) ->
         tracer,
         "change.implementation",
         span_type=SpanType.REST_API,
-        attributes={"change.implementation.phase": phase, **attributes},
+        **{"change.implementation.phase": phase, **attributes},
     ) as span:
         yield span
 
@@ -145,7 +145,7 @@ def trace_validation(
         tracer,
         "change.validation.record",
         span_type=SpanType.REST_API,
-        attributes={
+        **{
             "change.validation.kind": kind,
             "change.validation.status": status,
             "change.validation.is_gate": is_gate,
@@ -162,7 +162,7 @@ def trace_rollback(tracer: Tracer, *, phase: str, **attributes: object) -> Itera
         tracer,
         "change.rollback",
         span_type=SpanType.REST_API,
-        attributes={"change.rollback.phase": phase, **attributes},
+        **{"change.rollback.phase": phase, **attributes},
     ) as span:
         yield span
 
@@ -176,7 +176,7 @@ def trace_conflict_sweep(
         tracer,
         "change.conflict.sweep",
         span_type=SpanType.BACKGROUND_JOB,
-        attributes={
+        **{
             "change.conflict.changes_checked": changes_checked,
             "change.conflict.conflicts_found": conflicts_found,
             **attributes,
@@ -196,7 +196,7 @@ def trace_report(tracer: Tracer, *, kind: str, rows: int, **attributes: object) 
         tracer,
         "change.report.generate",
         span_type=SpanType.BACKGROUND_JOB,
-        attributes={"change.report_kind": kind, "change.rows": rows, **attributes},
+        **{"change.report_kind": kind, "change.rows": rows, **attributes},
     ) as span:
         yield span
 
@@ -208,7 +208,7 @@ def trace_publish(tracer: Tracer, *, event_name: str, **attributes: object) -> I
         tracer,
         "change.event.publish",
         span_type=SpanType.BACKGROUND_JOB,
-        attributes={"change.event": event_name, **attributes},
+        **{"change.event": event_name, **attributes},
     ) as span:
         yield span
 

@@ -456,6 +456,11 @@ def calendar_entry_kind_of(value: str | CalendarEntryKind) -> CalendarEntryKind:
     return value if isinstance(value, CalendarEntryKind) else CalendarEntryKind(value)
 
 
+def recurrence_kind_of(value: str | RecurrenceKind) -> RecurrenceKind:
+    """Coerce a stored value to :class:`RecurrenceKind`."""
+    return value if isinstance(value, RecurrenceKind) else RecurrenceKind(value)
+
+
 def conflict_kind_of(value: str | ConflictKind) -> ConflictKind:
     """Coerce a stored value to :class:`ConflictKind`."""
     return value if isinstance(value, ConflictKind) else ConflictKind(value)
@@ -556,6 +561,7 @@ __all__ = [
     "job_status_of",
     "pir_status_of",
     "priority_at_least",
+    "recurrence_kind_of",
     "report_format_of",
     "report_kind_of",
     "risk_at_least",

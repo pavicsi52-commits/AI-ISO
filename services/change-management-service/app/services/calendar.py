@@ -12,7 +12,7 @@ from shared_core.logging.logger import get_logger
 
 from app.calendar.engine import AvailabilityCheck, check_availability, expand_occurrences
 from app.models.calendar import ChangeCalendarEntry
-from app.models.enums import CalendarEntryKind, RecurrenceKind
+from app.models.enums import CalendarEntryKind, RecurrenceKind, recurrence_kind_of
 from app.repositories.calendar import ChangeCalendarRepository
 
 logger = get_logger("app.services.calendar")
@@ -89,7 +89,7 @@ class CalendarService:
             occurrences = expand_occurrences(
                 starts_at=entry.starts_at,
                 ends_at=entry.ends_at,
-                recurrence=entry.recurrence,
+                recurrence=recurrence_kind_of(entry.recurrence),
                 recurrence_until=entry.recurrence_until,
                 window_start=start,
                 window_end=end,

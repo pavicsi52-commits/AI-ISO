@@ -5822,3 +5822,120 @@ an incident, transitioned and assigned it, declared it major, opened
 and read back its war room through the endpoint added to close that gap,
 and confirmed all four actions in the audit trail — end-to-end through
 the actual built image.
+
+## Prompt 053 — Change Management Service
+
+`services/change-management-service`, port **8024**, database
+**`aiios_change_management`**, Redis **db 26**, RabbitMQ. Risk-scored
+change requests, a policy-driven multi-level approval chain, Change
+Advisory Board review with quorum-checked voting, a change calendar with
+recurring maintenance windows and blackout periods, scheduling conflict
+detection, implementation tasks and post-change validation gates,
+rollback planning and execution, post-implementation reviews that
+refuse approval while any action item is unowned, and rolled-up
+statistics, generated reports, and an append-only audit trail. 22
+tables, 21 repositories, 12 services, 6 pure engines, 66 API routes, 4
+leader-elected workers, 11 domain events.
+
+**498 tests, 97.13% branch coverage** against real PostgreSQL, Redis,
+and RabbitMQ. Ruff, Black clean; MyPy in the container — *Success: no
+issues found in 94 source files*. The bulk of the test suite (370
+tests across 18 files) was written by four agents working in parallel
+against a shared `tests/conftest.py` — one per functional slice (core
+lifecycle chain; the second half of the domain; reporting/workers/
+telemetry; the full HTTP API) — after the conftest's own composite
+lifecycle fixtures (`make_scheduled_change`, `make_completed_change`,
+etc.) were hand-verified against real infra first, so all four agents
+built on a foundation already proven correct rather than independently
+re-deriving it.
+
+### Deciding an approval chain does not itself advance a change past `PENDING_APPROVAL`
+
+`ApprovalService.decide()` sets `approved_at` once a chain resolves
+favorably, but only moves the change's *status* forward — to
+`CAB_REVIEW` — if `cab_required` is set; otherwise the change stays
+`PENDING_APPROVAL` until `ChangeService.schedule()` is called.
+`CabService.close_meeting()` follows the identical pattern for
+`CAB_REVIEW`. "Approved" and "ready to schedule" are two different
+facts, and collapsing them into one status transition would make a
+report that only reads status unable to tell an approved-but-unscheduled
+change from one still waiting on its first approver.
+
+### A single CAB rejection sinks the review regardless of every other vote
+
+`app/cab/engine.py::tally()` — one dissenting board member is enough to
+fail a review; a vote-counting rule that lets a rejection be outvoted
+defeats the reason CAB exists. All-abstain with quorum technically met
+decides nothing, an outcome of `None`, not a silent approval.
+
+### A rollback moves the change's status the moment it starts, not when it finishes
+
+`RollbackService.start()` sets the change to `ROLLED_BACK` as soon as
+execution begins, the same distinction Prompt 052 draws between an
+incident's own status and its finer-grained SLA/escalation records. A
+failed rollback attempt still leaves the change `ROLLED_BACK` — a
+rollback that did not go cleanly is still not a change that succeeded.
+
+### Bugs worth remembering
+
+- **Every span this service emitted was missing its own attributes, and
+  so is every span in 23 other already-shipped AI-IOS services.**
+  `shared_core.telemetry.span.start_span`'s signature is
+  `start_span(tracer, name, *, span_type=None, **attributes)` — there is
+  no parameter literally named `attributes`, only the `**attributes`
+  catch-all. Every `trace_*` function in this service's
+  `app/telemetry/tracing.py` called it as `start_span(tracer, name,
+  span_type=..., attributes={...})`, which lands the whole dict as one
+  entry, `{"attributes": {...}}`, inside that catch-all — `start_span`
+  then tries `span.set_attribute("attributes", <dict>)`, which
+  OpenTelemetry rejects outright and silently drops. Confirmed
+  empirically against a real in-memory OTel exporter before and after
+  the fix (unpacking each call site as `**{...}` instead of
+  `attributes={...}`). Grepping every prior service found the identical
+  pattern in 23 of them — every one after `authentication-service`
+  (Prompt ~017), which does it correctly with `**attributes` and was
+  apparently never used as the template again. This means roughly two
+  dozen services' entire Prompt-024 TELEMETRY sections have been
+  producing spans with no business attributes at all since they were
+  written. Backfilling those 23 services is out of scope for this
+  prompt — flagged here as a real, confirmed, repo-wide defect rather
+  than silently fixed everywhere without the user's sign-off on that
+  much retroactive change.
+- **A delegated approval step silently blocked its own chain from ever
+  resolving.** `app/approvals/engine.py::level_status` counted a
+  `DELEGATED` step — the closed-out original `ApprovalService.delegate`
+  leaves behind — toward whether a level had unanimously resolved. Since
+  a `DELEGATED` step is neither `REJECTED` nor `APPROVED`/`CONDITIONAL`,
+  a level containing one could never resolve again, even after the
+  delegate approved, directly contradicting `delegate()`'s own
+  docstring ("the level's own resolution rule ... still has something
+  concrete to resolve"). Caught by a failing test asserting the
+  delegate's decision still resolves the chain, before the fix excluded
+  `DELEGATED` steps from a level's rejection/approval evaluation.
+- **A calendar entry loaded from the database crashed the occurrence
+  expander.** `RecurrenceKind` was the one enum column in this codebase
+  missing its `X_of()` normaliser — every other `Mapped[SomeEnum]`
+  column has one precisely because a freshly loaded row's enum column is
+  a plain `str`, not the enum member. `CalendarService
+  .list_occurrences_in_range` passed `entry.recurrence` straight from
+  the DB-loaded row into `app/calendar/engine.py::expand_occurrences`,
+  whose `if recurrence is RecurrenceKind.NONE` identity check a raw
+  string can never satisfy, and whose `_STEP_FOR[recurrence]` lookup then
+  raised `KeyError: 'none'` for every other branch. Caught by two failing
+  tests before the fix added `recurrence_kind_of()` and called it before
+  handing the value to the pure engine — a fixture-construction path
+  (build the entry in-process, never round-trip it through the database)
+  would never have surfaced this at all.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ, with a freshly generated JWT keypair mounted over
+the image's own `keys/jwt_public_key.pem` so a real signed token could
+be issued for the verification run (the checked-in public key has no
+matching private key in the repository, by design). `/health`,
+`/liveness`, and `/readiness` all correct. A signed JWT round-trip
+created a change over HTTP, submitted it, ran a risk assessment against
+it, read it back with the correctly derived `risk_level` (`medium`) and
+`cab_required` (`false`), and confirmed all three actions recorded in
+the append-only audit trail — end-to-end through the actual built image.
