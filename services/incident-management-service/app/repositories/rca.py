@@ -20,6 +20,25 @@ class RootCauseRepository(BaseRepository[IncidentRootCause]):
     def __init__(self, session: AsyncSession, *, tenant_scope: TenantScope | None = None) -> None:
         super().__init__(session, IncidentRootCause, tenant_scope=tenant_scope)
 
+    async def require_in_org(self, organization_id: UUID, root_cause_id: UUID) -> IncidentRootCause:
+        """One finding by id, scoped to its organization.
+
+        Raises:
+            NotFoundError: If it does not exist here.
+        """
+        stmt = (
+            self._base_select()
+            .where(IncidentRootCause.organization_id == organization_id)
+            .where(IncidentRootCause.id == root_cause_id)
+        )
+        result = await self._session.execute(stmt)
+        found: IncidentRootCause | None = result.scalars().first()
+        if found is None:
+            raise NotFoundError(
+                f"No root cause finding with id {root_cause_id} in this organization."
+            )
+        return found
+
     async def list_for_incident(
         self, organization_id: UUID, incident_id: UUID, *, limit: int = 100
     ) -> list[IncidentRootCause]:
@@ -102,6 +121,23 @@ class KnownErrorRepository(BaseRepository[KnownError]):
 
     def __init__(self, session: AsyncSession, *, tenant_scope: TenantScope | None = None) -> None:
         super().__init__(session, KnownError, tenant_scope=tenant_scope)
+
+    async def require_in_org(self, organization_id: UUID, known_error_id: UUID) -> KnownError:
+        """One known error by id, scoped to its organization.
+
+        Raises:
+            NotFoundError: If it does not exist here.
+        """
+        stmt = (
+            self._base_select()
+            .where(KnownError.organization_id == organization_id)
+            .where(KnownError.id == known_error_id)
+        )
+        result = await self._session.execute(stmt)
+        found: KnownError | None = result.scalars().first()
+        if found is None:
+            raise NotFoundError(f"No known error with id {known_error_id} in this organization.")
+        return found
 
     async def list_for_problem(self, organization_id: UUID, problem_id: UUID) -> list[KnownError]:
         """Every known error tied to one problem."""

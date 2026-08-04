@@ -23,6 +23,27 @@ class MajorIncidentRepository(BaseRepository[MajorIncidentEvent]):
     def __init__(self, session: AsyncSession, *, tenant_scope: TenantScope | None = None) -> None:
         super().__init__(session, MajorIncidentEvent, tenant_scope=tenant_scope)
 
+    async def require_in_org(
+        self, organization_id: UUID, major_incident_id: UUID
+    ) -> MajorIncidentEvent:
+        """One declaration by id, scoped to its organization.
+
+        Raises:
+            NotFoundError: If it does not exist here.
+        """
+        stmt = (
+            self._base_select()
+            .where(MajorIncidentEvent.organization_id == organization_id)
+            .where(MajorIncidentEvent.id == major_incident_id)
+        )
+        result = await self._session.execute(stmt)
+        found: MajorIncidentEvent | None = result.scalars().first()
+        if found is None:
+            raise NotFoundError(
+                f"No major incident declaration with id {major_incident_id} in this organization."
+            )
+        return found
+
     async def get_for_incident(
         self, organization_id: UUID, incident_id: UUID
     ) -> MajorIncidentEvent | None:

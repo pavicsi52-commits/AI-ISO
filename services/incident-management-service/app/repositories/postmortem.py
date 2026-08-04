@@ -53,6 +53,25 @@ class ActionItemRepository(BaseRepository[PostmortemActionItem]):
     def __init__(self, session: AsyncSession, *, tenant_scope: TenantScope | None = None) -> None:
         super().__init__(session, PostmortemActionItem, tenant_scope=tenant_scope)
 
+    async def require_in_org(
+        self, organization_id: UUID, action_item_id: UUID
+    ) -> PostmortemActionItem:
+        """One action item by id, scoped to its organization.
+
+        Raises:
+            NotFoundError: If it does not exist here.
+        """
+        stmt = (
+            self._base_select()
+            .where(PostmortemActionItem.organization_id == organization_id)
+            .where(PostmortemActionItem.id == action_item_id)
+        )
+        result = await self._session.execute(stmt)
+        found: PostmortemActionItem | None = result.scalars().first()
+        if found is None:
+            raise NotFoundError(f"No action item with id {action_item_id} in this organization.")
+        return found
+
     async def list_for_postmortem(
         self, organization_id: UUID, postmortem_id: UUID
     ) -> list[PostmortemActionItem]:
