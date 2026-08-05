@@ -78,8 +78,16 @@ class HealthMonitorService:
         existing = await self._health_repo.get_for_instance(
             organization_id, service_id, instance_url
         )
+        # `consecutive_failures=0` is explicit, not relying on the column's
+        # own default: a mapped column's default only applies at flush,
+        # so a freshly constructed (not-yet-flushed) row's attribute is
+        # `None` until then -- and the `+=` a few lines below needs an
+        # `int` immediately, before this row is ever flushed.
         row = existing or ApiServiceHealth(
-            organization_id=organization_id, service_id=service_id, instance_url=instance_url
+            organization_id=organization_id,
+            service_id=service_id,
+            instance_url=instance_url,
+            consecutive_failures=0,
         )
         row.status = state
         row.latency_ms = result.latency_ms
