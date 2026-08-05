@@ -36,9 +36,22 @@ class ApiKeyRepository(BaseRepository[ApiKey]):
         return found
 
     async def get_by_key_id(self, key_id: str) -> ApiKey | None:
-        """The key row for *key_id*, unscoped by organization (authentication happens before
-        an organization is known -- the key itself carries it, via its owning client)."""
+        """The key row for *key_id* (an opaque identifier, never the secret itself),
+        unscoped by organization -- used for admin lookups, not authentication."""
         stmt = self._base_select().where(ApiKey.key_id == key_id)
+        result = await self._session.execute(stmt)
+        return result.scalars().first()
+
+    async def get_by_hashed_key(self, hashed_key: str) -> ApiKey | None:
+        """The key row matching an already-hashed raw key, unscoped by organization.
+
+        This is the only lookup a caller's own presented secret can
+        drive: `shared_core.security.apikey`'s ``key_id`` is a separate,
+        independently-generated identifier never derivable from the raw
+        key or its hash, so authentication -- which only ever has the
+        raw key a caller presented -- must look up by hash, not by id.
+        """
+        stmt = self._base_select().where(ApiKey.hashed_key == hashed_key)
         result = await self._session.execute(stmt)
         return result.scalars().first()
 
