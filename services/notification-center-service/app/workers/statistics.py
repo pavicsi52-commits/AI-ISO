@@ -85,7 +85,9 @@ class StatisticsWorker:
         except Exception as exc:
             logger.warning(
                 "A notification statistics rollup failed; the rest of the tick continues.",
-                extra={"extra_fields": {"organization_id": str(organization_id), "error": str(exc)}},
+                extra={
+                    "extra_fields": {"organization_id": str(organization_id), "error": str(exc)}
+                },
             )
             return False
 

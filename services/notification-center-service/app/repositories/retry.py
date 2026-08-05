@@ -62,7 +62,9 @@ class NotificationRetryQueueRepository(BaseRepository[NotificationRetryQueueEntr
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def list_due(self, *, now: datetime, limit: int = 500) -> list[NotificationRetryQueueEntry]:
+    async def list_due(
+        self, *, now: datetime, limit: int = 500
+    ) -> list[NotificationRetryQueueEntry]:
         """Every unresolved retry entry due at or before *now*, across every organization."""
         stmt = (
             self._base_select()
@@ -112,8 +114,10 @@ class NotificationDeadLetterRepository(BaseRepository[NotificationDeadLetter]):
         stmt = self._base_select().where(NotificationDeadLetter.organization_id == organization_id)
         if resolved is not None:
             stmt = stmt.where(NotificationDeadLetter.resolved.is_(resolved))
-        stmt = stmt.order_by(NotificationDeadLetter.dead_lettered_at.desc()).offset(offset).limit(
-            limit
+        stmt = (
+            stmt.order_by(NotificationDeadLetter.dead_lettered_at.desc())
+            .offset(offset)
+            .limit(limit)
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

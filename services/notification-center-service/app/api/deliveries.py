@@ -27,7 +27,9 @@ def _meta() -> ResponseMeta:
     return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
-@router.get("", response_model=SuccessResponse[list[DeadLetterResponse]], summary="List dead letters")
+@router.get(
+    "", response_model=SuccessResponse[list[DeadLetterResponse]], summary="List dead letters"
+)
 async def list_dead_letters(
     organization_id: UUID,
     delivery: DeliverySvc,
@@ -36,7 +38,9 @@ async def list_dead_letters(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> SuccessResponse[list[DeadLetterResponse]]:
     """Dead letters in this organization."""
-    rows = await delivery.list_dead_letters(organization_id, resolved=resolved, limit=limit, offset=offset)
+    rows = await delivery.list_dead_letters(
+        organization_id, resolved=resolved, limit=limit, offset=offset
+    )
     return SuccessResponse(
         message="Dead letters listed.",
         data=[DeadLetterResponse.model_validate(row) for row in rows],
@@ -57,7 +61,9 @@ async def retry_dead_letter(
     caller: CurrentUserId,
 ) -> SuccessResponse[DeliveryResponse]:
     """Manually retry one dead-lettered delivery ("Manual Retry")."""
-    retried = await delivery.retry_dead_letter(organization_id, dead_letter_id, actor_id=str(caller))
+    retried = await delivery.retry_dead_letter(
+        organization_id, dead_letter_id, actor_id=str(caller)
+    )
     await audit.record(
         organization_id,
         action=AuditAction.NOTIFICATION_SENT,

@@ -15,13 +15,16 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+
 from tests.conftest import HTTP_CREATED, HTTP_NO_CONTENT, HTTP_NOT_FOUND, HTTP_OK, HTTP_UNAUTHORIZED
 
 pytestmark = pytest.mark.asyncio
 
 
 class TestList:
-    async def test_list_requires_auth(self, client: AsyncClient, organization_id: uuid.UUID) -> None:
+    async def test_list_requires_auth(
+        self, client: AsyncClient, organization_id: uuid.UUID
+    ) -> None:
         resp = await client.get(
             "/notifications/subscriptions", params={"organization_id": str(organization_id)}
         )
@@ -55,7 +58,11 @@ class TestList:
             "/notifications/subscriptions",
             params={"organization_id": str(organization_id)},
             headers=auth_headers(uuid.uuid4()),
-            json={"user_id": str(other_user), "subscription_kind": "topic", "target": "release-notes"},
+            json={
+                "user_id": str(other_user),
+                "subscription_kind": "topic",
+                "target": "release-notes",
+            },
         )
         resp = await client.get(
             "/notifications/subscriptions",

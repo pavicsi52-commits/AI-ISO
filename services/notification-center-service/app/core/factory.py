@@ -203,7 +203,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 "rate_limit_max_per_user": settings.service.rate_limit_max_per_user,
                 "digest_sweep_seconds": settings.service.digest_sweep_seconds,
                 "workers_enabled": settings.service.workers_enabled,
-                "registered_channels": [str(c) for c in notification_manager.channels.registered_channels()],
+                "registered_channels": [
+                    str(c) for c in notification_manager.channels.registered_channels()
+                ],
             }
         },
     )

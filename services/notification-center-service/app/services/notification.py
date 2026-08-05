@@ -159,7 +159,8 @@ class NotificationService:
         stored = await self._notifications.require_in_org(organization_id, notification_id)
         if NotificationStatus(stored.status) not in OPEN_NOTIFICATION_STATUSES:
             raise ValidationError(
-                f"Notification {notification_id} is already {stored.status} and cannot be cancelled."
+                f"Notification {notification_id} is already {stored.status} "
+                "and cannot be cancelled."
             )
         stored.status = NotificationStatus.CANCELLED
         await self._notifications.update(stored)

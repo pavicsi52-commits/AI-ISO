@@ -20,7 +20,9 @@ def _meta() -> ResponseMeta:
 
 
 @router.get(
-    "", response_model=SuccessResponse[list[SubscriptionResponse]], summary="List the caller's own subscriptions"
+    "",
+    response_model=SuccessResponse[list[SubscriptionResponse]],
+    summary="List the caller's own subscriptions",
 )
 async def list_subscriptions(
     organization_id: UUID, subscriptions: SubscriptionSvc, caller: CurrentUserId
@@ -79,7 +81,9 @@ async def delete_subscription(
     caller: CurrentUserId,
 ) -> None:
     """Unsubscribe a user from a topic ("Unsubscribe")."""
-    await subscriptions.unsubscribe(organization_id, user_id, subscription_kind_of(subscription_kind), target)
+    await subscriptions.unsubscribe(
+        organization_id, user_id, subscription_kind_of(subscription_kind), target
+    )
     await audit.record(
         organization_id,
         action=AuditAction.SUBSCRIPTION_REMOVED,

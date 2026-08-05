@@ -76,7 +76,9 @@ class BroadcastService:
         recipients = set(recipient_user_ids or [])
         if topic is not None:
             recipients.update(
-                await self._subscriptions.subscribers_of(organization_id, SubscriptionKind.TOPIC, topic)
+                await self._subscriptions.subscribers_of(
+                    organization_id, SubscriptionKind.TOPIC, topic
+                )
             )
         recipient_list = sorted(recipients)
 

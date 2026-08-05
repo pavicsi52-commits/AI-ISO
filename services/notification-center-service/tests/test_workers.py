@@ -37,7 +37,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.config.settings import NotificationServiceSettings
 from app.models.announcement import NotificationAnnouncement
 from app.models.delivery import NotificationDelivery
-from app.models.enums import AnnouncementScope, AnnouncementStatus, DigestFrequency, NotificationCategory
+from app.models.enums import (
+    AnnouncementScope,
+    AnnouncementStatus,
+    DigestFrequency,
+    NotificationCategory,
+)
 from app.models.retry import NotificationRetryQueueEntry
 from app.repositories.announcement import NotificationAnnouncementRepository
 from app.repositories.delivery import NotificationDeliveryRepository
@@ -121,7 +126,12 @@ class TestRetrySweepWorker:
         )
         retry_repo = NotificationRetryQueueRepository(db_session)
         entry = await retry_repo.create(
-            _retry_entry(organization_id, notification.id, delivery.id, next_retry_at=now - timedelta(minutes=1))
+            _retry_entry(
+                organization_id,
+                notification.id,
+                delivery.id,
+                next_retry_at=now - timedelta(minutes=1),
+            )
         )
 
         worker = RetrySweepWorker(db_session_factory, notification_manager, service_settings)
@@ -135,19 +145,27 @@ class TestRetrySweepWorker:
             assert refreshed.resolved is True
 
     async def test_a_tick_with_nothing_due_reports_zero(
-        self, db_session_factory: async_sessionmaker[AsyncSession], notification_manager, service_settings
+        self,
+        db_session_factory: async_sessionmaker[AsyncSession],
+        notification_manager,
+        service_settings,
     ) -> None:
         worker = RetrySweepWorker(db_session_factory, notification_manager, service_settings)
         assert await worker.tick() == 0
 
     async def test_run_job_delegates_to_tick(
-        self, db_session_factory: async_sessionmaker[AsyncSession], notification_manager, service_settings
+        self,
+        db_session_factory: async_sessionmaker[AsyncSession],
+        notification_manager,
+        service_settings,
     ) -> None:
         worker = RetrySweepWorker(db_session_factory, notification_manager, service_settings)
         await worker.run_job(None)  # type: ignore[arg-type]
 
     async def test_a_broken_session_factory_is_swallowed_and_reports_zero(
-        self, notification_manager: NotificationManager, service_settings: NotificationServiceSettings
+        self,
+        notification_manager: NotificationManager,
+        service_settings: NotificationServiceSettings,
     ) -> None:
         def _broken() -> AsyncSession:
             raise RuntimeError("Simulated session failure.")
@@ -184,13 +202,19 @@ class TestDigestSweepWorker:
         assert await worker.tick() == 0
 
     async def test_a_tick_with_no_subscribers_reports_zero(
-        self, db_session_factory: async_sessionmaker[AsyncSession], notification_manager, service_settings
+        self,
+        db_session_factory: async_sessionmaker[AsyncSession],
+        notification_manager,
+        service_settings,
     ) -> None:
         worker = DigestSweepWorker(db_session_factory, notification_manager, service_settings)
         assert await worker.tick() == 0
 
     async def test_run_job_delegates_to_tick(
-        self, db_session_factory: async_sessionmaker[AsyncSession], notification_manager, service_settings
+        self,
+        db_session_factory: async_sessionmaker[AsyncSession],
+        notification_manager,
+        service_settings,
     ) -> None:
         worker = DigestSweepWorker(db_session_factory, notification_manager, service_settings)
         await worker.run_job(None)  # type: ignore[arg-type]

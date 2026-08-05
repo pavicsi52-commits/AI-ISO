@@ -6070,3 +6070,165 @@ read back its computed `next_run_at`, manually dispatched it
 (`COMPLETED`, `run_count` incremented to 1), and confirmed both the
 append-only audit trail and the live statistics dashboard reflected it
 — end-to-end through the actual built image.
+
+## Prompt 055 — Enterprise Notification Center Service
+
+`services/notification-center-service`, port **8026**, database
+**`aiios_notification_center`**, Redis **db 28**, RabbitMQ. Centralized,
+persisted, multi-channel notification delivery — templates with
+versioning and preview, per-user preferences and quiet hours, topic/
+role/project subscriptions, retry with backoff and a dead-letter queue,
+delivery tracking through read and acknowledged, announcements and
+broadcasts, digests, rolled-up statistics, generated reports, and an
+append-only audit trail. 15 tables, 15 repositories, 11 services, 4
+pure engines, 9 routers (~50 routes under `/notifications/*`), 4
+leader-elected workers, 9 domain events.
+
+**523 tests, 98.33% branch coverage** against real PostgreSQL, Redis,
+and RabbitMQ. Ruff, Black, MyPy all clean (*Success: no issues found in
+73 source files*). Written by four agents working fully in parallel
+(`isolation: "worktree"`) against pure engines/enums; notification/
+preference/subscription/template/channel services; delivery/
+announcement/broadcast/digest/reporting services; and the full HTTP API
+plus workers/registrar/telemetry, respectively.
+
+### This is `shared_core.notifications`'s central, persisted counterpart — not a redesign of it
+
+Every prior AI-IOS service already builds its own in-memory
+`NotificationManager` (Prompt 025) for best-effort outbound alerts; this
+service is the platform's one durable version of the same framework.
+Per this prompt's own "use every previously implemented platform
+framework" instruction, the pure-logic layer is almost entirely thin
+adapters: `app/rendering/engine.py` is a direct pass-through to
+`shared_core.notifications.renderer`; `app/retries/engine.py` is
+`shared_core.queue.retry.compute_backoff_delay` plus
+`shared_core.notifications.retry.classify_delivery_failure`; `app/
+digest/engine.py`'s grouping/dedup is `shared_core.notifications.digest
+.build_digest` verbatim, with only the digest-body formatting itself
+genuinely new (the framework's own docstring defers that step to "the
+renderer," but the renderer has no digest-shaped template to render).
+The one real gap is `app/routing/engine.py`'s preference-allow and
+quiet-hours checks, reimplemented natively rather than translated,
+because this service's own channel/category vocabulary (docs/055 names
+eleven channels, thirteen categories) is deliberately richer than
+`shared_core`'s eight/fifteen — see `app/models/enums.py`'s own
+`to_shared_channel`/`to_shared_notification_type` translators for
+exactly which values collapse together (`MOBILE_PUSH`/`BROWSER_PUSH`
+both → `PUSH`; `REST_CALLBACK`/`CUSTOM` both → `WEBHOOK`; `ALERT`→
+`WARNING`, `FAILURE`→`ERROR`, `ASSIGNMENT`→`WORKFLOW`, etc.) and why.
+
+### A channel needs the recipient's yes *and* the organization's yes
+
+`DeliveryService.dispatch()` resolves channels by intersecting the
+recipient's own preferences with the organization's own channel
+configuration (`ChannelConfigService.is_enabled()`). `EMAIL`/`IN_APP`
+are unconditionally organization-enabled; every other channel needs an
+explicit, per-organization `NotificationChannelConfig` row first — a
+channel a user prefers but their organization never configured is
+excluded from resolution entirely, never attempted and failed.
+`shared_core.notifications.in_app.InAppChannel` is registered at
+startup purely so `IN_APP` dispatch succeeds through the shared
+framework's own path; its backing in-memory store is discarded — this
+service's own persisted `notifications`/`notification_deliveries`
+tables are the actual, durable in-app notification center.
+
+### A notification's own status only ever rolls forward, never backward
+
+One notification can fan out into several `NotificationDelivery` rows.
+`_recompute_notification_status()` derives the notification's own
+status from all its deliveries (any `DELIVERED` wins, then `SENT`, then
+`FAILED` only once every delivery is terminal) but never touches a
+notification already `READ`/`ACKNOWLEDGED`/`CANCELLED` — those are
+outcomes a recipient or caller actively chose, not something a
+late-arriving delivery attempt gets to silently revise.
+
+### Bugs worth remembering
+
+- **A router registered in the wrong order silently hijacked eight
+  other routers' own routes.** `notifications_router`'s own catch-all
+  `GET`/`DELETE /{notification_id}` matches any single path segment
+  under `/notifications/`; registered first, it intercepted `GET
+  /notifications/preferences`, `/templates`, `/subscriptions`,
+  `/channels`, `/announcements`, `/dead-letters`, `/statistics`,
+  `/reports`, and `/audit` as a UUID-parse failure (400) before their
+  own router ever saw the request. Caught by nearly every list/read
+  test in three separate API test files, written by the same agent that
+  found it. Fixed by registering `notifications_router` last — every
+  other router's own literal sub-paths are never a real notification
+  id, so trying them first is always correct.
+- **`TemplateService.update()` versioned itself on every edit, even
+  ones that changed nothing about the content.** Its content-change
+  check compared every field in `{subject_template, body_template,
+  format}` against the stored value, including ones the caller never
+  sent (forwarded as `None` by the route regardless). Without an `is
+  not None` guard, editing only a template's `name` still wrote a
+  spurious version-history row and bumped `current_version`. Caught by
+  a test that edited only the name and asserted no new version
+  appeared; fixed with the missing guard.
+- **Invalid caller-supplied template syntax surfaced as an unhandled
+  500.** `shared_core.notifications.exceptions.TemplateRenderError` is
+  a correct `500` for a previously-valid *stored* template failing at
+  render time — this platform's own fault — but `TemplateService
+  .create()`/`.update()` reused it for syntax a caller had just
+  supplied and nothing had rendered yet, which is a client mistake, not
+  an internal one. Now caught and re-raised as `ValidationError`
+  (`400`).
+- **A per-recipient notification's `created_by` column doesn't accept
+  a broadcast's own `initiated_by`.** `BroadcastService.broadcast()`
+  originally forwarded `initiated_by` (a loose identifier — a user id,
+  or potentially a system/service name like `"admin"`) straight into
+  `NotificationService.create()`'s `actor_id`, which does
+  `UUID(actor_id)` for the `created_by` column — crashing on any
+  non-UUID initiator. Found independently by *three of the four*
+  parallel agents (each hit it via the provided smoke test before
+  writing anything of their own, since it's on the direct path the
+  smoke test exercises), fixed once in the primary worktree, and
+  synced identically — not reinvented — into every other worktree that
+  hit it. `initiated_by` now stays only on the `NotificationBroadcast`
+  row.
+- **`isolation: "worktree"` for parallel test-writing agents has a real
+  gotcha: an agent's worktree is forked from the last *commit*, not the
+  working tree's uncommitted state.** `tests/conftest.py` and the
+  throwaway smoke test were written and hand-verified in the main
+  working tree but not yet committed when all four agents were
+  launched — so none of the four worktrees had them. Recovered cleanly
+  (each agent either copied the files in from the shared checkout once
+  it found them missing, or, one agent, rebuilt an equivalent conftest
+  from scratch mirroring sibling services' own pattern) but the lesson
+  is durable: **commit any foundation work a worktree-isolated agent
+  will depend on before launching it**, not just before merging its
+  results back.
+- **A live HTTP verification pass committed real rows into the same
+  database the automated test suite runs against, and broke one test
+  the next time it ran.** `StatisticsWorker`'s own organization-
+  discovery query (`SELECT DISTINCT organization_id FROM notifications`)
+  has no reason to filter by anything test-specific — it found the
+  leftover, fully-committed rows from a manual live e2e check (run
+  against a real running container on the very same Postgres instance,
+  port 5433 ↔ the same `aiios_postgres`) sitting alongside the current
+  test's own SAVEPOINT-scoped rows, inflating the organization count a
+  failure-injection test wasn't expecting. Not a source bug — a
+  reminder that this repository's "everything runs against real infra,
+  nothing is mocked" philosophy cuts both ways: a manual live check
+  against the same database a test suite uses is itself a source of
+  test pollution, and needs its own cleanup (`DELETE FROM ... WHERE
+  organization_id = ...` across every affected table) before the next
+  test run, the same discipline a test's own teardown would otherwise
+  give it for free.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ, with a freshly generated JWT keypair mounted over
+the image's own `keys/jwt_public_key.pem`. `/health` and `/readiness`
+both correct; all four leader-elected background jobs (retry sweep,
+digest sweep, statistics rollup, announcement expiry sweep) registered
+with one node acquiring leadership on startup; all five channels with
+no external provider requirement (`in_app`, `slack`, `teams`,
+`discord`, `webhook`) registered. A signed JWT round-trip sent a
+notification over HTTP with an explicit `IN_APP` channel (`DELIVERED`),
+subscribed a user to a topic and broadcast to it (`total_recipients:
+1`, `sent_count: 1`), drafted and published an announcement, and
+confirmed the append-only audit trail (five correctly-ordered entries)
+and the live statistics dashboard (`deliveries_by_status: {delivered:
+2}`) all reflected it — end-to-end through the actual built image.

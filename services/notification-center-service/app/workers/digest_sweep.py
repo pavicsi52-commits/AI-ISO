@@ -84,7 +84,9 @@ class DigestSweepWorker:
         """Build and send one user's own digest under its own session."""
         try:
             async with self._session_factory() as session:
-                delivery = build_delivery_service(session, self._notification_manager, self._settings)
+                delivery = build_delivery_service(
+                    session, self._notification_manager, self._settings
+                )
                 digest_service = DigestService(
                     NotificationRepository(session),
                     PreferenceService(NotificationPreferenceRepository(session)),
@@ -100,7 +102,9 @@ class DigestSweepWorker:
         except Exception as exc:
             logger.warning(
                 "A digest send failed for one user; the rest of the tick continues.",
-                extra={"extra_fields": {"organization_id": str(organization_id), "error": str(exc)}},
+                extra={
+                    "extra_fields": {"organization_id": str(organization_id), "error": str(exc)}
+                },
             )
             return False
 

@@ -106,7 +106,9 @@ def resolve_channels(
     allows *category*, ordered by ``channel_priority`` if set.
     """
     candidates: list[NotificationChannelKind] = (
-        [requested_channel] if requested_channel is not None else list(preferences.preferred_channels)
+        [requested_channel]
+        if requested_channel is not None
+        else list(preferences.preferred_channels)
     )
     allowed = [
         channel for channel in candidates if allows(preferences, channel=channel, category=category)

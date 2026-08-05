@@ -24,7 +24,10 @@ from app.repositories.governance import (
 )
 from app.repositories.notification import NotificationRepository
 from app.repositories.preference import NotificationPreferenceRepository
-from app.repositories.retry import NotificationDeadLetterRepository, NotificationRetryQueueRepository
+from app.repositories.retry import (
+    NotificationDeadLetterRepository,
+    NotificationRetryQueueRepository,
+)
 from app.repositories.subscription import NotificationSubscriptionRepository
 from app.repositories.template import (
     NotificationTemplateRepository,

@@ -27,7 +27,9 @@ def _meta() -> ResponseMeta:
 
 
 @router.get(
-    "", response_model=SuccessResponse[list[ChannelConfigResponse]], summary="List configured channels"
+    "",
+    response_model=SuccessResponse[list[ChannelConfigResponse]],
+    summary="List configured channels",
 )
 async def list_channels(
     organization_id: UUID, channels: ChannelSvc
@@ -56,7 +58,11 @@ async def set_channel(
 ) -> SuccessResponse[ChannelConfigResponse]:
     """Create or replace this organization's configuration for *channel*."""
     updated = await channels.set_config(
-        organization_id, channel, enabled=body.enabled, config=body.config, description=body.description
+        organization_id,
+        channel,
+        enabled=body.enabled,
+        config=body.config,
+        description=body.description,
     )
     await audit.record(
         organization_id,
@@ -67,7 +73,9 @@ async def set_channel(
         summary=f"Configured channel {channel!s}.",
     )
     return SuccessResponse(
-        message="Channel configured.", data=ChannelConfigResponse.model_validate(updated), meta=_meta()
+        message="Channel configured.",
+        data=ChannelConfigResponse.model_validate(updated),
+        meta=_meta(),
     )
 
 

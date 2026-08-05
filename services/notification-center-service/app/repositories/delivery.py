@@ -20,7 +20,9 @@ class NotificationDeliveryRepository(BaseRepository[NotificationDelivery]):
     def __init__(self, session: AsyncSession, *, tenant_scope: TenantScope | None = None) -> None:
         super().__init__(session, NotificationDelivery, tenant_scope=tenant_scope)
 
-    async def require_in_org(self, organization_id: UUID, delivery_id: UUID) -> NotificationDelivery:
+    async def require_in_org(
+        self, organization_id: UUID, delivery_id: UUID
+    ) -> NotificationDelivery:
         """One delivery by id, scoped to its organization.
 
         Raises:

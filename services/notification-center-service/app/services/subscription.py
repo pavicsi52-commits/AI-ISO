@@ -34,7 +34,9 @@ class SubscriptionService:
         webhook_url: str | None = None,
     ) -> NotificationSubscription:
         """Subscribe *user_id* to *target*, or return the existing subscription."""
-        existing = await self._subscriptions.find(organization_id, user_id, subscription_kind, target)
+        existing = await self._subscriptions.find(
+            organization_id, user_id, subscription_kind, target
+        )
         if existing is not None:
             return existing
         return await self._subscriptions.create(
@@ -55,7 +57,9 @@ class SubscriptionService:
         Raises:
             NotFoundError: If *user_id* is not currently subscribed to *target*.
         """
-        existing = await self._subscriptions.find(organization_id, user_id, subscription_kind, target)
+        existing = await self._subscriptions.find(
+            organization_id, user_id, subscription_kind, target
+        )
         if existing is None:
             raise NotFoundError(f"{user_id!r} is not subscribed to {target!r}.")
         await self._subscriptions.delete(existing.id)
@@ -70,7 +74,9 @@ class SubscriptionService:
         self, organization_id: UUID, subscription_kind: SubscriptionKind, target: str
     ) -> list[str]:
         """Every user id subscribed to *target* ("Broadcast Groups")."""
-        return await self._subscriptions.list_subscribers(organization_id, subscription_kind, target)
+        return await self._subscriptions.list_subscribers(
+            organization_id, subscription_kind, target
+        )
 
 
 __all__ = ["SubscriptionService"]

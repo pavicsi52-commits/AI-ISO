@@ -91,7 +91,7 @@ class PreferenceService:
 
     @staticmethod
     def to_snapshot(preferences: NotificationPreference) -> PreferenceSnapshot:
-        """Convert a stored preference row into the pure snapshot :mod:`app.routing.engine` reasons over."""
+        """Convert a stored preference row into the snapshot :mod:`app.routing.engine` reads."""
         quiet_start = preferences.quiet_hours_start
         quiet_end = preferences.quiet_hours_end
         return PreferenceSnapshot(

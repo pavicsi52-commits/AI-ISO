@@ -11,6 +11,7 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+
 from tests.conftest import (
     HTTP_BAD_REQUEST,
     HTTP_CREATED,
@@ -33,7 +34,10 @@ async def _create_notification(
         **overrides,
     }
     resp = await client.post(
-        "/notifications", params={"organization_id": str(organization_id)}, headers=headers, json=payload
+        "/notifications",
+        params={"organization_id": str(organization_id)},
+        headers=headers,
+        json=payload,
     )
     assert resp.status_code == HTTP_CREATED, resp.text
     return resp.json()["data"]
@@ -59,7 +63,9 @@ async def _send_notification(
 
 
 class TestCreate:
-    async def test_create_requires_auth(self, client: AsyncClient, organization_id: uuid.UUID) -> None:
+    async def test_create_requires_auth(
+        self, client: AsyncClient, organization_id: uuid.UUID
+    ) -> None:
         resp = await client.post(
             "/notifications",
             params={"organization_id": str(organization_id)},
@@ -159,7 +165,8 @@ class TestGetAndList:
         )
         assert created["id"] in {one["id"] for one in matching.json()["data"]}
         non_matching = await client.get(
-            "/notifications", params={"organization_id": str(organization_id), "category": "success"}
+            "/notifications",
+            params={"organization_id": str(organization_id), "category": "success"},
         )
         assert created["id"] not in {one["id"] for one in non_matching.json()["data"]}
 
@@ -174,7 +181,8 @@ class TestGetAndList:
         )
         assert created["id"] in {one["id"] for one in matching.json()["data"]}
         non_matching = await client.get(
-            "/notifications", params={"organization_id": str(organization_id), "user_id": "someone-else"}
+            "/notifications",
+            params={"organization_id": str(organization_id), "user_id": "someone-else"},
         )
         assert created["id"] not in {one["id"] for one in non_matching.json()["data"]}
 
@@ -228,7 +236,9 @@ class TestDelete:
 
 
 class TestSend:
-    async def test_send_requires_auth(self, client: AsyncClient, organization_id: uuid.UUID) -> None:
+    async def test_send_requires_auth(
+        self, client: AsyncClient, organization_id: uuid.UUID
+    ) -> None:
         resp = await client.post(
             "/notifications/send",
             params={"organization_id": str(organization_id)},
@@ -368,7 +378,8 @@ class TestLifecycle:
     ) -> None:
         created = await _create_notification(client, auth_headers(uuid.uuid4()), organization_id)
         resp = await client.post(
-            f"/notifications/{created['id']}/cancel", params={"organization_id": str(organization_id)}
+            f"/notifications/{created['id']}/cancel",
+            params={"organization_id": str(organization_id)},
         )
         assert resp.status_code == HTTP_OK
         assert resp.json()["data"]["status"] == "cancelled"
@@ -381,7 +392,8 @@ class TestLifecycle:
             f"/notifications/{created['id']}/read", params={"organization_id": str(organization_id)}
         )
         resp = await client.post(
-            f"/notifications/{created['id']}/cancel", params={"organization_id": str(organization_id)}
+            f"/notifications/{created['id']}/cancel",
+            params={"organization_id": str(organization_id)},
         )
         assert resp.status_code == HTTP_BAD_REQUEST
 
@@ -389,7 +401,8 @@ class TestLifecycle:
         self, client: AsyncClient, organization_id: uuid.UUID
     ) -> None:
         resp = await client.post(
-            f"/notifications/{uuid.uuid4()}/cancel", params={"organization_id": str(organization_id)}
+            f"/notifications/{uuid.uuid4()}/cancel",
+            params={"organization_id": str(organization_id)},
         )
         assert resp.status_code == HTTP_NOT_FOUND
 

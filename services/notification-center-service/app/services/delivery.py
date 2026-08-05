@@ -53,10 +53,16 @@ from app.models.enums import (
 from app.models.notification import Notification
 from app.models.retry import NotificationDeadLetter, NotificationRetryQueueEntry
 from app.repositories.channel import NotificationChannelConfigRepository
-from app.repositories.delivery import NotificationDeliveryAttemptRepository, NotificationDeliveryRepository
+from app.repositories.delivery import (
+    NotificationDeliveryAttemptRepository,
+    NotificationDeliveryRepository,
+)
 from app.repositories.notification import NotificationRepository
 from app.repositories.preference import NotificationPreferenceRepository
-from app.repositories.retry import NotificationDeadLetterRepository, NotificationRetryQueueRepository
+from app.repositories.retry import (
+    NotificationDeadLetterRepository,
+    NotificationRetryQueueRepository,
+)
 from app.retries import engine as retries_engine
 from app.routing import engine as routing_engine
 from app.services.channel import ChannelConfigService
@@ -168,7 +174,9 @@ class DeliveryService:
                     },
                 )
             )
-            deliveries.append(await self._attempt(organization_id, notification, delivery, attempt_number=1))
+            deliveries.append(
+                await self._attempt(organization_id, notification, delivery, attempt_number=1)
+            )
         return deliveries
 
     async def list_for_notification(
@@ -210,14 +218,16 @@ class DeliveryService:
                 ),
                 body=notification.body,
                 channel=to_shared_channel(channel),
-                priority=to_shared_priority(notification.priority),  # type: ignore[arg-type]
+                priority=to_shared_priority(notification.priority),
                 subject=notification.subject,
                 organization_id=str(organization_id),
                 **extra_fields,
             )
         except NotificationError as exc:
             result = build_delivery_result(
-                status=SharedDeliveryStatus.FAILED, channel=to_shared_channel(channel), error=str(exc)
+                status=SharedDeliveryStatus.FAILED,
+                channel=to_shared_channel(channel),
+                error=str(exc),
             )
 
         now = datetime.now(UTC)
@@ -272,7 +282,9 @@ class DeliveryService:
 
         delivery.error = result.error
         max_attempts = self._settings.default_max_attempts
-        if retries_engine.should_retry(result, attempt_number=attempt_number, max_attempts=max_attempts):
+        if retries_engine.should_retry(
+            result, attempt_number=attempt_number, max_attempts=max_attempts
+        ):
             delay = retries_engine.compute_delay_seconds(
                 attempt_number,
                 base_seconds=self._settings.default_base_delay_seconds,
@@ -414,7 +426,9 @@ class DeliveryService:
         await self._dead_letters.update(dead_letter)
 
         delivery = await self._deliveries.require_in_org(organization_id, dead_letter.delivery_id)
-        notification = await self._notifications.require_in_org(organization_id, dead_letter.notification_id)
+        notification = await self._notifications.require_in_org(
+            organization_id, dead_letter.notification_id
+        )
         delivery.status = NotificationStatus.QUEUED
         await self._deliveries.update(delivery)
 

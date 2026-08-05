@@ -37,7 +37,9 @@ class TestBuildAndSend:
         self, digest_service: DigestService, make_preference, organization_id
     ) -> None:
         await make_preference(user_id="user-empty", digest_frequency=DigestFrequency.HOURLY)
-        result = await digest_service.build_and_send(organization_id, "user-empty", now=datetime.now(UTC))
+        result = await digest_service.build_and_send(
+            organization_id, "user-empty", now=datetime.now(UTC)
+        )
         assert result is None
 
     async def test_returns_none_when_only_read_and_digest_category_notifications_exist(
@@ -69,7 +71,9 @@ class TestBuildAndSend:
         organization_id,
     ) -> None:
         await make_preference(user_id="user-digest", digest_frequency=DigestFrequency.HOURLY)
-        already_read = await make_notification(user_id="user-digest", body="Excluded: already read.")
+        already_read = await make_notification(
+            user_id="user-digest", body="Excluded: already read."
+        )
         await notification_service.mark_read(organization_id, already_read.id)
         await make_notification(
             user_id="user-digest",
@@ -78,7 +82,9 @@ class TestBuildAndSend:
         )
         await make_notification(user_id="user-digest", body="Included: genuinely unread.")
 
-        result = await digest_service.build_and_send(organization_id, "user-digest", now=datetime.now(UTC))
+        result = await digest_service.build_and_send(
+            organization_id, "user-digest", now=datetime.now(UTC)
+        )
 
         assert result is not None
         assert result.category == NotificationCategory.DIGEST
@@ -92,7 +98,9 @@ class TestBuildAndSend:
     ) -> None:
         await make_preference(user_id="user-subject", digest_frequency=DigestFrequency.DAILY)
         await make_notification(user_id="user-subject", body="News.")
-        result = await digest_service.build_and_send(organization_id, "user-subject", now=datetime.now(UTC))
+        result = await digest_service.build_and_send(
+            organization_id, "user-subject", now=datetime.now(UTC)
+        )
         assert result is not None
         assert result.subject == "Your daily digest"
 
@@ -128,12 +136,19 @@ class TestBuildAndSend:
         self, digest_service: DigestService, make_preference, make_notification, organization_id
     ) -> None:
         for index, frequency in enumerate(
-            (DigestFrequency.HOURLY, DigestFrequency.DAILY, DigestFrequency.WEEKLY, DigestFrequency.MONTHLY)
+            (
+                DigestFrequency.HOURLY,
+                DigestFrequency.DAILY,
+                DigestFrequency.WEEKLY,
+                DigestFrequency.MONTHLY,
+            )
         ):
             user_id = f"user-freq-{index}"
             await make_preference(user_id=user_id, digest_frequency=frequency)
             await make_notification(user_id=user_id, body=f"News for {frequency.value}.")
-            result = await digest_service.build_and_send(organization_id, user_id, now=datetime.now(UTC))
+            result = await digest_service.build_and_send(
+                organization_id, user_id, now=datetime.now(UTC)
+            )
             assert result is not None, f"expected a digest for {frequency}"
             assert result.category == NotificationCategory.DIGEST
 

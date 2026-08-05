@@ -66,7 +66,11 @@ def register_retry_sweep(manager: SchedulerManager, fn: JobFn, *, interval_secon
         ValueError: If *interval_seconds* is not positive.
     """
     return _register(
-        manager, fn, job_id=RETRY_SWEEP_JOB_ID, interval_seconds=interval_seconds, component="notification-retry-sweep"
+        manager,
+        fn,
+        job_id=RETRY_SWEEP_JOB_ID,
+        interval_seconds=interval_seconds,
+        component="notification-retry-sweep",
     )
 
 

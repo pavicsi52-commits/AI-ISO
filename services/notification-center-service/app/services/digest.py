@@ -92,7 +92,9 @@ class DigestService:
             )
             for notification in candidates
         ]
-        digest = digest_engine.build_user_digest(user_id, shared_messages, max_items=self._max_items)
+        digest = digest_engine.build_user_digest(
+            user_id, shared_messages, max_items=self._max_items
+        )
         body = digest_engine.render_digest_body(digest)
 
         digest_notification = await self._notifications.create(

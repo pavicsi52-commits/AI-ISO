@@ -113,7 +113,11 @@ from shared_core.security.jwt import encode_token  # noqa: E402
 from app.api import deps  # noqa: E402
 from app.config.settings import NotificationServiceSettings  # noqa: E402
 from app.core.factory import create_app  # noqa: E402
-from app.models.enums import NotificationCategory, NotificationChannelKind, NotificationPriority  # noqa: E402
+from app.models.enums import (  # noqa: E402
+    NotificationCategory,
+    NotificationChannelKind,
+    NotificationPriority,
+)
 from app.repositories.announcement import (  # noqa: E402
     NotificationAnnouncementRepository,
     NotificationBroadcastRepository,
@@ -427,7 +431,8 @@ def subscription_service(db_session: AsyncSession) -> SubscriptionService:
 @pytest.fixture
 def template_service(db_session: AsyncSession) -> TemplateService:
     return TemplateService(
-        NotificationTemplateRepository(db_session), NotificationTemplateVersionRepository(db_session)
+        NotificationTemplateRepository(db_session),
+        NotificationTemplateVersionRepository(db_session),
     )
 
 
@@ -462,7 +467,9 @@ def broadcast_service(
 def announcement_service(
     db_session: AsyncSession, publisher: RecordingPublisher
 ) -> AnnouncementService:
-    return AnnouncementService(NotificationAnnouncementRepository(db_session), publish_event=publisher)
+    return AnnouncementService(
+        NotificationAnnouncementRepository(db_session), publish_event=publisher
+    )
 
 
 @pytest.fixture
@@ -556,7 +563,11 @@ def make_template(template_service: TemplateService, organization_id: uuid.UUID)
         **kwargs: Any,
     ) -> Any:
         return await template_service.create(
-            organization_id, template_key=template_key, name=name, body_template=body_template, **kwargs
+            organization_id,
+            template_key=template_key,
+            name=name,
+            body_template=body_template,
+            **kwargs,
         )
 
     return _make

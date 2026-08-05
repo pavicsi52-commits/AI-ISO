@@ -46,7 +46,9 @@ class TestToSharedTemplate:
 class TestRender:
     async def test_substitutes_jinja2_variables_in_the_body(self) -> None:
         template = to_shared_template(
-            template_key="t1", body_template="Hello {{ name }}!", template_format=TemplateFormat.PLAIN_TEXT
+            template_key="t1",
+            body_template="Hello {{ name }}!",
+            template_format=TemplateFormat.PLAIN_TEXT,
         )
         rendered = render(template, {"name": "World"})
         assert rendered.body == "Hello World!"
@@ -63,7 +65,9 @@ class TestRender:
 
     async def test_raises_template_render_error_on_bad_jinja2_syntax(self) -> None:
         template = to_shared_template(
-            template_key="t1", body_template="{{ unclosed", template_format=TemplateFormat.PLAIN_TEXT
+            template_key="t1",
+            body_template="{{ unclosed",
+            template_format=TemplateFormat.PLAIN_TEXT,
         )
         with pytest.raises(TemplateRenderError):
             render(template, {})
@@ -72,14 +76,18 @@ class TestRender:
 class TestPreview:
     async def test_renders_against_sample_variables_like_render_does(self) -> None:
         template = to_shared_template(
-            template_key="t1", body_template="Hi {{ name }}", template_format=TemplateFormat.PLAIN_TEXT
+            template_key="t1",
+            body_template="Hi {{ name }}",
+            template_format=TemplateFormat.PLAIN_TEXT,
         )
         rendered = preview(template, {"name": "Sample"})
         assert rendered.body == "Hi Sample"
 
     async def test_raises_template_render_error_on_bad_jinja2_syntax(self) -> None:
         template = to_shared_template(
-            template_key="t1", body_template="{{ bad !! }}", template_format=TemplateFormat.PLAIN_TEXT
+            template_key="t1",
+            body_template="{{ bad !! }}",
+            template_format=TemplateFormat.PLAIN_TEXT,
         )
         with pytest.raises(TemplateRenderError):
             preview(template, {})
@@ -88,13 +96,17 @@ class TestPreview:
 class TestValidate:
     async def test_valid_syntax_does_not_raise(self) -> None:
         template = to_shared_template(
-            template_key="t1", body_template="Hello {{ name }}", template_format=TemplateFormat.PLAIN_TEXT
+            template_key="t1",
+            body_template="Hello {{ name }}",
+            template_format=TemplateFormat.PLAIN_TEXT,
         )
         validate(template)
 
     async def test_invalid_body_syntax_raises_template_render_error(self) -> None:
         template = to_shared_template(
-            template_key="t1", body_template="{{ unclosed", template_format=TemplateFormat.PLAIN_TEXT
+            template_key="t1",
+            body_template="{{ unclosed",
+            template_format=TemplateFormat.PLAIN_TEXT,
         )
         with pytest.raises(TemplateRenderError):
             validate(template)
@@ -113,7 +125,9 @@ class TestValidate:
 class TestRenderToHtml:
     async def test_html_format_is_returned_unchanged(self) -> None:
         template = to_shared_template(
-            template_key="t1", body_template="<b>{{ name }}</b>", template_format=TemplateFormat.HTML
+            template_key="t1",
+            body_template="<b>{{ name }}</b>",
+            template_format=TemplateFormat.HTML,
         )
         rendered = render(template, {"name": "World"})
         assert render_to_html(rendered) == "<b>World</b>"

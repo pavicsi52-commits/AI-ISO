@@ -55,7 +55,8 @@ class NotificationAnnouncementRepository(BaseRepository[NotificationAnnouncement
             stmt = stmt.where(NotificationAnnouncement.status == str(status))
         stmt = (
             stmt.order_by(
-                NotificationAnnouncement.is_pinned.desc(), NotificationAnnouncement.created_at.desc()
+                NotificationAnnouncement.is_pinned.desc(),
+                NotificationAnnouncement.created_at.desc(),
             )
             .offset(offset)
             .limit(limit)

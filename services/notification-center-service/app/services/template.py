@@ -23,7 +23,10 @@ from shared_core.notifications.renderer import RenderedNotification
 from app.models.enums import NotificationCategory, TemplateFormat
 from app.models.template import NotificationTemplate, NotificationTemplateVersion
 from app.rendering import engine as rendering_engine
-from app.repositories.template import NotificationTemplateRepository, NotificationTemplateVersionRepository
+from app.repositories.template import (
+    NotificationTemplateRepository,
+    NotificationTemplateVersionRepository,
+)
 
 _CONTENT_FIELDS = frozenset({"subject_template", "body_template", "format"})
 _EDITABLE_FIELDS = frozenset({"name", "description", "category", "is_active"}) | _CONTENT_FIELDS
@@ -130,7 +133,9 @@ class TemplateService:
         # (None)` against the stored body and treat that mismatch as a
         # content change, spuriously versioning and bumping every update.
         changed_content = any(
-            field in fields and fields[field] is not None and fields[field] != getattr(stored, field)
+            field in fields
+            and fields[field] is not None
+            and fields[field] != getattr(stored, field)
             for field in _CONTENT_FIELDS
         )
         if changed_content:

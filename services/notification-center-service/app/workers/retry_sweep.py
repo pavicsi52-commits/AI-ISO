@@ -59,7 +59,9 @@ class RetrySweepWorker:
                     self._settings,
                     publish_event=self._publish_event,
                 )
-                dispatched = await service.retry_due(now=datetime.now(UTC), limit=self._max_per_tick)
+                dispatched = await service.retry_due(
+                    now=datetime.now(UTC), limit=self._max_per_tick
+                )
                 await session.commit()
             logger.info("Retry sweep complete.", extra={"extra_fields": {"dispatched": dispatched}})
             return dispatched

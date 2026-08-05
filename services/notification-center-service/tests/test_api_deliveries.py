@@ -18,13 +18,13 @@ from datetime import UTC, datetime
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.conftest import HTTP_NOT_FOUND, HTTP_OK, HTTP_UNAUTHORIZED
 
 from app.models.delivery import NotificationDelivery
 from app.models.notification import Notification
 from app.models.retry import NotificationDeadLetter
 from app.repositories.delivery import NotificationDeliveryRepository
 from app.repositories.retry import NotificationDeadLetterRepository
+from tests.conftest import HTTP_NOT_FOUND, HTTP_OK, HTTP_UNAUTHORIZED
 
 pytestmark = pytest.mark.asyncio
 
@@ -133,7 +133,9 @@ class TestRetry:
         make_notification,
     ) -> None:
         notification = await make_notification()
-        dead_letter = await _seed_dead_letter(db_session, organization_id, notification, channel="in_app")
+        dead_letter = await _seed_dead_letter(
+            db_session, organization_id, notification, channel="in_app"
+        )
         resp = await client.post(
             f"/notifications/dead-letters/{dead_letter.id}/retry",
             params={"organization_id": str(organization_id)},

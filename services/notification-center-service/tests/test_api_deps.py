@@ -61,12 +61,16 @@ class TestGetDbSession:
 class TestGetDigestService:
     async def test_builds_a_working_digest_service(self, db_session: AsyncSession) -> None:
         settings = NotificationServiceSettings(_env_file=None)
-        fake_request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(service_settings=settings)))
+        fake_request = SimpleNamespace(
+            app=SimpleNamespace(state=SimpleNamespace(service_settings=settings))
+        )
         preferences = PreferenceService(NotificationPreferenceRepository(db_session))
         notifications = NotificationService(NotificationRepository(db_session))
         delivery = build_delivery_service(db_session, create_notification_framework(), settings)
 
-        service = deps.get_digest_service(db_session, preferences, notifications, delivery, fake_request)  # type: ignore[arg-type]
+        service = deps.get_digest_service(
+            db_session, preferences, notifications, delivery, fake_request  # type: ignore[arg-type]
+        )
         assert isinstance(service, DigestService)
 
 

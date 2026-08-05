@@ -18,7 +18,6 @@ from shared_core.queue.factory import create_queue_framework
 from shared_core.scheduler import Job, JobType, SchedulerManager
 from shared_core.scheduler import ScheduleType as FrameworkScheduleType
 from shared_core.scheduler.factory import create_scheduler_framework
-from tests.conftest import rabbitmq_test_settings, redis_test_settings
 
 from app.workers.registrar import (
     ANNOUNCEMENT_EXPIRY_SWEEP_JOB_ID,
@@ -30,6 +29,7 @@ from app.workers.registrar import (
     register_retry_sweep,
     register_statistics_rollup,
 )
+from tests.conftest import rabbitmq_test_settings, redis_test_settings
 
 pytestmark = pytest.mark.asyncio
 

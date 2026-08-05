@@ -11,7 +11,13 @@ from shared_core.exceptions.not_found import NotFoundError
 from shared_core.logging.context import get_log_context
 
 from app.api.deps import AuditSvc, CurrentUserId, ReportSvc, StatisticsSvc
-from app.models.enums import AuditAction, ReportFormat, ReportStatus, report_format_of, report_status_of
+from app.models.enums import (
+    AuditAction,
+    ReportFormat,
+    ReportStatus,
+    report_format_of,
+    report_status_of,
+)
 from app.schemas.notification import (
     AuditEntryResponse,
     ReportGenerateRequest,
@@ -60,7 +66,9 @@ async def get_statistics_trend(
 
 
 @router.get(
-    "/reports", response_model=SuccessResponse[list[ReportResponse]], summary="List generated reports"
+    "/reports",
+    response_model=SuccessResponse[list[ReportResponse]],
+    summary="List generated reports",
 )
 async def list_reports(
     organization_id: UUID,
@@ -166,7 +174,12 @@ async def list_audit_entries(
 ) -> SuccessResponse[list[AuditEntryResponse]]:
     """The append-only audit trail, newest first, matching a caller's filters."""
     rows = await audit.list_entries(
-        organization_id, action=action, entity_id=entity_id, actor_id=actor_id, limit=limit, offset=offset
+        organization_id,
+        action=action,
+        entity_id=entity_id,
+        actor_id=actor_id,
+        limit=limit,
+        offset=offset,
     )
     return SuccessResponse(
         message="Audit entries listed.",

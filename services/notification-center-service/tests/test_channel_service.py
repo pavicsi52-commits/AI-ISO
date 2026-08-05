@@ -17,39 +17,57 @@ class TestIsEnabled:
     async def test_email_is_always_enabled_with_no_config_row(
         self, channel_service: ChannelConfigService, organization_id
     ) -> None:
-        assert await channel_service.is_enabled(organization_id, NotificationChannelKind.EMAIL) is True
+        assert (
+            await channel_service.is_enabled(organization_id, NotificationChannelKind.EMAIL) is True
+        )
 
     async def test_in_app_is_always_enabled_with_no_config_row(
         self, channel_service: ChannelConfigService, organization_id
     ) -> None:
-        assert await channel_service.is_enabled(organization_id, NotificationChannelKind.IN_APP) is True
+        assert (
+            await channel_service.is_enabled(organization_id, NotificationChannelKind.IN_APP)
+            is True
+        )
 
     async def test_email_is_enabled_even_if_a_disabled_config_row_exists(
         self, channel_service: ChannelConfigService, organization_id
     ) -> None:
-        await channel_service.set_config(organization_id, NotificationChannelKind.EMAIL, enabled=False)
-        assert await channel_service.is_enabled(organization_id, NotificationChannelKind.EMAIL) is True
+        await channel_service.set_config(
+            organization_id, NotificationChannelKind.EMAIL, enabled=False
+        )
+        assert (
+            await channel_service.is_enabled(organization_id, NotificationChannelKind.EMAIL) is True
+        )
 
     async def test_other_channel_is_disabled_with_no_config_row(
         self, channel_service: ChannelConfigService, organization_id
     ) -> None:
         assert (
-            await channel_service.is_enabled(organization_id, NotificationChannelKind.WEBHOOK) is False
+            await channel_service.is_enabled(organization_id, NotificationChannelKind.WEBHOOK)
+            is False
         )
 
     async def test_other_channel_is_enabled_when_config_row_says_so(
         self, channel_service: ChannelConfigService, organization_id
     ) -> None:
-        await channel_service.set_config(organization_id, NotificationChannelKind.WEBHOOK, enabled=True)
+        await channel_service.set_config(
+            organization_id, NotificationChannelKind.WEBHOOK, enabled=True
+        )
         assert (
-            await channel_service.is_enabled(organization_id, NotificationChannelKind.WEBHOOK) is True
+            await channel_service.is_enabled(organization_id, NotificationChannelKind.WEBHOOK)
+            is True
         )
 
     async def test_other_channel_is_disabled_when_config_row_says_so(
         self, channel_service: ChannelConfigService, organization_id
     ) -> None:
-        await channel_service.set_config(organization_id, NotificationChannelKind.SLACK, enabled=False)
-        assert await channel_service.is_enabled(organization_id, NotificationChannelKind.SLACK) is False
+        await channel_service.set_config(
+            organization_id, NotificationChannelKind.SLACK, enabled=False
+        )
+        assert (
+            await channel_service.is_enabled(organization_id, NotificationChannelKind.SLACK)
+            is False
+        )
 
 
 class TestSetConfig:

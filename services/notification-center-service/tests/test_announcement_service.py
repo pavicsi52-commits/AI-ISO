@@ -10,10 +10,10 @@ from uuid import uuid4
 import pytest
 from shared_core.exceptions.not_found import NotFoundError
 from shared_core.exceptions.validation import ValidationError
-from tests.conftest import ago, soon
 
 from app.models.enums import AnnouncementScope, AnnouncementStatus
 from app.services.announcement import AnnouncementService
+from tests.conftest import ago, soon
 
 pytestmark = pytest.mark.asyncio
 
@@ -189,7 +189,10 @@ class TestUpdate:
         self, announcement_service: AnnouncementService, organization_id
     ) -> None:
         created = await announcement_service.create(
-            organization_id, scope=AnnouncementScope.SYSTEM, title="Untouchable status", body="Body."
+            organization_id,
+            scope=AnnouncementScope.SYSTEM,
+            title="Untouchable status",
+            body="Body.",
         )
         updated = await announcement_service.update(
             organization_id, created.id, status=AnnouncementStatus.PUBLISHED
@@ -240,7 +243,9 @@ class TestPublish:
             organization_id, scope=AnnouncementScope.SYSTEM, title="Go live", body="Body."
         )
         actor_id = str(uuid4())
-        published = await announcement_service.publish(organization_id, created.id, actor_id=actor_id)
+        published = await announcement_service.publish(
+            organization_id, created.id, actor_id=actor_id
+        )
         assert str(published.updated_by) == actor_id
 
     async def test_publish_raises_validation_error_if_already_published(
@@ -273,7 +278,9 @@ class TestArchive:
         )
         await announcement_service.publish(organization_id, created.id)
         actor_id = str(uuid4())
-        archived = await announcement_service.archive(organization_id, created.id, actor_id=actor_id)
+        archived = await announcement_service.archive(
+            organization_id, created.id, actor_id=actor_id
+        )
         assert archived.status == AnnouncementStatus.ARCHIVED
         assert str(archived.updated_by) == actor_id
 

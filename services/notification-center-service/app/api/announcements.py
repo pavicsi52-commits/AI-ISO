@@ -25,7 +25,9 @@ def _meta() -> ResponseMeta:
     return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
-@router.get("", response_model=SuccessResponse[list[AnnouncementResponse]], summary="List announcements")
+@router.get(
+    "", response_model=SuccessResponse[list[AnnouncementResponse]], summary="List announcements"
+)
 async def list_announcements(
     organization_id: UUID,
     announcements: AnnouncementSvc,
@@ -41,7 +43,9 @@ async def list_announcements(
 
 
 @router.get(
-    "/{announcement_id}", response_model=SuccessResponse[AnnouncementResponse], summary="Get an announcement"
+    "/{announcement_id}",
+    response_model=SuccessResponse[AnnouncementResponse],
+    summary="Get an announcement",
 )
 async def get_announcement(
     organization_id: UUID, announcement_id: UUID, announcements: AnnouncementSvc
@@ -87,7 +91,9 @@ async def create_announcement(
         summary=f"Drafted announcement {created.title!r}.",
     )
     return SuccessResponse(
-        message="Announcement drafted.", data=AnnouncementResponse.model_validate(created), meta=_meta()
+        message="Announcement drafted.",
+        data=AnnouncementResponse.model_validate(created),
+        meta=_meta(),
     )
 
 
@@ -116,7 +122,9 @@ async def update_announcement(
         audience=body.audience,
     )
     return SuccessResponse(
-        message="Announcement updated.", data=AnnouncementResponse.model_validate(updated), meta=_meta()
+        message="Announcement updated.",
+        data=AnnouncementResponse.model_validate(updated),
+        meta=_meta(),
     )
 
 
@@ -143,7 +151,9 @@ async def publish_announcement(
         summary=f"Published announcement {updated.title!r}.",
     )
     return SuccessResponse(
-        message="Announcement published.", data=AnnouncementResponse.model_validate(updated), meta=_meta()
+        message="Announcement published.",
+        data=AnnouncementResponse.model_validate(updated),
+        meta=_meta(),
     )
 
 
@@ -177,10 +187,15 @@ async def broadcast_announcement(
         entity_type="broadcast",
         entity_id=created.id,
         actor_id=str(caller),
-        summary=f"Broadcast announcement {announcement.title!r} to {created.total_recipients} recipient(s).",
+        summary=(
+            f"Broadcast announcement {announcement.title!r} to "
+            f"{created.total_recipients} recipient(s)."
+        ),
     )
     return SuccessResponse(
-        message="Announcement broadcast.", data=BroadcastResponse.model_validate(created), meta=_meta()
+        message="Announcement broadcast.",
+        data=BroadcastResponse.model_validate(created),
+        meta=_meta(),
     )
 
 
@@ -190,12 +205,17 @@ async def broadcast_announcement(
     summary="Archive an announcement",
 )
 async def archive_announcement(
-    organization_id: UUID, announcement_id: UUID, announcements: AnnouncementSvc, caller: CurrentUserId
+    organization_id: UUID,
+    announcement_id: UUID,
+    announcements: AnnouncementSvc,
+    caller: CurrentUserId,
 ) -> SuccessResponse[AnnouncementResponse]:
     """Archive an announcement, removing it from the active feed."""
     updated = await announcements.archive(organization_id, announcement_id, actor_id=str(caller))
     return SuccessResponse(
-        message="Announcement archived.", data=AnnouncementResponse.model_validate(updated), meta=_meta()
+        message="Announcement archived.",
+        data=AnnouncementResponse.model_validate(updated),
+        meta=_meta(),
     )
 
 

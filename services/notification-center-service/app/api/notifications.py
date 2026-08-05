@@ -27,7 +27,9 @@ def _meta() -> ResponseMeta:
     return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
-@router.get("", response_model=SuccessResponse[list[NotificationResponse]], summary="List notifications")
+@router.get(
+    "", response_model=SuccessResponse[list[NotificationResponse]], summary="List notifications"
+)
 async def list_notifications(
     organization_id: UUID,
     notifications: NotificationSvc,
@@ -56,7 +58,9 @@ async def list_notifications(
 
 
 @router.get(
-    "/{notification_id}", response_model=SuccessResponse[NotificationResponse], summary="Get a notification"
+    "/{notification_id}",
+    response_model=SuccessResponse[NotificationResponse],
+    summary="Get a notification",
 )
 async def get_notification(
     organization_id: UUID, notification_id: UUID, notifications: NotificationSvc
@@ -118,7 +122,10 @@ async def create_notification(
     "/{notification_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a notification"
 )
 async def delete_notification(
-    organization_id: UUID, notification_id: UUID, notifications: NotificationSvc, caller: CurrentUserId
+    organization_id: UUID,
+    notification_id: UUID,
+    notifications: NotificationSvc,
+    caller: CurrentUserId,
 ) -> None:
     """Soft-delete a notification."""
     await notifications.delete(organization_id, notification_id, actor_id=str(caller))
@@ -167,7 +174,9 @@ async def send_notification(
     )
     refreshed = await notifications.get(organization_id, created.id)
     return SuccessResponse(
-        message="Notification sent.", data=NotificationResponse.model_validate(refreshed), meta=_meta()
+        message="Notification sent.",
+        data=NotificationResponse.model_validate(refreshed),
+        meta=_meta(),
     )
 
 
@@ -221,7 +230,9 @@ async def mark_read(
     """Mark a notification as read ("Read/Unread")."""
     updated = await notifications.mark_read(organization_id, notification_id)
     return SuccessResponse(
-        message="Notification marked read.", data=NotificationResponse.model_validate(updated), meta=_meta()
+        message="Notification marked read.",
+        data=NotificationResponse.model_validate(updated),
+        meta=_meta(),
     )
 
 
@@ -253,7 +264,9 @@ async def cancel_notification(
     """Cancel a notification that has not reached a terminal state."""
     updated = await notifications.cancel(organization_id, notification_id)
     return SuccessResponse(
-        message="Notification cancelled.", data=NotificationResponse.model_validate(updated), meta=_meta()
+        message="Notification cancelled.",
+        data=NotificationResponse.model_validate(updated),
+        meta=_meta(),
     )
 
 

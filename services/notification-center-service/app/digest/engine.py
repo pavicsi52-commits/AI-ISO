@@ -60,7 +60,7 @@ def build_user_digest(
 
 
 def render_digest_body(digest: Digest) -> str:
-    """Format a built :class:`~shared_core.notifications.digest.Digest` into one notification body."""
+    """Format a built :class:`~shared_core.notifications.digest.Digest` into one notification body."""  # noqa: E501
     if not digest.groups:
         return "No new notifications."
     lines = [f"You have {digest.total_count} new notification(s):", ""]

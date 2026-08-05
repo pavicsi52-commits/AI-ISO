@@ -5,6 +5,9 @@ Against real PostgreSQL, in a SAVEPOINT-isolated session per test.
 
 from __future__ import annotations
 
+from datetime import time
+from uuid import uuid4
+
 import pytest
 
 from app.models.enums import (
@@ -39,8 +42,6 @@ class TestGet:
     async def test_is_scoped_per_organization(
         self, preference_service: PreferenceService, organization_id
     ) -> None:
-        from uuid import uuid4
-
         first = await preference_service.get(organization_id, "user-1")
         second = await preference_service.get(uuid4(), "user-1")
         assert first.id != second.id
@@ -74,8 +75,6 @@ class TestUpdate:
     async def test_sets_updated_by_from_actor_id(
         self, preference_service: PreferenceService, organization_id
     ) -> None:
-        from uuid import uuid4
-
         actor_id = uuid4()
         updated = await preference_service.update(
             organization_id, "user-1", actor_id=str(actor_id), muted=True
@@ -95,7 +94,10 @@ class TestUpdate:
             organization_id,
             "user-1",
             unsubscribed_channels=[str(NotificationChannelKind.SMS)],
-            channel_priority=[str(NotificationChannelKind.SLACK), str(NotificationChannelKind.EMAIL)],
+            channel_priority=[
+                str(NotificationChannelKind.SLACK),
+                str(NotificationChannelKind.EMAIL),
+            ],
             language="fr",
             timezone="Europe/Paris",
             digest_frequency=DigestFrequency.DAILY,
@@ -132,9 +134,15 @@ class TestToSnapshot:
         updated = await preference_service.update(
             organization_id,
             "user-1",
-            preferred_channels=[str(NotificationChannelKind.EMAIL), str(NotificationChannelKind.SLACK)],
+            preferred_channels=[
+                str(NotificationChannelKind.EMAIL),
+                str(NotificationChannelKind.SLACK),
+            ],
             unsubscribed_channels=[str(NotificationChannelKind.SMS)],
-            channel_priority=[str(NotificationChannelKind.SLACK), str(NotificationChannelKind.EMAIL)],
+            channel_priority=[
+                str(NotificationChannelKind.SLACK),
+                str(NotificationChannelKind.EMAIL),
+            ],
             muted_categories=[str(NotificationCategory.ALERT), str(NotificationCategory.WARNING)],
         )
 
@@ -168,8 +176,6 @@ class TestToSnapshot:
     async def test_carries_quiet_hours_through_when_set(
         self, preference_service: PreferenceService, organization_id
     ) -> None:
-        from datetime import time
-
         updated = await preference_service.update(
             organization_id,
             "user-1",

@@ -44,7 +44,13 @@ async def _exhaust_email_retries(delivery_service, deliveries, *, start=None):
 
 class TestBuildDeliveryService:
     async def test_build_delivery_service_produces_a_working_service(
-        self, db_session, notification_manager, service_settings, publisher, make_notification, organization_id
+        self,
+        db_session,
+        notification_manager,
+        service_settings,
+        publisher,
+        make_notification,
+        organization_id,
     ) -> None:
         service = build_delivery_service(
             db_session, notification_manager, service_settings, publish_event=publisher
@@ -84,7 +90,12 @@ class TestDispatchResolution:
         assert notification_status_of(reloaded.status) == NotificationStatus.CANCELLED
 
     async def test_dispatch_cancels_when_the_user_is_unsubscribed_from_the_channel(
-        self, delivery_service, make_notification, make_preference, notification_service, organization_id
+        self,
+        delivery_service,
+        make_notification,
+        make_preference,
+        notification_service,
+        organization_id,
     ) -> None:
         await make_preference(
             user_id="user-unsub", unsubscribed_channels=[str(NotificationChannelKind.IN_APP)]
@@ -98,7 +109,12 @@ class TestDispatchResolution:
         assert notification_status_of(reloaded.status) == NotificationStatus.CANCELLED
 
     async def test_dispatch_cancels_when_the_category_is_muted(
-        self, delivery_service, make_notification, make_preference, notification_service, organization_id
+        self,
+        delivery_service,
+        make_notification,
+        make_preference,
+        notification_service,
+        organization_id,
     ) -> None:
         await make_preference(
             user_id="user-muted-category",
@@ -113,7 +129,12 @@ class TestDispatchResolution:
         assert notification_status_of(reloaded.status) == NotificationStatus.CANCELLED
 
     async def test_dispatch_cancels_when_the_user_is_fully_muted(
-        self, delivery_service, make_notification, make_preference, notification_service, organization_id
+        self,
+        delivery_service,
+        make_notification,
+        make_preference,
+        notification_service,
+        organization_id,
     ) -> None:
         await make_preference(user_id="user-muted", muted=True)
         notification = await make_notification(user_id="user-muted")
@@ -167,7 +188,10 @@ class TestDispatchSuccess:
         deliveries = await delivery_service.dispatch(organization_id, notification)
         assert len(deliveries) == 2
         by_channel = {str(delivery.channel): delivery for delivery in deliveries}
-        assert set(by_channel) == {str(NotificationChannelKind.EMAIL), str(NotificationChannelKind.IN_APP)}
+        assert set(by_channel) == {
+            str(NotificationChannelKind.EMAIL),
+            str(NotificationChannelKind.IN_APP),
+        }
         assert notification_status_of(by_channel[str(NotificationChannelKind.IN_APP)].status) == (
             NotificationStatus.DELIVERED
         )
@@ -282,7 +306,7 @@ class TestDispatchFailureAndRetryQueue:
         assert notification_status_of(reloaded_notification.status) == NotificationStatus.FAILED
         assert "NotificationFailed" in publisher.names
 
-    async def test_dispatch_to_a_webhook_shaped_channel_with_a_configured_url_still_fails_unregistered(
+    async def test_dispatch_to_a_configured_webhook_channel_still_fails_unregistered(
         self, delivery_service, channel_service, make_notification, organization_id
     ) -> None:
         await channel_service.set_config(
@@ -387,7 +411,12 @@ class TestRetryDue:
         assert second_pass == 1
 
     async def test_retry_due_skips_and_still_resolves_entries_whose_delivery_was_removed(
-        self, delivery_service, make_notification, deliveries_repo, retry_queue_repo, organization_id
+        self,
+        delivery_service,
+        make_notification,
+        deliveries_repo,
+        retry_queue_repo,
+        organization_id,
     ) -> None:
         # A retry-queue row's delivery_id/notification_id are real foreign
         # keys, so simulating "no longer exists" (the get_by_id branch
@@ -418,7 +447,9 @@ class TestRetryDue:
         await _exhaust_email_retries(delivery_service, deliveries)
 
         names = publisher.names
-        retried_indices = [index for index, name in enumerate(names) if name == "NotificationRetried"]
+        retried_indices = [
+            index for index, name in enumerate(names) if name == "NotificationRetried"
+        ]
         failed_index = names.index("NotificationFailed")
         assert len(retried_indices) == 2
         assert retried_indices[-1] < failed_index
@@ -469,12 +500,16 @@ class TestRetryDeadLetter:
         )
 
         assert notification_status_of(result.status) == NotificationStatus.DELIVERED
-        reloaded_dead_letter = await dead_letters_repo.require_in_org(organization_id, dead_letter.id)
+        reloaded_dead_letter = await dead_letters_repo.require_in_org(
+            organization_id, dead_letter.id
+        )
         assert reloaded_dead_letter.resolved is True
         assert reloaded_dead_letter.resolved_by == "ops-1"
         assert reloaded_dead_letter.resolved_at is not None
         assert "NotificationRetried" in publisher.names
-        assert publisher.names.index("NotificationRetried") < publisher.names.index("NotificationDelivered")
+        assert publisher.names.index("NotificationRetried") < publisher.names.index(
+            "NotificationDelivered"
+        )
 
         reloaded_notification = await notification_service.get(organization_id, notification.id)
         assert notification_status_of(reloaded_notification.status) == NotificationStatus.DELIVERED
@@ -525,7 +560,12 @@ class TestRetryDeadLetter:
 
 class TestListDeadLetters:
     async def test_list_dead_letters_filters_by_resolved(
-        self, delivery_service, make_notification, deliveries_repo, dead_letters_repo, organization_id
+        self,
+        delivery_service,
+        make_notification,
+        deliveries_repo,
+        dead_letters_repo,
+        organization_id,
     ) -> None:
         async def _make_delivery(user_id: str) -> NotificationDelivery:
             notification = await make_notification(user_id=user_id)

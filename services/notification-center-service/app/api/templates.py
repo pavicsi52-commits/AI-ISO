@@ -42,7 +42,9 @@ async def list_templates(
     )
 
 
-@router.get("/{template_id}", response_model=SuccessResponse[TemplateResponse], summary="Get a template")
+@router.get(
+    "/{template_id}", response_model=SuccessResponse[TemplateResponse], summary="Get a template"
+)
 async def get_template(
     organization_id: UUID, template_id: UUID, templates: TemplateSvc
 ) -> SuccessResponse[TemplateResponse]:

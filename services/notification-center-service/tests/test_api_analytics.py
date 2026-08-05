@@ -8,16 +8,15 @@ trend, list/get/download reports, audit list/summary) does not.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from tests.conftest import HTTP_CREATED, HTTP_NOT_FOUND, HTTP_OK, HTTP_UNAUTHORIZED
 
 from app.models.enums import ReportFormat, ReportKind, ReportStatus
 from app.models.governance import NotificationReport
 from app.repositories.governance import NotificationReportRepository
+from tests.conftest import HTTP_CREATED, HTTP_NOT_FOUND, HTTP_OK, HTTP_UNAUTHORIZED
 
 pytestmark = pytest.mark.asyncio
 
@@ -42,7 +41,12 @@ class TestStatistics:
             "/notifications/send",
             params={"organization_id": str(organization_id)},
             headers=auth_headers(uuid.uuid4()),
-            json={"user_id": "user-1", "body": "Hi", "source_service": "test-suite", "channel": "in_app"},
+            json={
+                "user_id": "user-1",
+                "body": "Hi",
+                "source_service": "test-suite",
+                "channel": "in_app",
+            },
         )
         resp = await client.get(
             "/notifications/statistics", params={"organization_id": str(organization_id)}
@@ -119,7 +123,8 @@ class TestReports:
         self, client: AsyncClient, organization_id: uuid.UUID
     ) -> None:
         resp = await client.get(
-            f"/notifications/reports/{uuid.uuid4()}", params={"organization_id": str(organization_id)}
+            f"/notifications/reports/{uuid.uuid4()}",
+            params={"organization_id": str(organization_id)},
         )
         assert resp.status_code == HTTP_NOT_FOUND
 

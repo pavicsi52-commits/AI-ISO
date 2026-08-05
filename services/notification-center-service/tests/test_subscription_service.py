@@ -67,8 +67,12 @@ class TestUnsubscribe:
     async def test_removes_an_existing_subscription(
         self, subscription_service: SubscriptionService, organization_id
     ) -> None:
-        await subscription_service.subscribe(organization_id, "user-1", SubscriptionKind.TOPIC, "outages")
-        await subscription_service.unsubscribe(organization_id, "user-1", SubscriptionKind.TOPIC, "outages")
+        await subscription_service.subscribe(
+            organization_id, "user-1", SubscriptionKind.TOPIC, "outages"
+        )
+        await subscription_service.unsubscribe(
+            organization_id, "user-1", SubscriptionKind.TOPIC, "outages"
+        )
         remaining = await subscription_service.list_for_user(organization_id, "user-1")
         assert remaining == []
 
@@ -83,7 +87,9 @@ class TestUnsubscribe:
     async def test_raises_not_found_for_a_different_target_of_the_same_kind(
         self, subscription_service: SubscriptionService, organization_id
     ) -> None:
-        await subscription_service.subscribe(organization_id, "user-1", SubscriptionKind.TOPIC, "outages")
+        await subscription_service.subscribe(
+            organization_id, "user-1", SubscriptionKind.TOPIC, "outages"
+        )
         with pytest.raises(NotFoundError):
             await subscription_service.unsubscribe(
                 organization_id, "user-1", SubscriptionKind.TOPIC, "maintenance"
@@ -94,9 +100,15 @@ class TestListForUser:
     async def test_returns_every_subscription_the_user_holds(
         self, subscription_service: SubscriptionService, organization_id
     ) -> None:
-        await subscription_service.subscribe(organization_id, "user-1", SubscriptionKind.TOPIC, "outages")
-        await subscription_service.subscribe(organization_id, "user-1", SubscriptionKind.ROLE, "admin")
-        await subscription_service.subscribe(organization_id, "user-2", SubscriptionKind.TOPIC, "outages")
+        await subscription_service.subscribe(
+            organization_id, "user-1", SubscriptionKind.TOPIC, "outages"
+        )
+        await subscription_service.subscribe(
+            organization_id, "user-1", SubscriptionKind.ROLE, "admin"
+        )
+        await subscription_service.subscribe(
+            organization_id, "user-2", SubscriptionKind.TOPIC, "outages"
+        )
 
         found = await subscription_service.list_for_user(organization_id, "user-1")
         targets = {one.target for one in found}
@@ -113,8 +125,12 @@ class TestSubscribersOf:
     async def test_returns_a_sorted_list_of_user_ids(
         self, subscription_service: SubscriptionService, organization_id
     ) -> None:
-        await subscription_service.subscribe(organization_id, "zeta", SubscriptionKind.TOPIC, "outages")
-        await subscription_service.subscribe(organization_id, "alpha", SubscriptionKind.TOPIC, "outages")
+        await subscription_service.subscribe(
+            organization_id, "zeta", SubscriptionKind.TOPIC, "outages"
+        )
+        await subscription_service.subscribe(
+            organization_id, "alpha", SubscriptionKind.TOPIC, "outages"
+        )
 
         subscribers = await subscription_service.subscribers_of(
             organization_id, SubscriptionKind.TOPIC, "outages"

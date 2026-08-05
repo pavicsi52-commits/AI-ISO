@@ -39,7 +39,10 @@ from app.repositories.governance import (
 )
 from app.repositories.notification import NotificationRepository
 from app.repositories.preference import NotificationPreferenceRepository
-from app.repositories.retry import NotificationDeadLetterRepository, NotificationRetryQueueRepository
+from app.repositories.retry import (
+    NotificationDeadLetterRepository,
+    NotificationRetryQueueRepository,
+)
 from app.repositories.subscription import NotificationSubscriptionRepository
 from app.repositories.template import (
     NotificationTemplateRepository,
@@ -182,7 +185,9 @@ def get_announcement_service(
     session: DbSession, publish_event: EventPublisherDep
 ) -> AnnouncementService:
     """The current request's announcement service."""
-    return AnnouncementService(NotificationAnnouncementRepository(session), publish_event=publish_event)
+    return AnnouncementService(
+        NotificationAnnouncementRepository(session), publish_event=publish_event
+    )
 
 
 AnnouncementSvc = Annotated[AnnouncementService, Depends(get_announcement_service)]

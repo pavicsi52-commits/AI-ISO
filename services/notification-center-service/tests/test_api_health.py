@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
+
 from tests.conftest import HTTP_OK
 
 pytestmark = pytest.mark.asyncio

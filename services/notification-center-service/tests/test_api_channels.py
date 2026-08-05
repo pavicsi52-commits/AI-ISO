@@ -10,6 +10,7 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+
 from tests.conftest import HTTP_BAD_REQUEST, HTTP_OK, HTTP_UNAUTHORIZED
 
 pytestmark = pytest.mark.asyncio

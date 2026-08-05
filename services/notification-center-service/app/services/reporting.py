@@ -21,7 +21,10 @@ from app.repositories.governance import (
     NotificationStatisticRepository,
 )
 from app.repositories.notification import NotificationRepository
-from app.repositories.retry import NotificationDeadLetterRepository, NotificationRetryQueueRepository
+from app.repositories.retry import (
+    NotificationDeadLetterRepository,
+    NotificationRetryQueueRepository,
+)
 
 logger = get_logger("app.services.reporting")
 

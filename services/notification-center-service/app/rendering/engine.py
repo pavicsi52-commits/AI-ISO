@@ -74,4 +74,4 @@ def validate(template: SharedTemplate) -> None:
     _validate_template(template)
 
 
-__all__ = ["render", "render_to_html", "preview", "to_shared_template", "validate"]
+__all__ = ["preview", "render", "render_to_html", "to_shared_template", "validate"]

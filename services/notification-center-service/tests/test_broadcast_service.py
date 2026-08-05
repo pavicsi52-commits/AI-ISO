@@ -11,7 +11,12 @@ from uuid import uuid4
 import pytest
 from shared_core.exceptions.not_found import NotFoundError
 
-from app.models.enums import BroadcastStatus, NotificationChannelKind, SubscriptionKind
+from app.models.enums import (
+    AnnouncementScope,
+    BroadcastStatus,
+    NotificationChannelKind,
+    SubscriptionKind,
+)
 from app.services.broadcast import BroadcastService
 
 pytestmark = pytest.mark.asyncio
@@ -38,7 +43,9 @@ class TestBroadcast:
         notifications_repo,
         organization_id,
     ) -> None:
-        await subscription_service.subscribe(organization_id, "alice", SubscriptionKind.TOPIC, "updates")
+        await subscription_service.subscribe(
+            organization_id, "alice", SubscriptionKind.TOPIC, "updates"
+        )
         broadcast = await broadcast_service.broadcast(
             organization_id,
             body="Update available.",
@@ -58,8 +65,12 @@ class TestBroadcast:
         notifications_repo,
         organization_id,
     ) -> None:
-        await subscription_service.subscribe(organization_id, "carol", SubscriptionKind.TOPIC, "outages")
-        await subscription_service.subscribe(organization_id, "dave", SubscriptionKind.TOPIC, "outages")
+        await subscription_service.subscribe(
+            organization_id, "carol", SubscriptionKind.TOPIC, "outages"
+        )
+        await subscription_service.subscribe(
+            organization_id, "dave", SubscriptionKind.TOPIC, "outages"
+        )
         broadcast = await broadcast_service.broadcast(
             organization_id,
             body="Outage resolved.",
@@ -126,8 +137,6 @@ class TestBroadcast:
     async def test_broadcast_stores_topic_and_announcement_id(
         self, broadcast_service: BroadcastService, announcement_service, organization_id
     ) -> None:
-        from app.models.enums import AnnouncementScope
-
         announcement = await announcement_service.create(
             organization_id, scope=AnnouncementScope.SYSTEM, title="Release", body="Notes."
         )
@@ -192,7 +201,9 @@ class TestGetAndList:
         completed = await broadcast_service.broadcast(
             organization_id, body="Done.", recipient_user_ids=["leo"]
         )
-        found = await broadcast_service.list_broadcasts(organization_id, status=BroadcastStatus.COMPLETED)
+        found = await broadcast_service.list_broadcasts(
+            organization_id, status=BroadcastStatus.COMPLETED
+        )
         assert completed.id in {one.id for one in found}
 
         none_pending = await broadcast_service.list_broadcasts(

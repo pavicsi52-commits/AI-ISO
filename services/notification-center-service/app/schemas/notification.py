@@ -46,7 +46,7 @@ class NotificationCreateRequest(BaseModel):
 
 class NotificationSendRequest(NotificationCreateRequest):
     channel: NotificationChannelKind | None = None
-    """An explicit channel to deliver over; otherwise resolved from the recipient's own preferences."""
+    """An explicit channel to deliver over; otherwise resolved from the recipient's own preferences."""  # noqa: E501
 
 
 class NotificationResponse(BaseModel):

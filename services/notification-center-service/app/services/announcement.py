@@ -95,7 +95,12 @@ class AnnouncementService:
         return await self._announcements.list_for_org(organization_id, status=status)
 
     async def update(
-        self, organization_id: UUID, announcement_id: UUID, *, actor_id: str | None = None, **fields: Any
+        self,
+        organization_id: UUID,
+        announcement_id: UUID,
+        *,
+        actor_id: str | None = None,
+        **fields: Any,
     ) -> NotificationAnnouncement:
         """Edit a draft announcement's editable fields."""
         stored = await self._announcements.require_in_org(organization_id, announcement_id)

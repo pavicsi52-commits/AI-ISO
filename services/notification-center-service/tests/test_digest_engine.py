@@ -7,7 +7,12 @@ from shared_core.enums.notification_channel import NotificationChannel
 from shared_core.notifications.delivery import DeliveryStatus
 
 from app.digest.engine import build_user_digest, render_digest_body, to_shared_message
-from app.models.enums import NotificationCategory, NotificationPriority, to_shared_notification_type, to_shared_priority
+from app.models.enums import (
+    NotificationCategory,
+    NotificationPriority,
+    to_shared_notification_type,
+    to_shared_priority,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -33,7 +38,9 @@ class TestToSharedMessage:
             body="Body",
             user_id="u1",
         )
-        assert message.notification_type == to_shared_notification_type(NotificationCategory.FAILURE)
+        assert message.notification_type == to_shared_notification_type(
+            NotificationCategory.FAILURE
+        )
 
     async def test_priority_is_translated(self) -> None:
         message = to_shared_message(
@@ -211,7 +218,5 @@ class TestRenderDigestBody:
             user_id="u1",
         )
         digest = build_user_digest("u1", [first, second], max_items=10)
-        expected = (
-            "You have 2 new notification(s):\n\n## Warning\n- First alert\n- Second alert"
-        )
+        expected = "You have 2 new notification(s):\n\n## Warning\n- First alert\n- Second alert"
         assert render_digest_body(digest) == expected

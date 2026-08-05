@@ -51,11 +51,14 @@ pytestmark = pytest.mark.asyncio
 
 class TestToSharedChannel:
     async def test_mobile_push_maps_to_shared_push(self) -> None:
-        assert to_shared_channel(NotificationChannelKind.MOBILE_PUSH) == SharedNotificationChannel.PUSH
+        assert (
+            to_shared_channel(NotificationChannelKind.MOBILE_PUSH) == SharedNotificationChannel.PUSH
+        )
 
     async def test_browser_push_maps_to_shared_push(self) -> None:
         assert (
-            to_shared_channel(NotificationChannelKind.BROWSER_PUSH) == SharedNotificationChannel.PUSH
+            to_shared_channel(NotificationChannelKind.BROWSER_PUSH)
+            == SharedNotificationChannel.PUSH
         )
 
     async def test_rest_callback_maps_to_shared_webhook(self) -> None:
@@ -65,7 +68,9 @@ class TestToSharedChannel:
         )
 
     async def test_custom_maps_to_shared_webhook(self) -> None:
-        assert to_shared_channel(NotificationChannelKind.CUSTOM) == SharedNotificationChannel.WEBHOOK
+        assert (
+            to_shared_channel(NotificationChannelKind.CUSTOM) == SharedNotificationChannel.WEBHOOK
+        )
 
     @pytest.mark.parametrize(
         ("channel", "expected"),
@@ -268,7 +273,8 @@ class TestPriorityAtLeast:
 
     async def test_a_priority_is_at_least_as_urgent_as_itself(self) -> None:
         assert (
-            priority_at_least(NotificationPriority.NORMAL, floor=NotificationPriority.NORMAL) is True
+            priority_at_least(NotificationPriority.NORMAL, floor=NotificationPriority.NORMAL)
+            is True
         )
 
     async def test_background_is_not_at_least_as_urgent_as_critical(self) -> None:

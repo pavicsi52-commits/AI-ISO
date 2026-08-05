@@ -30,9 +30,7 @@ class NotificationPreferenceRepository(BaseRepository[NotificationPreference]):
         result = await self._session.execute(stmt)
         return result.scalars().first()
 
-    async def list_digest_subscribers(
-        self, *, limit: int = 1_000
-    ) -> list[NotificationPreference]:
+    async def list_digest_subscribers(self, *, limit: int = 1_000) -> list[NotificationPreference]:
         """Every user, across every organization, who has opted into a digest.
 
         Unscoped by organization -- the digest sweep is a single

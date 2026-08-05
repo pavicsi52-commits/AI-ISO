@@ -62,7 +62,11 @@ def trace_queue_processing(
         tracer,
         "notification.queue.process",
         span_type=SpanType.BACKGROUND_JOB,
-        **{"notification.notification_id": notification_id, "notification.channel": channel, **attributes},
+        **{
+            "notification.notification_id": notification_id,
+            "notification.channel": channel,
+            **attributes,
+        },
     ) as span:
         yield span
 
@@ -129,7 +133,10 @@ def trace_api_call(tracer: Tracer, *, route: str, **attributes: object) -> Itera
     delivery attempt), not a duplicate of the inbound span.
     """
     with start_span(
-        tracer, "notification.api.call", span_type=SpanType.REST_API, **{"notification.route": route, **attributes}
+        tracer,
+        "notification.api.call",
+        span_type=SpanType.REST_API,
+        **{"notification.route": route, **attributes},
     ) as span:
         yield span
 

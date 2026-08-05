@@ -3,10 +3,10 @@
 Against real PostgreSQL, in a SAVEPOINT-isolated session per test.
 
 ``AuditService.record_failure`` commits in its own ``session_scope`` --
-see this module's ``TestAuditService.test_record_failure_commits_independently_of_the_callers_transaction``
-and ``tests/conftest.py``'s own docstring for why that can only be
-genuinely verified with a second, independent session opened directly
-from ``db_session_factory``, never through the shared ``db_session``.
+see this module's own ``TestAuditService`` class and ``tests/conftest.py``'s
+own docstring for why that can only be genuinely verified with a second,
+independent session opened directly from ``db_session_factory``, never
+through the shared ``db_session``.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from uuid import uuid4
 
 import pytest
 from shared_core.exceptions.not_found import NotFoundError
-from tests.conftest import ago, soon
 
 from app.models.delivery import NotificationDelivery
 from app.models.enums import (
@@ -29,13 +28,18 @@ from app.models.enums import (
 )
 from app.repositories.governance import NotificationAuditRepository
 from app.services.reporting import AuditService, ReportService, StatisticsService
+from tests.conftest import ago, soon
 
 pytestmark = pytest.mark.asyncio
 
 
 class TestRollup:
     async def test_computes_a_fresh_window(
-        self, statistics_service: StatisticsService, make_notification, delivery_service, organization_id
+        self,
+        statistics_service: StatisticsService,
+        make_notification,
+        delivery_service,
+        organization_id,
     ) -> None:
         notification = await make_notification(user_id="user-1")
         await delivery_service.dispatch(
@@ -54,7 +58,9 @@ class TestRollup:
         start, end = ago(hours=1), soon(hours=1)
         first = await statistics_service.rollup(organization_id, window_start=start, window_end=end)
         await make_notification(user_id="user-2")
-        second = await statistics_service.rollup(organization_id, window_start=start, window_end=end)
+        second = await statistics_service.rollup(
+            organization_id, window_start=start, window_end=end
+        )
         assert second.id == first.id
 
     async def test_zero_activity_gives_sensible_defaults(
@@ -72,7 +78,11 @@ class TestRollup:
         assert window.average_delivery_ms is None
 
     async def test_counts_failed_and_retried_deliveries(
-        self, statistics_service: StatisticsService, make_notification, delivery_service, organization_id
+        self,
+        statistics_service: StatisticsService,
+        make_notification,
+        delivery_service,
+        organization_id,
     ) -> None:
         notification = await make_notification(user_id="user-3")
         await delivery_service.dispatch(
@@ -107,7 +117,11 @@ class TestRollup:
         assert window.acknowledgement_rate > 0.0
 
     async def test_tracks_channel_and_template_usage(
-        self, statistics_service: StatisticsService, make_notification, delivery_service, organization_id
+        self,
+        statistics_service: StatisticsService,
+        make_notification,
+        delivery_service,
+        organization_id,
     ) -> None:
         notification = await make_notification(user_id="user-5")
         await delivery_service.dispatch(
@@ -120,7 +134,11 @@ class TestRollup:
         assert window.template_usage.get("none", 0) >= 1
 
     async def test_records_average_delivery_latency(
-        self, statistics_service: StatisticsService, make_notification, deliveries_repo, organization_id
+        self,
+        statistics_service: StatisticsService,
+        make_notification,
+        deliveries_repo,
+        organization_id,
     ) -> None:
         # Neither of this fixture's own real channels (IN_APP always,
         # EMAIL/webhook-shaped never registered) ever populates a
@@ -158,13 +176,19 @@ class TestDashboard:
         assert data["latest_window"]["average_delivery_ms"] is None
 
     async def test_reflects_deliveries_by_status_and_the_latest_rollup(
-        self, statistics_service: StatisticsService, make_notification, delivery_service, organization_id
+        self,
+        statistics_service: StatisticsService,
+        make_notification,
+        delivery_service,
+        organization_id,
     ) -> None:
         notification = await make_notification(user_id="user-7")
         await delivery_service.dispatch(
             organization_id, notification, requested_channel=NotificationChannelKind.EMAIL
         )
-        await statistics_service.rollup(organization_id, window_start=ago(hours=1), window_end=soon(hours=1))
+        await statistics_service.rollup(
+            organization_id, window_start=ago(hours=1), window_end=soon(hours=1)
+        )
 
         data = await statistics_service.dashboard(organization_id)
         assert data["deliveries_by_status"].get(str(NotificationStatus.QUEUED), 0) >= 1
@@ -183,8 +207,12 @@ class TestTrend:
         self, statistics_service: StatisticsService, make_notification, organization_id
     ) -> None:
         await make_notification(user_id="user-8")
-        await statistics_service.rollup(organization_id, window_start=ago(hours=2), window_end=ago(hours=1))
-        await statistics_service.rollup(organization_id, window_start=ago(hours=1), window_end=soon(hours=1))
+        await statistics_service.rollup(
+            organization_id, window_start=ago(hours=2), window_end=ago(hours=1)
+        )
+        await statistics_service.rollup(
+            organization_id, window_start=ago(hours=1), window_end=soon(hours=1)
+        )
         trend = await statistics_service.trend(organization_id, since_days=30)
         assert len(trend) >= 2
         assert trend[0].window_start <= trend[-1].window_start
@@ -227,9 +255,14 @@ class TestReportGenerate:
         assert report.status == ReportStatus.COMPLETED
         assert len(report.content["rows"]) == 1
         row = report.content["rows"][0]
-        assert {"notification_id", "delivery_id", "channel", "attempts", "last_error", "resolved"} <= (
-            row.keys()
-        )
+        assert {
+            "notification_id",
+            "delivery_id",
+            "channel",
+            "attempts",
+            "last_error",
+            "resolved",
+        } <= (row.keys())
 
     async def test_retry_report_succeeds_with_a_pending_retry(
         self, report_service: ReportService, make_notification, delivery_service, organization_id
@@ -242,7 +275,13 @@ class TestReportGenerate:
         assert report.status == ReportStatus.COMPLETED
         assert len(report.content["rows"]) == 1
         row = report.content["rows"][0]
-        assert {"notification_id", "delivery_id", "retry_count", "next_retry_at", "resolved"} <= row.keys()
+        assert {
+            "notification_id",
+            "delivery_id",
+            "retry_count",
+            "next_retry_at",
+            "resolved",
+        } <= row.keys()
 
     async def test_audit_report_succeeds_with_entries(
         self, report_service: ReportService, audit_service: AuditService, organization_id
@@ -261,7 +300,12 @@ class TestReportGenerate:
 
     @pytest.mark.parametrize(
         "kind",
-        [ReportKind.ANNOUNCEMENT, ReportKind.TEMPLATE_USAGE, ReportKind.CHANNEL, ReportKind.ENGAGEMENT],
+        [
+            ReportKind.ANNOUNCEMENT,
+            ReportKind.TEMPLATE_USAGE,
+            ReportKind.CHANNEL,
+            ReportKind.ENGAGEMENT,
+        ],
     )
     async def test_kinds_with_no_builder_succeed_with_empty_rows(
         self, report_service: ReportService, organization_id, kind

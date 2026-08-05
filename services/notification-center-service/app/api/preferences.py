@@ -19,7 +19,11 @@ def _meta() -> ResponseMeta:
     return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
-@router.get("", response_model=SuccessResponse[PreferenceResponse], summary="Get the caller's own preferences")
+@router.get(
+    "",
+    response_model=SuccessResponse[PreferenceResponse],
+    summary="Get the caller's own preferences",
+)
 async def get_preferences(
     organization_id: UUID, preferences: PreferenceSvc, caller: CurrentUserId
 ) -> SuccessResponse[PreferenceResponse]:
@@ -30,7 +34,11 @@ async def get_preferences(
     )
 
 
-@router.put("", response_model=SuccessResponse[PreferenceResponse], summary="Update the caller's own preferences")
+@router.put(
+    "",
+    response_model=SuccessResponse[PreferenceResponse],
+    summary="Update the caller's own preferences",
+)
 async def update_preferences(
     organization_id: UUID,
     body: PreferenceUpdateRequest,
@@ -65,7 +73,9 @@ async def update_preferences(
         summary=f"Updated preferences for {caller!s}.",
     )
     return SuccessResponse(
-        message="Preferences updated.", data=PreferenceResponse.model_validate(updated), meta=_meta()
+        message="Preferences updated.",
+        data=PreferenceResponse.model_validate(updated),
+        meta=_meta(),
     )
 
 

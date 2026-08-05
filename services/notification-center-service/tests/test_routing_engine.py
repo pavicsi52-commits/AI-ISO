@@ -70,7 +70,9 @@ class TestAllows:
         )
         assert (
             allows(
-                pref, channel=NotificationChannelKind.EMAIL, category=NotificationCategory.INFORMATION
+                pref,
+                channel=NotificationChannelKind.EMAIL,
+                category=NotificationCategory.INFORMATION,
             )
             is True
         )
@@ -166,7 +168,9 @@ class TestShouldDeferForQuietHours:
             user_id="u1", quiet_hours_start=time(22, 0), quiet_hours_end=time(6, 0)
         )
         assert (
-            should_defer_for_quiet_hours(pref, priority=NotificationPriority.NORMAL, now=time(23, 0))
+            should_defer_for_quiet_hours(
+                pref, priority=NotificationPriority.NORMAL, now=time(23, 0)
+            )
             is True
         )
 
@@ -175,7 +179,9 @@ class TestShouldDeferForQuietHours:
             user_id="u1", quiet_hours_start=time(22, 0), quiet_hours_end=time(6, 0)
         )
         assert (
-            should_defer_for_quiet_hours(pref, priority=NotificationPriority.NORMAL, now=time(12, 0))
+            should_defer_for_quiet_hours(
+                pref, priority=NotificationPriority.NORMAL, now=time(12, 0)
+            )
             is False
         )
 
@@ -191,7 +197,9 @@ class TestShouldDeferForQuietHours:
     async def test_defers_unconditionally_to_is_within_quiet_hours_when_unset(self) -> None:
         pref = PreferenceSnapshot(user_id="u1")
         assert (
-            should_defer_for_quiet_hours(pref, priority=NotificationPriority.NORMAL, now=time(23, 0))
+            should_defer_for_quiet_hours(
+                pref, priority=NotificationPriority.NORMAL, now=time(23, 0)
+            )
             is False
         )
 
