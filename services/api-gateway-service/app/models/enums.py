@@ -243,6 +243,23 @@ class AuditAction(StrEnum):
     ADMINISTRATIVE = "administrative"
 
 
+class GatewayStreamEventKind(StrEnum):
+    """Frames a WebSocket subscriber to this gateway's live stream can receive.
+
+    Not database-persisted -- a presentation-layer vocabulary, kept here
+    alongside the rest of this service's fixed vocabulary rather than
+    scattered into ``app/websocket/``, mirroring dashboard-service's own
+    ``StreamEventKind`` placement.
+    """
+
+    REQUEST_COMPLETED = "request_completed"
+    RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"
+    QUOTA_EXCEEDED = "quota_exceeded"
+    CIRCUIT_BREAKER_OPENED = "circuit_breaker_opened"
+    HEALTH_CHANGED = "health_changed"
+    HEARTBEAT = "heartbeat"
+
+
 # ---- translators to shared_core's own vocabulary --------------------------
 
 _HEALTH_STATE_TO_SHARED: Final[dict[HealthState, SharedHealthStatus]] = {

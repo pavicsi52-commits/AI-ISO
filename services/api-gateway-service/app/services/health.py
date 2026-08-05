@@ -36,12 +36,21 @@ class HealthMonitorService:
         failure_threshold: int,
         recovery_seconds: float,
         probe_timeout_seconds: float,
+        breakers: dict[str, CircuitBreaker] | None = None,
     ) -> None:
         self._health_repo = health_repo
         self._failure_threshold = failure_threshold
         self._recovery_seconds = recovery_seconds
         self._probe_timeout_seconds = probe_timeout_seconds
-        self._breakers: dict[str, CircuitBreaker] = {}
+        # Shared with every other `HealthMonitorService` built against the
+        # same process -- request-scoped instances come and go with each
+        # session, but a circuit breaker's whole purpose is remembering
+        # what *this process* has recently seen, so the dict itself must
+        # outlive any one instance. The app factory owns one dict on
+        # `app.state.circuit_breakers` and threads it into every instance
+        # built either per-request (`app/api/deps.py`) or per-worker-tick
+        # (`app/workers/health_probe_sweep.py`).
+        self._breakers: dict[str, CircuitBreaker] = breakers if breakers is not None else {}
 
     def breaker_for(self, instance_url: str) -> CircuitBreaker:
         """This process's own circuit breaker for one instance, creating it on first use."""
@@ -101,6 +110,10 @@ class HealthMonitorService:
         """Every instance's own last-persisted circuit state, keyed by URL."""
         rows = await self._health_repo.list_for_service(organization_id, service_id)
         return {row.instance_url: CircuitBreakerState(row.circuit_state) for row in rows}
+
+    async def list_for_org(self, organization_id: UUID) -> list[ApiServiceHealth]:
+        """Every instance's own last-probed health row, across every service in this organization."""
+        return await self._health_repo.list_for_org(organization_id)
 
 
 __all__ = ["HealthMonitorService"]

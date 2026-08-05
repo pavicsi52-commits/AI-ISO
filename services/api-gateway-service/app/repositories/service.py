@@ -55,5 +55,16 @@ class ApiServiceRepository(BaseRepository[ApiService]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_all(self, *, limit: int = 500) -> list[ApiService]:
+        """Every registered service across every organization.
+
+        Unscoped by organization -- the health-probe sweep is a single
+        leader-elected worker walking every organization's instances in
+        one tick.
+        """
+        stmt = self._base_select().limit(limit)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
 
 __all__ = ["ApiServiceRepository"]
