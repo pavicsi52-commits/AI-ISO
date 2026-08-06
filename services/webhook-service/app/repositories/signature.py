@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from shared_core.database.repository import BaseRepository
@@ -66,6 +67,24 @@ class WebhookSignatureRepository(BaseRepository[WebhookSignature]):
         """The highest existing ``version`` for an endpoint's own secrets, or ``0`` if none."""
         rows = await self.list_usable_for_endpoint(endpoint_id)
         return max((row.version for row in rows), default=0)
+
+    async def list_rotating_due_for_expiry(
+        self, *, now: datetime, limit: int = 500
+    ) -> list[WebhookSignature]:
+        """Every ``ROTATING`` secret whose own overlap window has ended, across every organization.
+
+        Unscoped by organization -- the secret-expiry sweep is a single
+        leader-elected worker walking every organization's due
+        expirations in one tick.
+        """
+        stmt = (
+            self._base_select()
+            .where(WebhookSignature.status == str(SecretStatus.ROTATING))
+            .where(WebhookSignature.expires_at <= now)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
 
 
 __all__ = ["WebhookSignatureRepository"]
