@@ -6452,3 +6452,204 @@ own, unprompted, inside the running container — end-to-end through the
 actual built image. Live-verification rows cleaned from every table
 they touched (`api_services`, `api_routes`, `api_audit`, `api_health`,
 `api_requests`, `api_responses`) before the final test-suite re-run.
+
+---
+
+## Prompt 057 — Enterprise Webhook Service
+
+`services/webhook-service`, port **8028**, database **`aiios_webhook`**,
+Redis **db 30**, RabbitMQ. Secure incoming/outgoing webhook reception,
+subscriptions, event filtering, payload transformation, HMAC signature
+verification, idempotency, retry with dead-letter, replay, delivery
+tracking, analytics, reports, and audit. 16 tables, 15 repositories, 12
+services, 6 pure engines, 11 routers, 5 leader-elected workers, 8
+domain events.
+
+**721 tests, 98.44% branch coverage** against real PostgreSQL, Redis,
+and RabbitMQ. Ruff, Black, MyPy all clean (*Success: no issues found in
+85 source files*). Written by six agents working fully in parallel
+(`isolation: "worktree"`) against pure engines/enums; event ingestion/
+idempotency; `DeliveryService` core; CRUD services and their REST
+surface; workers/telemetry; and replay/reporting plus their REST API,
+respectively.
+
+### Reused frameworks vs genuine gaps, established by a dedicated research pass
+
+- **Reused directly:** `shared_core.events.factory.create_event_framework`/
+  `DomainEvent`; `shared_core.queue.retry.compute_backoff_delay`
+  (exponential-with-jitter, used for `RetryBackoffStrategy.EXPONENTIAL`);
+  `shared_core.security.encryption` (AES-256-GCM —
+  `generate_encryption_key`/`encrypt`/`decrypt`/`rotate_key` — encrypts
+  webhook signing secrets at rest; must stay recoverable in plaintext to
+  compute HMACs, unlike hashed API keys elsewhere in this platform).
+- **Genuine gaps, confirmed absent and built new:** linear retry backoff
+  (`app/retry/engine.py::compute_linear_delay` — `shared_core` has only
+  the exponential strategy); HMAC signing over both SHA-256 *and*
+  SHA-512 through one interface, with secret rotation, multi-secret
+  verification, and timestamp+nonce replay protection
+  (`app/signatures/engine.py` — `shared_core.security.hashing.sign`/
+  `.verify_signature` is hardcoded to SHA-256 only); idempotency
+  (`app/services/idempotency.py`, against a new `webhook_idempotency`
+  table — only a bare header-name constant,
+  `shared_core.constants.http.HEADER_IDEMPOTENCY_KEY`, exists anywhere
+  in `shared_core`); SSRF protection (`app/security/url_safety.py`,
+  built on `ipaddress` plus async, non-blocking
+  `asyncio.get_running_loop().getaddrinfo()` — no IP-range
+  classification exists anywhere in `shared_core`;
+  `shared_core.validators.fields.web.validate_url` only checks
+  scheme/non-empty netloc); no pooled HTTP client exists anywhere, so
+  `DeliveryService` is built directly on `httpx.AsyncClient`.
+- **API Gateway (Prompt 056) integration is informational only** —
+  confirmed zero cross-service Python imports exist anywhere in this
+  monorepo. This service is simply reachable *through* the gateway once
+  registered with it; no code dependency exists or was introduced.
+
+### SSRF protection re-validates at delivery time, not just registration time
+
+`assert_safe_url` resolves DNS live (non-blocking, via the running
+event loop) and rejects any address that is private, loopback,
+link-local, multicast, reserved, or unspecified — run both when an
+endpoint is registered *and* every time a delivery is attempted, since
+a hostname that resolved public at registration can be re-pointed at a
+private one later (DNS rebinding).
+
+### Bugs worth remembering
+
+- **The service's own core feature never actually fired.** A freshly
+  fanned-out or directly-queued delivery (`DeliveryService.fan_out()`/
+  `.queue_direct()`) only ever created a `QUEUED` row — nothing in any
+  API route or worker ever called `.deliver()` for it. `RetrySweepWorker`
+  only walks rows already present in `webhook_retry_queue`, and that
+  table was only ever populated by `_schedule_retry()` *after* a first
+  attempt had already failed, so a delivery that had never yet been
+  attempted had no path to ever become due. Every event raised through
+  the normal `POST /webhooks/events` fan-out path sat `QUEUED` forever
+  unless a caller manually hit `POST /webhooks/deliveries/{id}/retry`.
+  **All 721 automated tests passed regardless** — every test exercising
+  delivery calls `.deliver()` itself immediately after queuing, a
+  pattern that mirrors no real caller in production. Found only by
+  running the actual built Docker image against the real stack, raising
+  a genuine event, and deliberately *not* calling the retry endpoint.
+  Fixed by having both `fan_out()` and `queue_direct()` schedule a
+  `webhook_retry_queue` entry (`attempt_number=0`, `next_attempt_at=now`)
+  for every delivery they create, making it due on the very next
+  retry-sweep tick; `_schedule_retry()`'s existing "reuse the row for
+  this delivery if one exists" logic means the placeholder row is
+  simply updated in place on the real first attempt, so no duplicate
+  rows and no change to the "just queued" API-response contract
+  (`attempt_count` stays `0` until a tick actually runs). Re-verified
+  live: queued a delivery, never called retry, watched the worker
+  deliver it automatically within one tick. Locked in with new
+  regression tests in both `test_delivery_service.py` and
+  `test_workers.py`. **A durable lesson for every future prompt with a
+  queue-then-worker-picks-it-up design: prove the "up" side by never
+  manually triggering it in at least one live check** — a unit-test
+  suite built entirely around manually driving the same code path a
+  worker is supposed to drive automatically cannot catch the worker
+  never being wired to fire at all.
+- **`WebhookSignature.version` collided with the base entity's own
+  optimistic-locking column** — `shared_core.base.BaseEntityMixin`
+  reserves `version: int` on every entity for `BaseRepository.update()`'s
+  `increment_version()`; this model's own domain rotation-ordinal field
+  used the same name, silently shadowing the inherited column at the
+  SQLAlchemy declarative level (which also meant the real integer
+  `version` column was never registered for the migration's own
+  autogenerate). Every unrelated update corrupted the domain field,
+  eventually colliding with the `(endpoint_id, version)` unique
+  constraint. Found independently by three of the six parallel agents.
+  Fixed by renaming the domain field to `secret_version` across the
+  model, repository, service, schema, and migration. **The third
+  confirmed occurrence of this exact bug class in this build** (Prompt
+  056's `ApiVersion.version`, this prompt's own `WebhookSignature
+  .version`) — fully established as a repo-wide rule: never name a
+  domain field `version`.
+- **A cross-tenant secret-hijack gap.** `POST`/`GET /webhooks/filters`,
+  `/webhooks/transformations`, and `/webhooks/signatures` (create and
+  rotate) accepted a `subscription_id`/`endpoint_id` without confirming
+  it belonged to the caller's own `organization_id` — any organization
+  could rotate another organization's endpoint's signing secret by
+  guessing or enumerating its id. Found by the CRUD-services agent.
+  Fixed by adding an ownership check (the already tenant-scoped
+  `SubscriptionService.get`/`EndpointService.get`) as the first line of
+  every affected route handler.
+- **`StatisticsService.rollup()`'s `by_endpoint` breakdown was actually
+  keyed by `attempt.delivery_id`, not endpoint id** — silently wrong
+  since both are UUID strings and nothing type-checked or crashed. Root
+  cause: `WebhookDeliveryAttempt` had no `endpoint_id` column at all,
+  only `delivery_id`. Found by the replay/reporting agent, flagged as
+  out-of-scope to fix since it required a shared-model schema change.
+  Fixed during merge: added a denormalized `endpoint_id` column to
+  `webhook_delivery_attempts` (mirroring api-gateway-service's own
+  `ApiResponseLog.organization_id` precedent), applied directly to the
+  live database (zero rows existed at the time), updated both
+  `WebhookDeliveryAttempt` construction sites in `DeliveryService
+  .deliver()`, and fixed the grouping loop to key by the new column.
+- **`POST /webhooks/deliveries/{id}/retry` had no `CurrentUserId` or
+  audit logging**, unlike every other mutating route in this service.
+  Found by the `DeliveryService` agent, explicitly deferred as an API
+  signature change outside that task's own scope. Fixed during merge:
+  added `CurrentUserId`/`AuditSvc` and a `DELIVERY_RETRIED` audit entry,
+  updating that route's own test file's `auth_headers` usage to match.
+- **`WebhookDeadLetterRepository` was fully built — `require_in_org`,
+  `list_for_org` — but completely unreachable from any service method
+  or API route.** Found purely from the coverage report
+  (`app/repositories/retry.py` at 76%, missing exactly the dead-letter
+  methods), not flagged by any agent. Fixed by adding `DeliveryService
+  .get_dead_letter()`/`.list_dead_letters()`, a `DeadLetterResponse`
+  schema, and a *separate* `dead_letters_router` at
+  `/webhooks/dead-letters` — deliberately not nested under
+  `/webhooks/deliveries/dead-letters`, which would collide with `GET
+  /webhooks/deliveries/{delivery_id}` swallowing the literal segment,
+  the same router-ordering hazard notification-center-service and
+  api-gateway-service each hit once already.
+- **`app/telemetry/tracing.py` was written correct from the start**,
+  using `**{...}` unpacking at every `start_span` call site, per the
+  now fully-established repo-wide lesson.
+
+### A background agent's reported work vanished with its own worktree — a new, unresolved process lesson
+
+One of the six parallel agents (replay/reporting service plus its own
+REST API) reported completing its work twice — once before hitting a
+session-limit failure, once again after being resumed via
+`SendMessage` — citing specific file names and test counts each time.
+At merge time, neither a worktree directory nor a git branch existed
+for this agent anywhere (`git worktree list`/`git branch` both empty
+for its id). The work was genuinely unrecoverable, not merely
+hard-to-find. Mitigated by salvaging a *different* agent's incidental
+duplicate copies of three of the four missing files (written as a side
+effect of that agent independently exercising the same services while
+writing its own tests) and hand-writing the one file nobody's surviving
+copy had (`tests/test_api_analytics.py`). **This is a real gap in the
+`Agent` tool's `isolation: "worktree"` mechanism, not specific to this
+service**: a subagent's own completion report is not proof its worktree
+survived to be merged. Going forward, treat a parallel agent's
+completion report as provisional until `git worktree list`/`git branch`
+actually confirms its worktree exists — do not assume a detailed,
+specific-sounding report implies the work is safely on disk.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ, using `services/authentication-service`'s real
+private key (same shared platform JWT keypair every prior service's
+own bundled `keys/jwt_public_key.pem` verifies against) to sign a
+genuine JWT. All five leader-elected workers registered and one node
+acquired scheduler leadership on startup. Registered a real endpoint
+(`https://httpbin.org/post`, genuine public internet egress confirmed
+from inside the container), created a signing secret and a wildcard
+subscription, raised an internal event — then, deliberately withholding
+any manual retry call, polled and watched the delivery move from
+`queued` to `delivered` on its own within one retry-sweep tick,
+directly proving the fix above against the real running container, not
+just the test suite. Confirmed the audit trail recorded both admin
+actions. Live-verification rows cleaned from every table they touched
+(`webhook_endpoints`, `webhook_signatures`, `webhook_subscriptions`,
+`webhook_events`, `webhook_deliveries`, `webhook_delivery_attempts`,
+`webhook_retry_queue`, `webhook_audit`) before the final test-suite
+re-run.
+
+**Gotcha, repeated from Prompt 046**: Git Bash rewrites
+`-e AIIOS_RABBITMQ_VHOST=/aiios` into a Windows path via MSYS path
+conversion, producing an opaque `AMQPInternalError` on startup with no
+obvious cause. `MSYS_NO_PATHCONV=1` before `docker run` whenever an
+argument begins with `/`.

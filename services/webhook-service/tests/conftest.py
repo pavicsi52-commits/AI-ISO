@@ -97,6 +97,20 @@ if not _TEST_PRIVATE_KEY_PATH.is_file():
 
 os.environ.setdefault("AIIOS_WEBHOOK_SERVICE_JWT_PUBLIC_KEY_PATH", str(_TEST_PUBLIC_KEY_PATH))
 os.environ.setdefault("AIIOS_WEBHOOK_SERVICE_WORKERS_ENABLED", "false")
+os.environ.setdefault("AIIOS_WEBHOOK_SERVICE_SECRET_ENCRYPTION_KEY", generate_encryption_key())
+"""``WebhookServiceSettings.secret_encryption_key`` defaults to ``""`` --
+deliberately invalid, as its own field docstring says, for local-dev
+convenience only; a real deployment must set it. The ``service_settings``
+fixture below builds its own valid key for direct service-layer tests, but
+the ``app`` fixture's real ``create_app()`` reads settings from the
+environment via ``get_settings()``, bypassing that fixture entirely -- so
+without a real key here too, the *first* HTTP request that ever calls
+``shared_core.security.encryption.encrypt``/``decrypt`` through the real
+app (any ``/webhooks/signatures`` route) fails with ``ValueError: AESGCM
+key must be 128, 192, or 256 bits.`` before ever reaching application
+code. One key, generated once per test session, is enough: every test's
+own writes roll back on its own SAVEPOINT, so no encrypted value ever
+needs to outlive the test that created it."""
 
 from shared_core.cache.factory import create_cache_framework  # noqa: E402
 from shared_core.cache.manager import CacheManager  # noqa: E402
@@ -119,7 +133,10 @@ from app.models.enums import (  # noqa: E402
     WebhookAuthMethod,
     WebhookKind,
 )
-from app.repositories.delivery import WebhookDeliveryAttemptRepository, WebhookDeliveryRepository  # noqa: E402
+from app.repositories.delivery import (  # noqa: E402
+    WebhookDeliveryAttemptRepository,
+    WebhookDeliveryRepository,
+)
 from app.repositories.endpoint import WebhookEndpointRepository  # noqa: E402
 from app.repositories.event import WebhookEventRepository  # noqa: E402
 from app.repositories.filter import WebhookFilterRepository  # noqa: E402
@@ -130,7 +147,10 @@ from app.repositories.governance import (  # noqa: E402
 )
 from app.repositories.idempotency import WebhookIdempotencyKeyRepository  # noqa: E402
 from app.repositories.replay import WebhookReplayJobRepository  # noqa: E402
-from app.repositories.retry import WebhookDeadLetterRepository, WebhookRetryQueueRepository  # noqa: E402
+from app.repositories.retry import (  # noqa: E402
+    WebhookDeadLetterRepository,
+    WebhookRetryQueueRepository,
+)
 from app.repositories.signature import WebhookSignatureRepository  # noqa: E402
 from app.repositories.subscription import WebhookSubscriptionRepository  # noqa: E402
 from app.repositories.transformation import WebhookTransformationRepository  # noqa: E402
@@ -494,11 +514,15 @@ def signature_service(
 def idempotency_service(
     idempotency_repo: WebhookIdempotencyKeyRepository, service_settings: WebhookServiceSettings
 ) -> IdempotencyService:
-    return IdempotencyService(idempotency_repo, ttl_seconds=service_settings.idempotency_key_ttl_seconds)
+    return IdempotencyService(
+        idempotency_repo, ttl_seconds=service_settings.idempotency_key_ttl_seconds
+    )
 
 
 @pytest.fixture
-def event_service(events_repo: WebhookEventRepository, publisher: RecordingPublisher) -> EventService:
+def event_service(
+    events_repo: WebhookEventRepository, publisher: RecordingPublisher
+) -> EventService:
     return EventService(events_repo, publish_event=publisher)
 
 
@@ -636,7 +660,9 @@ MakeSignatureFn = Callable[..., Any]
 
 
 @pytest.fixture
-def make_signature(signature_service: SignatureService, organization_id: uuid.UUID) -> MakeSignatureFn:
+def make_signature(
+    signature_service: SignatureService, organization_id: uuid.UUID
+) -> MakeSignatureFn:
     """Create one signing secret for a given endpoint."""
 
     async def _make(

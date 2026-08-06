@@ -11,9 +11,9 @@ from shared_core.exceptions.validation import ValidationError
 from app.models.enums import ReplayScope, ReplayStatus
 from app.models.event import WebhookEvent
 from app.models.replay import WebhookReplayJob
+from app.replay import engine as replay_engine
 from app.repositories.event import WebhookEventRepository
 from app.repositories.replay import WebhookReplayJobRepository
-from app.replay import engine as replay_engine
 from app.services.delivery import DeliveryService
 
 
@@ -89,10 +89,15 @@ class ReplayService:
 
     async def _matching_events(self, job: WebhookReplayJob) -> list[WebhookEvent]:
         if job.scope == ReplayScope.BY_EVENT:
+            if job.event_id is None:
+                raise ValidationError("Replay job has scope BY_EVENT but no event_id.")
             return [await self._events.require_in_org(job.organization_id, job.event_id)]
         if job.scope == ReplayScope.BY_DATE_RANGE:
             return await self._events.list_for_org(
-                job.organization_id, since=job.date_range_start, until=job.date_range_end, limit=10_000
+                job.organization_id,
+                since=job.date_range_start,
+                until=job.date_range_end,
+                limit=10_000,
             )
         # BY_ENDPOINT and BY_SUBSCRIPTION both replay every event in the
         # organization within this job's own date bounds (unbounded if
@@ -132,7 +137,7 @@ class ReplayService:
                     try:
                         await self._delivery.fan_out(organization_id, event, replay_job_id=job.id)
                         replayed += 1
-                    except Exception as exc:  # noqa: BLE001 -- one bad event must not abort the whole job
+                    except Exception as exc:
                         failed += 1
                         job.error = str(exc)
                 job.replayed_count = replayed

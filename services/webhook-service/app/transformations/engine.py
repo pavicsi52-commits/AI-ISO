@@ -119,7 +119,7 @@ def render_template(template_source: str, variables: dict[str, Any]) -> str:
 
 
 def apply_template_rendering(payload: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
-    """Render ``config["template"]`` against *payload* and store it at ``config["target_field"]``."""
+    """Render ``config["template"]`` against *payload*, storing it at ``config["target_field"]``."""
     result = copy.deepcopy(payload)
     rendered = render_template(config["template"], payload)
     _set_path(result, config.get("target_field", "rendered"), rendered)

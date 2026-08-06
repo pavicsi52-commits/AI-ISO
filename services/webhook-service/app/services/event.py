@@ -19,7 +19,9 @@ from app.types import EventPublisher
 class EventService:
     """Events received from an external caller or raised internally, before fan-out."""
 
-    def __init__(self, events: WebhookEventRepository, *, publish_event: EventPublisher | None = None) -> None:
+    def __init__(
+        self, events: WebhookEventRepository, *, publish_event: EventPublisher | None = None
+    ) -> None:
         self._events = events
         self._publish = publish_event
 

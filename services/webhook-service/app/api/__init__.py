@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.analytics import router as analytics_router
+from app.api.deliveries import dead_letters_router
 from app.api.deliveries import router as deliveries_router
 from app.api.endpoints import router as endpoints_router
 from app.api.events import router as events_router
@@ -24,6 +25,7 @@ ALL_ROUTERS: list[APIRouter] = [
     signatures_router,
     events_router,
     deliveries_router,
+    dead_letters_router,
     replay_router,
     analytics_router,
 ]

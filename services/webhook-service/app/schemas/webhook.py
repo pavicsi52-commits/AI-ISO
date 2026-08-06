@@ -169,7 +169,7 @@ class SignatureRotateRequest(BaseModel):
 class SignatureResponse(BaseModel):
     id: UUID
     endpoint_id: UUID
-    version: int
+    secret_version: int
     algorithm: SignatureAlgorithm
     status: str
     expires_at: datetime | None
@@ -238,6 +238,19 @@ class DeliveryResponse(BaseModel):
     delivered_at: datetime | None
     last_error: str | None
     created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DeadLetterResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    delivery_id: UUID
+    endpoint_id: UUID
+    attempt_count: int
+    last_error: str | None
+    dead_lettered_at: datetime
+    replayed: bool
 
     model_config = {"from_attributes": True}
 
@@ -330,6 +343,7 @@ class AuditEntryResponse(BaseModel):
 
 __all__ = [
     "AuditEntryResponse",
+    "DeadLetterResponse",
     "DeliveryResponse",
     "EndpointCreateRequest",
     "EndpointResponse",

@@ -50,7 +50,9 @@ class StatisticsService:
             organization_id, start=window_start, end=window_end
         )
         succeeded = sum(
-            1 for a in attempts if a.status_code is not None and a.status_code < _SUCCESS_STATUS_CEILING
+            1
+            for a in attempts
+            if a.status_code is not None and a.status_code < _SUCCESS_STATUS_CEILING
         )
         failed = len(attempts) - succeeded
         retries = sum(1 for a in attempts if a.attempt_number > 1)
@@ -61,14 +63,16 @@ class StatisticsService:
 
         by_endpoint: dict[str, int] = {}
         for attempt in attempts:
-            key = str(attempt.delivery_id)
+            key = str(attempt.endpoint_id)
             by_endpoint[key] = by_endpoint.get(key, 0) + 1
 
         total = len(attempts)
         success_rate = (succeeded / total * 100) if total else 100.0
 
         existing = await self._statistics.get_for_window(organization_id, window_start)
-        window = existing or WebhookStatistic(organization_id=organization_id, window_start=window_start)
+        window = existing or WebhookStatistic(
+            organization_id=organization_id, window_start=window_start
+        )
         window.window_end = window_end
         window.deliveries_attempted = total
         window.deliveries_succeeded = succeeded
@@ -79,7 +83,9 @@ class StatisticsService:
         window.success_rate = success_rate
         window.by_endpoint = by_endpoint
 
-        return await (self._statistics.update(window) if existing else self._statistics.create(window))
+        return await (
+            self._statistics.update(window) if existing else self._statistics.create(window)
+        )
 
     async def dashboard(self, organization_id: UUID) -> dict[str, Any]:
         """The live snapshot a dashboard reads on load."""
@@ -178,7 +184,11 @@ class ReportService:
         events = await self._events.list_for_org(organization_id, limit=self._max_rows)
         return {
             "rows": [
-                {"event_type": one.event_type, "kind": str(one.kind), "created_at": one.created_at.isoformat()}
+                {
+                    "event_type": one.event_type,
+                    "kind": str(one.kind),
+                    "created_at": one.created_at.isoformat(),
+                }
                 for one in events
             ]
         }

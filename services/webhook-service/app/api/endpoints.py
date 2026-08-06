@@ -29,11 +29,15 @@ async def list_endpoints(
     """Endpoints registered in this organization."""
     rows = await endpoints.list_endpoints(organization_id, enabled=enabled)
     return SuccessResponse(
-        message="Endpoints listed.", data=[EndpointResponse.model_validate(r) for r in rows], meta=_meta()
+        message="Endpoints listed.",
+        data=[EndpointResponse.model_validate(r) for r in rows],
+        meta=_meta(),
     )
 
 
-@router.get("/{endpoint_id}", response_model=SuccessResponse[EndpointResponse], summary="Get an endpoint")
+@router.get(
+    "/{endpoint_id}", response_model=SuccessResponse[EndpointResponse], summary="Get an endpoint"
+)
 async def get_endpoint(
     organization_id: UUID, endpoint_id: UUID, endpoints: EndpointSvc
 ) -> SuccessResponse[EndpointResponse]:
@@ -111,9 +115,15 @@ async def update_endpoint(
     )
 
 
-@router.delete("/{endpoint_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete an endpoint")
+@router.delete(
+    "/{endpoint_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete an endpoint"
+)
 async def delete_endpoint(
-    organization_id: UUID, endpoint_id: UUID, endpoints: EndpointSvc, audit: AuditSvc, caller: CurrentUserId
+    organization_id: UUID,
+    endpoint_id: UUID,
+    endpoints: EndpointSvc,
+    audit: AuditSvc,
+    caller: CurrentUserId,
 ) -> None:
     """Deregister an endpoint."""
     await endpoints.delete(organization_id, endpoint_id, actor_id=str(caller))

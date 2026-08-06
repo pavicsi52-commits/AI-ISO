@@ -24,7 +24,12 @@ from app.api.deps import DeliverySvc, EventSvc, SignatureSvc
 from app.config.settings import Settings, get_settings
 from app.models.enums import EventSource
 from app.schemas.response import ResponseMeta, SuccessResponse
-from app.schemas.webhook import DeliveryResponse, EventResponse, InternalEventRequest, OutgoingDeliveryRequest
+from app.schemas.webhook import (
+    DeliveryResponse,
+    EventResponse,
+    InternalEventRequest,
+    OutgoingDeliveryRequest,
+)
 
 router = APIRouter(prefix="/webhooks", tags=["Events"])
 
@@ -56,7 +61,9 @@ async def raise_internal_event(
         correlation_id=body.correlation_id,
     )
     await delivery.fan_out(organization_id, created)
-    return SuccessResponse(message="Event recorded.", data=EventResponse.model_validate(created), meta=_meta())
+    return SuccessResponse(
+        message="Event recorded.", data=EventResponse.model_validate(created), meta=_meta()
+    )
 
 
 @router.post(
@@ -100,7 +107,9 @@ async def receive_incoming_webhook(
         correlation_id=request.headers.get("x-correlation-id"),
     )
     await delivery.fan_out(organization_id, created)
-    return SuccessResponse(message="Webhook received.", data=EventResponse.model_validate(created), meta=_meta())
+    return SuccessResponse(
+        message="Webhook received.", data=EventResponse.model_validate(created), meta=_meta()
+    )
 
 
 @router.post(

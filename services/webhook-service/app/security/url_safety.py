@@ -77,8 +77,10 @@ async def resolve_hostname(hostname: str) -> list[str]:
     try:
         results = await asyncio.get_running_loop().getaddrinfo(hostname, None)
     except socket.gaierror as exc:
-        raise ValidationError(f"Could not resolve webhook endpoint host {hostname!r}: {exc}") from exc
-    return sorted({result[4][0] for result in results})
+        raise ValidationError(
+            f"Could not resolve webhook endpoint host {hostname!r}: {exc}"
+        ) from exc
+    return sorted({str(result[4][0]) for result in results})
 
 
 async def assert_safe_url(url: str) -> None:

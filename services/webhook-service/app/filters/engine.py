@@ -8,12 +8,23 @@ attributes). Built new, pure, and dependency-free.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from app.models.enums import FilterMatchMode
 
 _OPERATORS = frozenset({"eq", "ne", "in", "not_in", "contains", "gt", "lt", "exists"})
+
+_COMPARATORS: dict[str, Callable[[Any, Any], bool]] = {
+    "eq": lambda actual, expected: bool(actual == expected),
+    "ne": lambda actual, expected: bool(actual != expected),
+    "in": lambda actual, expected: expected is not None and actual in expected,
+    "not_in": lambda actual, expected: expected is None or actual not in expected,
+    "contains": lambda actual, expected: hasattr(actual, "__contains__") and expected in actual,
+    "gt": lambda actual, expected: bool(actual > expected),
+    "lt": lambda actual, expected: bool(actual < expected),
+}
+"""Every operator but ``exists``, which short-circuits before *expected* is ever compared."""
 
 
 def _resolve_field(event_attributes: Mapping[str, Any], field: str) -> Any:
@@ -43,24 +54,12 @@ def evaluate_rule(event_attributes: Mapping[str, Any], rule: Mapping[str, Any]) 
         return actual is not None
     if actual is None:
         return False
-    if operator == "eq":
-        return actual == expected
-    if operator == "ne":
-        return actual != expected
-    if operator == "in":
-        return actual in expected if expected is not None else False
-    if operator == "not_in":
-        return actual not in expected if expected is not None else True
-    if operator == "contains":
-        return expected in actual if hasattr(actual, "__contains__") else False
-    if operator == "gt":
-        return bool(actual > expected)
-    return bool(actual < expected)  # operator == "lt"
+    return _COMPARATORS[operator](actual, expected)
 
 
 def evaluate_rules(
     event_attributes: Mapping[str, Any],
-    rules: list[Mapping[str, Any]],
+    rules: Sequence[Mapping[str, Any]],
     *,
     match_mode: FilterMatchMode = FilterMatchMode.ALL,
 ) -> bool:

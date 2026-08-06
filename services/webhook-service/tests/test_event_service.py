@@ -21,14 +21,15 @@ from shared_core.exceptions.not_found import NotFoundError
 from app.models.enums import EventSource, SignatureAlgorithm, WebhookKind
 from app.models.event import WebhookEvent
 from app.services.event import EventService
-from app.services.signature import SignatureService
 from app.signatures import engine as signatures_engine
 from tests.conftest import ago, soon, utcnow
 
 pytestmark = pytest.mark.asyncio
 
 
-def _sign(body: bytes, *, secret: str, algorithm: SignatureAlgorithm = SignatureAlgorithm.HMAC_SHA256):
+def _sign(
+    body: bytes, *, secret: str, algorithm: SignatureAlgorithm = SignatureAlgorithm.HMAC_SHA256
+):
     """Build a genuinely valid signed-request header set, plus the timestamp/nonce used."""
     timestamp = int(time.time())
     nonce = uuid.uuid4().hex
@@ -75,7 +76,9 @@ class TestIngestInternal:
         assert created.labels == {"k": "v"}
         assert created.correlation_id == "corr-1"
 
-    async def test_publishes_webhook_received_event(self, event_service, organization_id, publisher):
+    async def test_publishes_webhook_received_event(
+        self, event_service, organization_id, publisher
+    ):
         created = await event_service.ingest_internal(
             organization_id, source=EventSource.CUSTOM, event_type="custom.thing", payload={}
         )
@@ -84,7 +87,9 @@ class TestIngestInternal:
         assert publisher.events[0].payload["event_type"] == "custom.thing"
         assert publisher.events[0].organization_id == organization_id
 
-    async def test_does_not_publish_without_an_injected_publisher(self, events_repo, organization_id):
+    async def test_does_not_publish_without_an_injected_publisher(
+        self, events_repo, organization_id
+    ):
         # `publish_event` is optional -- a service built without one (unlike
         # the `event_service` fixture, which always wires the recording
         # `publisher`) must still ingest successfully.
@@ -119,12 +124,22 @@ class TestIngestInternal:
         # No second `create`, so no second publish either.
         assert publisher.names == ["WebhookReceived"]
 
-    async def test_a_different_idempotency_key_creates_a_second_row(self, event_service, organization_id):
+    async def test_a_different_idempotency_key_creates_a_second_row(
+        self, event_service, organization_id
+    ):
         first = await event_service.ingest_internal(
-            organization_id, source=EventSource.CUSTOM, event_type="a", payload={}, idempotency_key="key-a"
+            organization_id,
+            source=EventSource.CUSTOM,
+            event_type="a",
+            payload={},
+            idempotency_key="key-a",
         )
         second = await event_service.ingest_internal(
-            organization_id, source=EventSource.CUSTOM, event_type="a", payload={}, idempotency_key="key-b"
+            organization_id,
+            source=EventSource.CUSTOM,
+            event_type="a",
+            payload={},
+            idempotency_key="key-b",
         )
         assert first.id != second.id
 
@@ -140,11 +155,17 @@ class TestIngestInternal:
         )
         other_org = uuid.uuid4()
         second = await event_service.ingest_internal(
-            other_org, source=EventSource.CUSTOM, event_type="a", payload={}, idempotency_key="shared-key"
+            other_org,
+            source=EventSource.CUSTOM,
+            event_type="a",
+            payload={},
+            idempotency_key="shared-key",
         )
         assert first.id != second.id
 
-    async def test_no_idempotency_key_never_dedupes_across_calls(self, event_service, organization_id):
+    async def test_no_idempotency_key_never_dedupes_across_calls(
+        self, event_service, organization_id
+    ):
         first = await event_service.ingest_internal(
             organization_id, source=EventSource.CUSTOM, event_type="repeatable", payload={}
         )
@@ -156,7 +177,13 @@ class TestIngestInternal:
 
 class TestIngestIncoming:
     async def test_a_validly_signed_request_is_recorded_and_both_events_publish_in_order(
-        self, event_service, signature_service, make_endpoint, make_signature, organization_id, publisher
+        self,
+        event_service,
+        signature_service,
+        make_endpoint,
+        make_signature,
+        organization_id,
+        publisher,
     ):
         endpoint = await make_endpoint()
         await make_signature(endpoint.id, secret="shared-secret-value")
@@ -294,8 +321,14 @@ class TestIngestIncoming:
                 tolerance_seconds=300,
             )
 
-    async def test_a_second_call_with_the_same_idempotency_key_returns_the_first_row_without_republishing(
-        self, event_service, signature_service, make_endpoint, make_signature, organization_id, publisher
+    async def test_a_second_call_with_the_same_idempotency_key_returns_the_first_row(
+        self,
+        event_service,
+        signature_service,
+        make_endpoint,
+        make_signature,
+        organization_id,
+        publisher,
     ):
         endpoint = await make_endpoint()
         await make_signature(endpoint.id, secret="shared-secret-value")
@@ -556,5 +589,7 @@ class TestEventRepository:
         page = await events_repo.list_for_org(organization_id, limit=1, offset=1)
         assert len(page) == 1
 
-    async def test_get_by_idempotency_key_returns_none_when_absent(self, events_repo, organization_id):
+    async def test_get_by_idempotency_key_returns_none_when_absent(
+        self, events_repo, organization_id
+    ):
         assert await events_repo.get_by_idempotency_key(organization_id, "nope") is None

@@ -62,31 +62,44 @@ def register_retry_sweep(manager: SchedulerManager, fn: JobFn, *, interval_secon
         ValueError: If *interval_seconds* is not positive.
     """
     return _register(
-        manager, fn, job_id=RETRY_SWEEP_JOB_ID, interval_seconds=interval_seconds,
+        manager,
+        fn,
+        job_id=RETRY_SWEEP_JOB_ID,
+        interval_seconds=interval_seconds,
         component="webhook-retry-sweep",
     )
 
 
-def register_replay_processor(manager: SchedulerManager, fn: JobFn, *, interval_seconds: float) -> Job:
+def register_replay_processor(
+    manager: SchedulerManager, fn: JobFn, *, interval_seconds: float
+) -> Job:
     """Register the recurring replay processor.
 
     Raises:
         ValueError: If *interval_seconds* is not positive.
     """
     return _register(
-        manager, fn, job_id=REPLAY_PROCESSOR_JOB_ID, interval_seconds=interval_seconds,
+        manager,
+        fn,
+        job_id=REPLAY_PROCESSOR_JOB_ID,
+        interval_seconds=interval_seconds,
         component="webhook-replay-processor",
     )
 
 
-def register_statistics_rollup(manager: SchedulerManager, fn: JobFn, *, interval_seconds: float) -> Job:
+def register_statistics_rollup(
+    manager: SchedulerManager, fn: JobFn, *, interval_seconds: float
+) -> Job:
     """Register the recurring statistics rollup.
 
     Raises:
         ValueError: If *interval_seconds* is not positive.
     """
     return _register(
-        manager, fn, job_id=STATISTICS_ROLLUP_JOB_ID, interval_seconds=interval_seconds,
+        manager,
+        fn,
+        job_id=STATISTICS_ROLLUP_JOB_ID,
+        interval_seconds=interval_seconds,
         component="webhook-statistics-rollup",
     )
 
@@ -100,7 +113,10 @@ def register_idempotency_expiry_sweep(
         ValueError: If *interval_seconds* is not positive.
     """
     return _register(
-        manager, fn, job_id=IDEMPOTENCY_EXPIRY_SWEEP_JOB_ID, interval_seconds=interval_seconds,
+        manager,
+        fn,
+        job_id=IDEMPOTENCY_EXPIRY_SWEEP_JOB_ID,
+        interval_seconds=interval_seconds,
         component="webhook-idempotency-expiry-sweep",
     )
 
@@ -114,7 +130,10 @@ def register_secret_expiry_sweep(
         ValueError: If *interval_seconds* is not positive.
     """
     return _register(
-        manager, fn, job_id=SECRET_EXPIRY_SWEEP_JOB_ID, interval_seconds=interval_seconds,
+        manager,
+        fn,
+        job_id=SECRET_EXPIRY_SWEEP_JOB_ID,
+        interval_seconds=interval_seconds,
         component="webhook-secret-expiry-sweep",
     )
 

@@ -87,7 +87,12 @@ class EndpointService:
         return await self._endpoints.list_for_org(organization_id, enabled=enabled)
 
     async def update(
-        self, organization_id: UUID, endpoint_id: UUID, *, actor_id: str | None = None, **fields: Any
+        self,
+        organization_id: UUID,
+        endpoint_id: UUID,
+        *,
+        actor_id: str | None = None,
+        **fields: Any,
     ) -> WebhookEndpoint:
         """Edit an endpoint's editable fields.
 

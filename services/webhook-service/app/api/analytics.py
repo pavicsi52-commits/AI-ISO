@@ -12,7 +12,12 @@ from shared_core.logging.context import get_log_context
 from app.api.deps import AuditSvc, CurrentUserId, ReportSvc, StatisticsSvc
 from app.models.enums import AuditAction, ReportFormat
 from app.schemas.response import ResponseMeta, SuccessResponse
-from app.schemas.webhook import AuditEntryResponse, ReportGenerateRequest, ReportResponse, StatisticResponse
+from app.schemas.webhook import (
+    AuditEntryResponse,
+    ReportGenerateRequest,
+    ReportResponse,
+    StatisticResponse,
+)
 
 router = APIRouter(prefix="/webhooks", tags=["Analytics"])
 
@@ -51,7 +56,9 @@ async def get_statistics_trend(
     )
 
 
-@router.get("/reports", response_model=SuccessResponse[list[ReportResponse]], summary="List reports")
+@router.get(
+    "/reports", response_model=SuccessResponse[list[ReportResponse]], summary="List reports"
+)
 async def list_reports(
     organization_id: UUID,
     reports: ReportSvc,
@@ -61,7 +68,9 @@ async def list_reports(
     """Generated reports, newest first."""
     rows = await reports.list_for_org(organization_id, limit=limit, offset=offset)
     return SuccessResponse(
-        message="Reports listed.", data=[ReportResponse.model_validate(r) for r in rows], meta=_meta()
+        message="Reports listed.",
+        data=[ReportResponse.model_validate(r) for r in rows],
+        meta=_meta(),
     )
 
 
@@ -143,7 +152,9 @@ async def download_report(
     )
 
 
-@router.get("/audit", response_model=SuccessResponse[list[AuditEntryResponse]], summary="Audit trail")
+@router.get(
+    "/audit", response_model=SuccessResponse[list[AuditEntryResponse]], summary="Audit trail"
+)
 async def list_audit(
     organization_id: UUID,
     audit: AuditSvc,

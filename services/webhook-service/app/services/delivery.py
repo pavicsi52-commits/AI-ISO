@@ -54,6 +54,9 @@ from app.signatures import engine as signatures_engine
 from app.subscriptions.engine import EventContext
 from app.types import EventPublisher
 
+_SUCCESS_STATUS_CEILING = 400
+"""Below this HTTP status, a delivery attempt counts as successful."""
+
 
 @dataclass(frozen=True, slots=True)
 class DeliveryOutcome:
@@ -116,6 +119,44 @@ class DeliveryService:
             organization_id, status=status, endpoint_id=endpoint_id, limit=limit, offset=offset
         )
 
+    async def get_dead_letter(
+        self, organization_id: UUID, dead_letter_id: UUID
+    ) -> WebhookDeadLetter:
+        """One dead-lettered delivery.
+
+        Raises:
+            NotFoundError: If it does not exist here.
+        """
+        return await self._dead_letters.require_in_org(organization_id, dead_letter_id)
+
+    async def list_dead_letters(
+        self, organization_id: UUID, *, replayed: bool | None = None, limit: int = 200
+    ) -> list[WebhookDeadLetter]:
+        """Dead-lettered deliveries in this organization, newest first."""
+        return await self._dead_letters.list_for_org(
+            organization_id, replayed=replayed, limit=limit
+        )
+
+    async def _schedule_first_attempt(self, delivery: WebhookDelivery) -> None:
+        """Make a freshly-queued delivery due on the very next retry-sweep tick.
+
+        `fan_out`/`queue_direct` only ever create a `QUEUED` delivery row
+        -- without a corresponding `webhook_retry_queue` entry, nothing
+        would ever call `deliver()` for it: `RetrySweepWorker` only walks
+        rows already in that table, which otherwise only get created by
+        `_schedule_retry` after a *failed* attempt. `next_attempt_at=now`
+        makes the delivery due immediately, no backoff delay, since this
+        is attempt one, not a retry of a prior failure.
+        """
+        await self._retry_queue.create(
+            WebhookRetryQueueEntry(
+                organization_id=delivery.organization_id,
+                delivery_id=delivery.id,
+                attempt_number=0,
+                next_attempt_at=datetime.now(UTC),
+            )
+        )
+
     async def _publish_event(self, event: Any) -> None:
         if self._publish is not None:
             await self._publish(event)
@@ -144,26 +185,28 @@ class DeliveryService:
             }
             if not await self._filters.passes(subscription.id, event_attributes):
                 continue
-            endpoint = await self._endpoints.require_in_org(organization_id, subscription.endpoint_id)
+            endpoint = await self._endpoints.require_in_org(
+                organization_id, subscription.endpoint_id
+            )
             if not endpoint.enabled:
                 continue
-            created.append(
-                await self._deliveries.create(
-                    WebhookDelivery(
-                        organization_id=organization_id,
-                        event_id=event.id,
-                        endpoint_id=endpoint.id,
-                        subscription_id=subscription.id,
-                        mode=DeliveryMode.QUEUED,
-                        status=DeliveryStatus.QUEUED,
-                        payload=dict(event.payload),
-                        headers=dict(event.headers),
-                        idempotency_key=event.idempotency_key,
-                        max_attempts=endpoint.max_attempts or 8,
-                        replay_job_id=replay_job_id,
-                    )
+            queued = await self._deliveries.create(
+                WebhookDelivery(
+                    organization_id=organization_id,
+                    event_id=event.id,
+                    endpoint_id=endpoint.id,
+                    subscription_id=subscription.id,
+                    mode=DeliveryMode.QUEUED,
+                    status=DeliveryStatus.QUEUED,
+                    payload=dict(event.payload),
+                    headers=dict(event.headers),
+                    idempotency_key=event.idempotency_key,
+                    max_attempts=endpoint.max_attempts or 8,
+                    replay_job_id=replay_job_id,
                 )
             )
+            await self._schedule_first_attempt(queued)
+            created.append(queued)
         return created
 
     async def queue_direct(
@@ -181,7 +224,7 @@ class DeliveryService:
         there is no subscription in this path to own them.
         """
         endpoint = await self._endpoints.require_in_org(organization_id, endpoint_id)
-        return await self._deliveries.create(
+        queued = await self._deliveries.create(
             WebhookDelivery(
                 organization_id=organization_id,
                 event_id=event.id,
@@ -195,6 +238,8 @@ class DeliveryService:
                 max_attempts=endpoint.max_attempts or 8,
             )
         )
+        await self._schedule_first_attempt(queued)
+        return queued
 
     async def deliver(self, organization_id: UUID, delivery: WebhookDelivery) -> DeliveryOutcome:
         """Execute one delivery attempt against its own endpoint.
@@ -233,11 +278,12 @@ class DeliveryService:
                 endpoint.url, content=body, headers=headers, timeout=endpoint.timeout_seconds
             )
             latency_ms = (time.perf_counter() - started) * 1_000
-            succeeded = response.status_code < 400
+            succeeded = response.status_code < _SUCCESS_STATUS_CEILING
             attempt = await self._attempts.create(
                 WebhookDeliveryAttempt(
                     organization_id=organization_id,
                     delivery_id=delivery.id,
+                    endpoint_id=endpoint.id,
                     attempt_number=attempt_number,
                     status_code=response.status_code,
                     response_headers=dict(response.headers),
@@ -255,6 +301,7 @@ class DeliveryService:
                 WebhookDeliveryAttempt(
                     organization_id=organization_id,
                     delivery_id=delivery.id,
+                    endpoint_id=endpoint.id,
                     attempt_number=attempt_number,
                     latency_ms=latency_ms,
                     error=error,
@@ -284,11 +331,17 @@ class DeliveryService:
             WebhookFailedEvent(
                 source_service=SOURCE_SERVICE,
                 organization_id=organization_id,
-                payload={"delivery_id": str(delivery.id), "endpoint_id": str(endpoint.id), "error": error},
+                payload={
+                    "delivery_id": str(delivery.id),
+                    "endpoint_id": str(endpoint.id),
+                    "error": error,
+                },
             )
         )
 
-        if not retry_engine.has_attempts_remaining(attempt_number, max_attempts=delivery.max_attempts):
+        if not retry_engine.has_attempts_remaining(
+            attempt_number, max_attempts=delivery.max_attempts
+        ):
             delivery.status = DeliveryStatus.EXPIRED
             await self._deliveries.update(delivery)
             await self._dead_letter(organization_id, delivery, endpoint, error=error)
@@ -329,7 +382,9 @@ class DeliveryService:
         attempt_number: int,
         error: str | None,
     ) -> None:
-        strategy = RetryBackoffStrategy(endpoint.backoff_strategy or RetryBackoffStrategy.EXPONENTIAL)
+        strategy = RetryBackoffStrategy(
+            endpoint.backoff_strategy or RetryBackoffStrategy.EXPONENTIAL
+        )
         delay_seconds = retry_engine.compute_delay(
             attempt_number, strategy=strategy, base_seconds=5.0, max_seconds=3_600.0
         )
@@ -393,7 +448,9 @@ def build_delivery_service(
         subscriptions=SubscriptionService(WebhookSubscriptionRepository(session)),
         filters=FilterService(WebhookFilterRepository(session)),
         transformations=TransformationService(WebhookTransformationRepository(session)),
-        signatures=SignatureService(WebhookSignatureRepository(session), encryption_key=encryption_key),
+        signatures=SignatureService(
+            WebhookSignatureRepository(session), encryption_key=encryption_key
+        ),
         publish_event=publish_event,
     )
 

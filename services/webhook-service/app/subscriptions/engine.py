@@ -9,6 +9,7 @@ of them actually match a given event.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from fnmatch import fnmatch
 
@@ -39,8 +40,21 @@ class EventContext:
     resource_id: str | None = None
 
 
+_EXACT_FIELDS: dict[SubscriptionScope, Callable[[EventContext], str | None]] = {
+    SubscriptionScope.ORGANIZATION: lambda event: event.organization_id,
+    SubscriptionScope.PROJECT: lambda event: event.project_id,
+    SubscriptionScope.ROLE: lambda event: event.role,
+    SubscriptionScope.USER: lambda event: event.user_id,
+    SubscriptionScope.RESOURCE: lambda event: event.resource_id,
+}
+_GLOB_FIELDS: dict[SubscriptionScope, Callable[[EventContext], str]] = {
+    SubscriptionScope.TOPIC: lambda event: event.topic or "",
+    SubscriptionScope.EVENT: lambda event: event.event_type,
+}
+
+
 def _scope_matches(candidate: SubscriptionCandidate, event: EventContext) -> bool:
-    """Whether *candidate*'s own scope/reference applies to *event*, ignoring event type."""
+    """Whether *candidate*'s own scope/reference applies to *event*, ignoring its event type."""
     if candidate.scope == SubscriptionScope.WILDCARD:
         return True
     if candidate.scope == SubscriptionScope.CONDITIONAL:
@@ -52,21 +66,10 @@ def _scope_matches(candidate: SubscriptionCandidate, event: EventContext) -> boo
     if candidate.scope_reference is None:
         return False
     reference = candidate.scope_reference
-    if candidate.scope == SubscriptionScope.ORGANIZATION:
-        return reference == event.organization_id
-    if candidate.scope == SubscriptionScope.PROJECT:
-        return reference == event.project_id
-    if candidate.scope == SubscriptionScope.ROLE:
-        return reference == event.role
-    if candidate.scope == SubscriptionScope.USER:
-        return reference == event.user_id
-    if candidate.scope == SubscriptionScope.TOPIC:
-        return fnmatch(event.topic or "", reference)
-    if candidate.scope == SubscriptionScope.EVENT:
-        return fnmatch(event.event_type, reference)
-    if candidate.scope == SubscriptionScope.RESOURCE:
-        return reference == event.resource_id
-    return False
+    if candidate.scope in _GLOB_FIELDS:
+        return fnmatch(_GLOB_FIELDS[candidate.scope](event), reference)
+    getter = _EXACT_FIELDS.get(candidate.scope)
+    return getter(event) == reference if getter is not None else False
 
 
 def _event_type_matches(candidate: SubscriptionCandidate, event: EventContext) -> bool:

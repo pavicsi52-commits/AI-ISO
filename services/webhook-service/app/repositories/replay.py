@@ -36,7 +36,9 @@ class WebhookReplayJobRepository(BaseRepository[WebhookReplayJob]):
             raise NotFoundError(f"No replay job with id {job_id} in this organization.")
         return found
 
-    async def list_for_org(self, organization_id: UUID, *, limit: int = 200) -> list[WebhookReplayJob]:
+    async def list_for_org(
+        self, organization_id: UUID, *, limit: int = 200
+    ) -> list[WebhookReplayJob]:
         """Replay jobs in this organization, newest first."""
         stmt = (
             self._base_select()

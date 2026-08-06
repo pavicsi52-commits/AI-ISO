@@ -13,7 +13,7 @@ import pytest
 
 from app.models.enums import IdempotencyStatus
 from app.models.idempotency import WebhookIdempotencyKey
-from app.services.idempotency import IdempotencyCheck, IdempotencyService
+from app.services.idempotency import IdempotencyCheck
 from tests.conftest import ago, soon
 
 pytestmark = pytest.mark.asyncio
@@ -24,7 +24,9 @@ class TestCheck:
         result = await idempotency_service.check(organization_id, "missing-key")
         assert result == IdempotencyCheck(is_duplicate=False, existing_response=None)
 
-    async def test_a_still_pending_key_is_not_yet_a_duplicate(self, idempotency_service, organization_id):
+    async def test_a_still_pending_key_is_not_yet_a_duplicate(
+        self, idempotency_service, organization_id
+    ):
         await idempotency_service.reserve(organization_id, "pending-key")
         result = await idempotency_service.check(organization_id, "pending-key")
         assert result.is_duplicate is False
@@ -43,7 +45,9 @@ class TestCheck:
 
     async def test_is_scoped_to_its_own_organization(self, idempotency_service, organization_id):
         await idempotency_service.reserve(organization_id, "org-scoped-key")
-        await idempotency_service.settle(organization_id, "org-scoped-key", response_snapshot={"a": 1})
+        await idempotency_service.settle(
+            organization_id, "org-scoped-key", response_snapshot={"a": 1}
+        )
         other_org = uuid.uuid4()
         result = await idempotency_service.check(other_org, "org-scoped-key")
         assert result.is_duplicate is False
@@ -126,7 +130,9 @@ class TestExpireDue:
         assert refreshed_second.status == IdempotencyStatus.EXPIRED
         assert refreshed_untouched.status == IdempotencyStatus.PENDING
 
-    async def test_respects_the_limit_parameter(self, idempotency_service, idempotency_repo, organization_id):
+    async def test_respects_the_limit_parameter(
+        self, idempotency_service, idempotency_repo, organization_id
+    ):
         for i in range(3):
             await idempotency_repo.create(
                 WebhookIdempotencyKey(
@@ -146,7 +152,9 @@ class TestRepository:
     async def test_get_by_key_returns_none_when_absent(self, idempotency_repo, organization_id):
         assert await idempotency_repo.get_by_key(organization_id, "nope") is None
 
-    async def test_get_by_key_is_scoped_to_its_own_organization(self, idempotency_repo, organization_id):
+    async def test_get_by_key_is_scoped_to_its_own_organization(
+        self, idempotency_repo, organization_id
+    ):
         await idempotency_repo.create(
             WebhookIdempotencyKey(
                 organization_id=organization_id,
@@ -158,7 +166,9 @@ class TestRepository:
         other_org = uuid.uuid4()
         assert await idempotency_repo.get_by_key(other_org, "scoped-key") is None
 
-    async def test_list_expired_is_unscoped_across_organizations(self, idempotency_repo, organization_id):
+    async def test_list_expired_is_unscoped_across_organizations(
+        self, idempotency_repo, organization_id
+    ):
         other_org = uuid.uuid4()
         await idempotency_repo.create(
             WebhookIdempotencyKey(

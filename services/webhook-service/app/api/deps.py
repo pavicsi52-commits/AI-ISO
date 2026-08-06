@@ -190,7 +190,9 @@ DeliverySvc = Annotated[DeliveryService, Depends(get_delivery_service)]
 
 def get_replay_service(session: DbSession, delivery: DeliverySvc) -> ReplayService:
     """The current request's replay service."""
-    return ReplayService(WebhookReplayJobRepository(session), WebhookEventRepository(session), delivery)
+    return ReplayService(
+        WebhookReplayJobRepository(session), WebhookEventRepository(session), delivery
+    )
 
 
 ReplaySvc = Annotated[ReplayService, Depends(get_replay_service)]
@@ -198,7 +200,9 @@ ReplaySvc = Annotated[ReplayService, Depends(get_replay_service)]
 
 def get_statistics_service(session: DbSession) -> StatisticsService:
     """The current request's statistics service."""
-    return StatisticsService(WebhookStatisticRepository(session), WebhookDeliveryAttemptRepository(session))
+    return StatisticsService(
+        WebhookStatisticRepository(session), WebhookDeliveryAttemptRepository(session)
+    )
 
 
 StatisticsSvc = Annotated[StatisticsService, Depends(get_statistics_service)]

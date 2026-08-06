@@ -27,7 +27,9 @@ async def list_replay_jobs(
     """Replay jobs in this organization, newest first."""
     rows = await replay.list_jobs(organization_id)
     return SuccessResponse(
-        message="Replay jobs listed.", data=[ReplayResponse.model_validate(r) for r in rows], meta=_meta()
+        message="Replay jobs listed.",
+        data=[ReplayResponse.model_validate(r) for r in rows],
+        meta=_meta(),
     )
 
 
@@ -43,7 +45,9 @@ async def get_replay_job(
 
 
 @router.get(
-    "/{job_id}/preview", response_model=SuccessResponse[dict[str, Any]], summary="Preview a replay job"
+    "/{job_id}/preview",
+    response_model=SuccessResponse[dict[str, Any]],
+    summary="Preview a replay job",
 )
 async def preview_replay_job(
     organization_id: UUID, job_id: UUID, replay: ReplaySvc

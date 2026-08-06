@@ -41,7 +41,9 @@ NOT_FOUND_ERROR_CODE = "AIIOS-NF-0001"
 VALIDATION_ERROR_CODE = "AIIOS-VAL-0001"
 
 
-def _sign(body: bytes, *, secret: str, algorithm: SignatureAlgorithm = SignatureAlgorithm.HMAC_SHA256):
+def _sign(
+    body: bytes, *, secret: str, algorithm: SignatureAlgorithm = SignatureAlgorithm.HMAC_SHA256
+):
     timestamp = int(time.time())
     nonce = uuid.uuid4().hex
     headers = signatures_engine.build_signed_headers(
@@ -97,7 +99,12 @@ class TestRaiseInternalEvent:
         assert response.json()["error"]["code"] == VALIDATION_ERROR_CODE
 
     async def test_fans_out_to_a_matching_subscription(
-        self, client: AsyncClient, make_endpoint, make_subscription, deliveries_repo, organization_id
+        self,
+        client: AsyncClient,
+        make_endpoint,
+        make_subscription,
+        deliveries_repo,
+        organization_id,
     ) -> None:
         endpoint = await make_endpoint()
         await make_subscription(endpoint.id)  # WILDCARD by default -- matches anything.
@@ -121,7 +128,9 @@ class TestRaiseInternalEvent:
             "payload": {"id": "first"},
             "idempotency_key": "http-dedupe-key",
         }
-        first = await client.post(f"/webhooks/events?organization_id={organization_id}", json=payload)
+        first = await client.post(
+            f"/webhooks/events?organization_id={organization_id}", json=payload
+        )
         second_payload = dict(payload, payload={"id": "second"})
         second = await client.post(
             f"/webhooks/events?organization_id={organization_id}", json=second_payload
@@ -231,7 +240,12 @@ class TestReceiveIncomingWebhook:
         assert response.json()["error"]["code"] == AUTHENTICATION_ERROR_CODE
 
     async def test_idempotency_key_header_dedups_at_the_http_layer(
-        self, client: AsyncClient, make_endpoint, make_signature, events_repo, organization_id: uuid.UUID
+        self,
+        client: AsyncClient,
+        make_endpoint,
+        make_signature,
+        events_repo,
+        organization_id: uuid.UUID,
     ) -> None:
         endpoint = await make_endpoint()
         await make_signature(endpoint.id, secret="shared-secret-value")
@@ -351,7 +365,8 @@ class TestQueueOutgoingDelivery:
         self, client: AsyncClient, organization_id: uuid.UUID
     ) -> None:
         response = await client.post(
-            f"/webhooks/outgoing?organization_id={organization_id}", json={"event_type": "direct.send"}
+            f"/webhooks/outgoing?organization_id={organization_id}",
+            json={"event_type": "direct.send"},
         )
         assert response.status_code == HTTP_BAD_REQUEST
         assert response.json()["error"]["code"] == VALIDATION_ERROR_CODE
@@ -376,8 +391,12 @@ class TestQueueOutgoingDelivery:
             "payload": {},
             "idempotency_key": "http-outgoing-dedupe",
         }
-        first = await client.post(f"/webhooks/outgoing?organization_id={organization_id}", json=payload)
-        second = await client.post(f"/webhooks/outgoing?organization_id={organization_id}", json=payload)
+        first = await client.post(
+            f"/webhooks/outgoing?organization_id={organization_id}", json=payload
+        )
+        second = await client.post(
+            f"/webhooks/outgoing?organization_id={organization_id}", json=payload
+        )
 
         assert first.status_code == HTTP_CREATED
         assert second.status_code == HTTP_CREATED

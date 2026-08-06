@@ -26,7 +26,9 @@ def _meta() -> ResponseMeta:
     return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
-@router.get("/health", response_model=SuccessResponse[HealthStatus], summary="Overall service health")
+@router.get(
+    "/health", response_model=SuccessResponse[HealthStatus], summary="Overall service health"
+)
 async def health(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SuccessResponse[HealthStatus]:
@@ -64,7 +66,9 @@ async def _cache_check(redis_client: Redis) -> ReadinessCheck:
     return ReadinessCheck(name="cache", status="ok", detail="redis responded to ping")
 
 
-@router.get("/readiness", response_model=SuccessResponse[ReadinessStatus], summary="Readiness probe")
+@router.get(
+    "/readiness", response_model=SuccessResponse[ReadinessStatus], summary="Readiness probe"
+)
 async def readiness(request: Request) -> SuccessResponse[ReadinessStatus]:
     """Return whether the service and its dependencies are ready for traffic."""
     db_status, db_latency_ms = await check_database_health(request.app.state.db_engine)

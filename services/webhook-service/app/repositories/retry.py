@@ -48,7 +48,9 @@ class WebhookDeadLetterRepository(BaseRepository[WebhookDeadLetter]):
     def __init__(self, session: AsyncSession, *, tenant_scope: TenantScope | None = None) -> None:
         super().__init__(session, WebhookDeadLetter, tenant_scope=tenant_scope)
 
-    async def require_in_org(self, organization_id: UUID, dead_letter_id: UUID) -> WebhookDeadLetter:
+    async def require_in_org(
+        self, organization_id: UUID, dead_letter_id: UUID
+    ) -> WebhookDeadLetter:
         """One dead-letter row by id, scoped to its organization.
 
         Raises:

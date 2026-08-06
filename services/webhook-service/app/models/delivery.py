@@ -58,6 +58,13 @@ class WebhookDeliveryAttempt(BaseModel):
     delivery_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("webhook_deliveries.id", ondelete="CASCADE"), index=True
     )
+    endpoint_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("webhook_endpoints.id", ondelete="CASCADE"), index=True
+    )
+    """Denormalized from the parent delivery -- lets statistics rollup
+    group by endpoint without a join, the same pattern every log-shaped
+    table in this platform already uses (e.g. api-gateway-service's own
+    ``ApiResponseLog.organization_id``)."""
     attempt_number: Mapped[int] = mapped_column(Integer)
     status_code: Mapped[int | None] = mapped_column(Integer, default=None)
     response_headers: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)

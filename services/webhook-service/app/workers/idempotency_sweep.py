@@ -35,7 +35,9 @@ class IdempotencyExpirySweepWorker:
         """Expire every due key; returns how many were expired."""
         try:
             async with self._session_factory() as session:
-                service = IdempotencyService(WebhookIdempotencyKeyRepository(session), ttl_seconds=0)
+                service = IdempotencyService(
+                    WebhookIdempotencyKeyRepository(session), ttl_seconds=0
+                )
                 expired = await service.expire_due(now=datetime.now(UTC), limit=self._max_per_tick)
                 await session.commit()
         except Exception as exc:
@@ -43,7 +45,9 @@ class IdempotencyExpirySweepWorker:
                 "The idempotency expiry sweep failed.", extra={"extra_fields": {"error": str(exc)}}
             )
             return 0
-        logger.info("Idempotency expiry sweep complete.", extra={"extra_fields": {"expired": expired}})
+        logger.info(
+            "Idempotency expiry sweep complete.", extra={"extra_fields": {"expired": expired}}
+        )
         return expired
 
 

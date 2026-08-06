@@ -34,7 +34,9 @@ class WebhookEndpoint(BaseModel):
     max_attempts: Mapped[int | None] = mapped_column(Integer, default=None)
     backoff_strategy: Mapped[str | None] = mapped_column(String(16), default=None)
     consecutive_failures: Mapped[int] = mapped_column(Integer, default=0)
-    last_delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    last_delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
     last_failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 

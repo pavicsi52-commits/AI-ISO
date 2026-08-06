@@ -84,7 +84,12 @@ def trace_queue_processing(
 
 @contextmanager
 def trace_delivery(
-    tracer: Tracer, *, delivery_id: str, endpoint_id: str, status_code: int | None, **attributes: object
+    tracer: Tracer,
+    *,
+    delivery_id: str,
+    endpoint_id: str,
+    status_code: int | None,
+    **attributes: object,
 ) -> Iterator[Span]:
     """Span one delivery attempt reaching a terminal outcome."""
     with start_span(
@@ -120,7 +125,9 @@ def trace_retry(
 
 
 @contextmanager
-def trace_replay(tracer: Tracer, *, job_id: str, scope: str, **attributes: object) -> Iterator[Span]:
+def trace_replay(
+    tracer: Tracer, *, job_id: str, scope: str, **attributes: object
+) -> Iterator[Span]:
     """Span executing one replay job."""
     with start_span(
         tracer,

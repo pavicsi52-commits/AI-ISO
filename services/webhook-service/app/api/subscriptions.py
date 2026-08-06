@@ -10,7 +10,11 @@ from shared_core.logging.context import get_log_context
 from app.api.deps import AuditSvc, CurrentUserId, SubscriptionSvc
 from app.models.enums import AuditAction
 from app.schemas.response import ResponseMeta, SuccessResponse
-from app.schemas.webhook import SubscriptionCreateRequest, SubscriptionResponse, SubscriptionUpdateRequest
+from app.schemas.webhook import (
+    SubscriptionCreateRequest,
+    SubscriptionResponse,
+    SubscriptionUpdateRequest,
+)
 
 router = APIRouter(prefix="/webhooks/subscriptions", tags=["Subscriptions"])
 
@@ -19,7 +23,9 @@ def _meta() -> ResponseMeta:
     return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
-@router.get("", response_model=SuccessResponse[list[SubscriptionResponse]], summary="List subscriptions")
+@router.get(
+    "", response_model=SuccessResponse[list[SubscriptionResponse]], summary="List subscriptions"
+)
 async def list_subscriptions(
     organization_id: UUID, subscriptions: SubscriptionSvc
 ) -> SuccessResponse[list[SubscriptionResponse]]:
@@ -78,7 +84,9 @@ async def create_subscription(
         summary=f"Created subscription {created.id}.",
     )
     return SuccessResponse(
-        message="Subscription created.", data=SubscriptionResponse.model_validate(created), meta=_meta()
+        message="Subscription created.",
+        data=SubscriptionResponse.model_validate(created),
+        meta=_meta(),
     )
 
 
@@ -107,7 +115,9 @@ async def update_subscription(
         summary=f"Updated subscription {updated.id}.",
     )
     return SuccessResponse(
-        message="Subscription updated.", data=SubscriptionResponse.model_validate(updated), meta=_meta()
+        message="Subscription updated.",
+        data=SubscriptionResponse.model_validate(updated),
+        meta=_meta(),
     )
 
 

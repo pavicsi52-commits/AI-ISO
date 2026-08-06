@@ -190,7 +190,7 @@ def upgrade() -> None:
     op.create_index('ix_webhook_statistics_window_start', 'webhook_statistics', ['window_start'], unique=False)
     op.create_table('webhook_signatures',
     sa.Column('endpoint_id', sa.Uuid(), nullable=False),
-    sa.Column('version', sa.Integer(), nullable=False),
+    sa.Column('secret_version', sa.Integer(), nullable=False),
     sa.Column('algorithm', sa.String(length=16), nullable=False),
     sa.Column('secret_ciphertext', sa.Text(), nullable=False),
     sa.Column('status', sa.String(length=16), nullable=False),
@@ -204,12 +204,13 @@ def upgrade() -> None:
     sa.Column('deleted_by', sa.Uuid(), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('version', sa.Integer(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
     sa.Column('project_id', sa.Uuid(), nullable=True),
     sa.ForeignKeyConstraint(['endpoint_id'], ['webhook_endpoints.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_webhook_signature_endpoint_version', 'webhook_signatures', ['endpoint_id', 'version'], unique=True)
+    op.create_index('ix_webhook_signature_endpoint_version', 'webhook_signatures', ['endpoint_id', 'secret_version'], unique=True)
     op.create_index(op.f('ix_webhook_signatures_endpoint_id'), 'webhook_signatures', ['endpoint_id'], unique=False)
     op.create_index(op.f('ix_webhook_signatures_status'), 'webhook_signatures', ['status'], unique=False)
     op.create_table('webhook_subscriptions',
@@ -384,6 +385,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_webhook_dead_letters_endpoint_id'), 'webhook_dead_letters', ['endpoint_id'], unique=False)
     op.create_table('webhook_delivery_attempts',
     sa.Column('delivery_id', sa.Uuid(), nullable=False),
+    sa.Column('endpoint_id', sa.Uuid(), nullable=False),
     sa.Column('attempt_number', sa.Integer(), nullable=False),
     sa.Column('status_code', sa.Integer(), nullable=True),
     sa.Column('response_headers', sa.JSON(), nullable=False),
@@ -403,10 +405,12 @@ def upgrade() -> None:
     sa.Column('organization_id', sa.Uuid(), nullable=False),
     sa.Column('project_id', sa.Uuid(), nullable=True),
     sa.ForeignKeyConstraint(['delivery_id'], ['webhook_deliveries.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['endpoint_id'], ['webhook_endpoints.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_webhook_attempt_delivery', 'webhook_delivery_attempts', ['delivery_id'], unique=False)
     op.create_index(op.f('ix_webhook_delivery_attempts_delivery_id'), 'webhook_delivery_attempts', ['delivery_id'], unique=False)
+    op.create_index(op.f('ix_webhook_delivery_attempts_endpoint_id'), 'webhook_delivery_attempts', ['endpoint_id'], unique=False)
     op.create_table('webhook_retry_queue',
     sa.Column('delivery_id', sa.Uuid(), nullable=False),
     sa.Column('attempt_number', sa.Integer(), nullable=False),
