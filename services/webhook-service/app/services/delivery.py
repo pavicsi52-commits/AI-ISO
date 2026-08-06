@@ -89,6 +89,28 @@ class DeliveryService:
         self._signatures = signatures
         self._publish = publish_event
 
+    async def get(self, organization_id: UUID, delivery_id: UUID) -> WebhookDelivery:
+        """One delivery.
+
+        Raises:
+            NotFoundError: If it does not exist here.
+        """
+        return await self._deliveries.require_in_org(organization_id, delivery_id)
+
+    async def list_deliveries(
+        self,
+        organization_id: UUID,
+        *,
+        status: DeliveryStatus | None = None,
+        endpoint_id: UUID | None = None,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> list[WebhookDelivery]:
+        """Deliveries in this organization, newest first."""
+        return await self._deliveries.list_for_org(
+            organization_id, status=status, endpoint_id=endpoint_id, limit=limit, offset=offset
+        )
+
     async def _publish_event(self, event: Any) -> None:
         if self._publish is not None:
             await self._publish(event)
@@ -138,6 +160,36 @@ class DeliveryService:
                 )
             )
         return created
+
+    async def queue_direct(
+        self,
+        organization_id: UUID,
+        event: WebhookEvent,
+        *,
+        endpoint_id: UUID,
+    ) -> WebhookDelivery:
+        """Queue one delivery straight to *endpoint_id*, bypassing subscription/filter resolution.
+
+        For a caller that already knows exactly which endpoint should
+        receive this event (docs/057's own ``POST /webhooks/outgoing``) --
+        deliberately not subject to a subscription's own filters, since
+        there is no subscription in this path to own them.
+        """
+        endpoint = await self._endpoints.require_in_org(organization_id, endpoint_id)
+        return await self._deliveries.create(
+            WebhookDelivery(
+                organization_id=organization_id,
+                event_id=event.id,
+                endpoint_id=endpoint.id,
+                subscription_id=None,
+                mode=DeliveryMode.IMMEDIATE,
+                status=DeliveryStatus.QUEUED,
+                payload=dict(event.payload),
+                headers=dict(event.headers),
+                idempotency_key=event.idempotency_key,
+                max_attempts=endpoint.max_attempts or 8,
+            )
+        )
 
     async def deliver(self, organization_id: UUID, delivery: WebhookDelivery) -> DeliveryOutcome:
         """Execute one delivery attempt against its own endpoint.

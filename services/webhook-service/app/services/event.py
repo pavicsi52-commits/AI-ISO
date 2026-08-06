@@ -7,18 +7,25 @@ from uuid import UUID
 
 from shared_core.exceptions.authentication import AuthenticationError
 
+from app.events.webhook_events import SOURCE_SERVICE, WebhookReceivedEvent, WebhookValidatedEvent
 from app.models.enums import EventSource, WebhookKind
 from app.models.event import WebhookEvent
 from app.repositories.event import WebhookEventRepository
 from app.services.signature import SignatureService
 from app.signatures import engine as signatures_engine
+from app.types import EventPublisher
 
 
 class EventService:
     """Events received from an external caller or raised internally, before fan-out."""
 
-    def __init__(self, events: WebhookEventRepository) -> None:
+    def __init__(self, events: WebhookEventRepository, *, publish_event: EventPublisher | None = None) -> None:
         self._events = events
+        self._publish = publish_event
+
+    async def _publish_event(self, event: Any) -> None:
+        if self._publish is not None:
+            await self._publish(event)
 
     async def ingest_internal(
         self,
@@ -44,7 +51,7 @@ class EventService:
             existing = await self._events.get_by_idempotency_key(organization_id, idempotency_key)
             if existing is not None:
                 return existing
-        return await self._events.create(
+        created = await self._events.create(
             WebhookEvent(
                 organization_id=organization_id,
                 kind=WebhookKind.INTERNAL_EVENT,
@@ -59,6 +66,14 @@ class EventService:
                 correlation_id=correlation_id,
             )
         )
+        await self._publish_event(
+            WebhookReceivedEvent(
+                source_service=SOURCE_SERVICE,
+                organization_id=organization_id,
+                payload={"event_id": str(created.id), "event_type": event_type},
+            )
+        )
+        return created
 
     async def ingest_incoming(
         self,
@@ -99,7 +114,7 @@ class EventService:
             existing = await self._events.get_by_idempotency_key(organization_id, idempotency_key)
             if existing is not None:
                 return existing
-        return await self._events.create(
+        created = await self._events.create(
             WebhookEvent(
                 organization_id=organization_id,
                 kind=WebhookKind.INCOMING,
@@ -111,6 +126,21 @@ class EventService:
                 correlation_id=correlation_id,
             )
         )
+        await self._publish_event(
+            WebhookReceivedEvent(
+                source_service=SOURCE_SERVICE,
+                organization_id=organization_id,
+                payload={"event_id": str(created.id), "event_type": event_type},
+            )
+        )
+        await self._publish_event(
+            WebhookValidatedEvent(
+                source_service=SOURCE_SERVICE,
+                organization_id=organization_id,
+                payload={"event_id": str(created.id), "secret_version": matched.version},
+            )
+        )
+        return created
 
     async def get(self, organization_id: UUID, event_id: UUID) -> WebhookEvent:
         """One event.
