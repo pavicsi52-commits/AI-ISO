@@ -19,7 +19,19 @@ class ApiVersion(BaseModel):
     service_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("api_services.id", ondelete="CASCADE"), index=True
     )
-    version: Mapped[str] = mapped_column(String(32))
+    version_label: Mapped[str] = mapped_column(String(32))
+    """The version identifier itself (e.g. ``"v1"``, ``"2024-01-01"``).
+
+    Named ``version_label``, not ``version`` -- :class:`~shared_core.base.
+    BaseEntityMixin` already reserves ``version`` for optimistic-locking
+    (an ``int``, incremented on every update); a same-named column here
+    would silently shadow it with this model's own ``String`` column,
+    breaking every future ``UPDATE`` through :meth:`~shared_core.database.
+    repository.BaseRepository.update` (``entity.version += 1`` raises
+    ``TypeError`` against a string) and leaving the table without any
+    working optimistic-lock column at all. Per ``BaseModel``'s own
+    docstring: "No future entity may redefine these fields."
+    """
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     is_deprecated: Mapped[bool] = mapped_column(Boolean, default=False)
     deprecation_message: Mapped[str | None] = mapped_column(Text, default=None)

@@ -23,15 +23,21 @@ def _meta() -> ResponseMeta:
 
 
 @router.get("", response_model=SuccessResponse[list[ClientResponse]], summary="List API clients")
-async def list_clients(organization_id: UUID, clients: ClientSvc) -> SuccessResponse[list[ClientResponse]]:
+async def list_clients(
+    organization_id: UUID, clients: ClientSvc
+) -> SuccessResponse[list[ClientResponse]]:
     """Every client registered in this organization."""
     rows = await clients.list_clients(organization_id)
     return SuccessResponse(
-        message="Clients listed.", data=[ClientResponse.model_validate(r) for r in rows], meta=_meta()
+        message="Clients listed.",
+        data=[ClientResponse.model_validate(r) for r in rows],
+        meta=_meta(),
     )
 
 
-@router.get("/{client_id}", response_model=SuccessResponse[ClientResponse], summary="Get an API client")
+@router.get(
+    "/{client_id}", response_model=SuccessResponse[ClientResponse], summary="Get an API client"
+)
 async def get_client(
     organization_id: UUID, client_id: UUID, clients: ClientSvc
 ) -> SuccessResponse[ClientResponse]:

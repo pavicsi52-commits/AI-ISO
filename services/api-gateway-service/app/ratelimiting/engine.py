@@ -69,6 +69,9 @@ async def check_rate_limit(limiter: RateLimiter, identifier: str) -> RateLimitDe
     )
 
 
+_DECEMBER = 12
+
+
 def quota_period_bounds(period: QuotaPeriod, now: datetime) -> tuple[datetime, datetime]:
     """The ``[start, end)`` boundary of the quota period containing *now*."""
     if period == QuotaPeriod.DAILY:
@@ -77,7 +80,7 @@ def quota_period_bounds(period: QuotaPeriod, now: datetime) -> tuple[datetime, d
     start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     end = (
         start.replace(year=start.year + 1, month=1)
-        if start.month == 12
+        if start.month == _DECEMBER
         else start.replace(month=start.month + 1)
     )
     return start, end

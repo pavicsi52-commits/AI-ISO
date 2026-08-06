@@ -29,7 +29,9 @@ def _meta() -> ResponseMeta:
     return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
-@router.get("", response_model=SuccessResponse[dict[str, Any]], summary="Aggregated OpenAPI catalog")
+@router.get(
+    "", response_model=SuccessResponse[dict[str, Any]], summary="Aggregated OpenAPI catalog"
+)
 async def gateway_openapi(
     organization_id: UUID, routes: RouteSvc, services: ServiceRegistrySvc
 ) -> SuccessResponse[dict[str, Any]]:

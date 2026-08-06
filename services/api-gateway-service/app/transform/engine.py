@@ -14,7 +14,7 @@ from typing import Any
 
 
 def apply_header_transform(headers: dict[str, str], config: dict[str, Any]) -> dict[str, str]:
-    """Add/remove headers per *config* (``{"add": {...}, "remove": [...]}``, case-insensitive removal)."""
+    """Add/remove headers per *config* (``{"add": {...}, "remove": [...]}``), case-insensitively."""
     result = dict(headers)
     for name in config.get("remove", []):
         for key in [k for k in result if k.lower() == str(name).lower()]:
@@ -36,7 +36,7 @@ def apply_url_rewrite(path: str, config: dict[str, Any]) -> str:
 def inject_metadata_headers(
     headers: dict[str, str], *, correlation_id: str, request_id: str
 ) -> dict[str, str]:
-    """Inject platform-standard correlation/request-id headers ("Metadata Injection", "Correlation IDs")."""
+    """Inject platform-standard correlation/request-id headers ("Metadata Injection")."""
     result = dict(headers)
     result.setdefault("X-Correlation-ID", correlation_id)
     result.setdefault("X-Request-ID", request_id)

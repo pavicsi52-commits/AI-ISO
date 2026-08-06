@@ -28,7 +28,9 @@ async def list_api_keys(
     """Every key issued to one client."""
     rows = await api_keys.list_for_client(organization_id, client_id)
     return SuccessResponse(
-        message="API keys listed.", data=[ApiKeyResponse.model_validate(r) for r in rows], meta=_meta()
+        message="API keys listed.",
+        data=[ApiKeyResponse.model_validate(r) for r in rows],
+        meta=_meta(),
     )
 
 
@@ -65,9 +67,7 @@ async def create_api_key(
     )
     return SuccessResponse(
         message="API key issued.",
-        data=ApiKeyCreatedResponse(
-            raw_key=raw_key, api_key=ApiKeyResponse.model_validate(created)
-        ),
+        data=ApiKeyCreatedResponse(raw_key=raw_key, api_key=ApiKeyResponse.model_validate(created)),
         meta=_meta(),
     )
 
@@ -96,9 +96,7 @@ async def rotate_api_key(
     )
     return SuccessResponse(
         message="API key rotated.",
-        data=ApiKeyCreatedResponse(
-            raw_key=raw_key, api_key=ApiKeyResponse.model_validate(updated)
-        ),
+        data=ApiKeyCreatedResponse(raw_key=raw_key, api_key=ApiKeyResponse.model_validate(updated)),
         meta=_meta(),
     )
 

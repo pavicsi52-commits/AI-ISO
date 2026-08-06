@@ -88,7 +88,9 @@ class GatewayHub:
             RuntimeError: If the deployment-wide subscriber ceiling is reached.
         """
         if self.subscriber_count >= self._max_subscribers:
-            raise RuntimeError(f"The real-time subscriber limit ({self._max_subscribers}) is reached.")
+            raise RuntimeError(
+                f"The real-time subscriber limit ({self._max_subscribers}) is reached."
+            )
         subscriber = GatewaySubscriber(
             subscriber_id=uuid4().hex,
             organization_id=organization_id,
@@ -147,7 +149,9 @@ class GatewayHub:
         try:
             while True:
                 try:
-                    event = await asyncio.wait_for(subscriber.queue.get(), timeout=heartbeat_seconds)
+                    event = await asyncio.wait_for(
+                        subscriber.queue.get(), timeout=heartbeat_seconds
+                    )
                 except TimeoutError:
                     yield GatewayStreamEvent(
                         kind=GatewayStreamEventKind.HEARTBEAT,

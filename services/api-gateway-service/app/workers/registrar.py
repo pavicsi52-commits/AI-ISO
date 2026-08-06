@@ -88,7 +88,9 @@ def register_statistics_rollup(
     )
 
 
-def register_quota_reset_sweep(manager: SchedulerManager, fn: JobFn, *, interval_seconds: float) -> Job:
+def register_quota_reset_sweep(
+    manager: SchedulerManager, fn: JobFn, *, interval_seconds: float
+) -> Job:
     """Register the recurring quota reset sweep.
 
     Raises:

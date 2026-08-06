@@ -21,7 +21,9 @@ def _meta() -> ResponseMeta:
 
 
 @router.get(
-    "", response_model=SuccessResponse[list[TransformationRuleResponse]], summary="List transformation rules"
+    "",
+    response_model=SuccessResponse[list[TransformationRuleResponse]],
+    summary="List transformation rules",
 )
 async def list_transformations(
     organization_id: UUID,

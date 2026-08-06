@@ -28,9 +28,7 @@ class ApiServiceHealth(BaseModel):
     )
     instance_url: Mapped[str] = mapped_column(String(512))
 
-    status: Mapped[HealthState] = mapped_column(
-        String(16), default=HealthState.UNKNOWN, index=True
-    )
+    status: Mapped[HealthState] = mapped_column(String(16), default=HealthState.UNKNOWN, index=True)
     latency_ms: Mapped[float | None] = mapped_column(Float, default=None)
     error: Mapped[str | None] = mapped_column(Text, default=None)
 

@@ -38,7 +38,9 @@ class QuotaResetSweepWorker:
         try:
             async with self._session_factory() as session:
                 service = QuotaService(ApiQuotaPolicyRepository(session))
-                reset_count = await service.reset_due(now=datetime.now(UTC), limit=self._max_per_tick)
+                reset_count = await service.reset_due(
+                    now=datetime.now(UTC), limit=self._max_per_tick
+                )
                 await session.commit()
         except Exception as exc:
             logger.warning(

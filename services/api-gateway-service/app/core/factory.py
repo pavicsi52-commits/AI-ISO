@@ -22,8 +22,10 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
+from redis.asyncio import Redis
 from shared_core.cache.factory import create_cache_framework
 from shared_core.cache.settings import CacheSettings
+from shared_core.connectors.retry import CircuitBreaker
 from shared_core.database.factory import create_database_framework
 from shared_core.events.factory import create_event_framework
 from shared_core.exceptions import register_exception_handlers
@@ -44,6 +46,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api import MANAGEMENT_ROUTERS, proxy_router
 from app.config.keys import load_public_key
 from app.config.settings import Settings, get_settings
+from app.types import EventPublisher
 from app.websocket.hub import GatewayHub
 from app.workers.health_probe_sweep import HealthProbeSweepWorker
 from app.workers.quota_reset_sweep import QuotaResetSweepWorker
@@ -59,10 +62,10 @@ logger = get_logger("app.startup")
 
 async def _build_workers(
     session_factory: async_sessionmaker[AsyncSession],
-    breakers: dict[str, object],
-    redis_client: object,
+    breakers: dict[str, CircuitBreaker],
+    redis_client: Redis,
     settings: Settings,
-    publish_event: object,
+    publish_event: EventPublisher,
 ) -> SchedulerManager | None:
     """Register and start the leader-elected background jobs.
 
@@ -81,9 +84,9 @@ async def _build_workers(
         manager,
         HealthProbeSweepWorker(
             session_factory,
-            breakers,  # type: ignore[arg-type]
+            breakers,
             settings.service,
-            publish_event=publish_event,  # type: ignore[arg-type]
+            publish_event=publish_event,
         ).run_job,
         interval_seconds=settings.service.health_probe_sweep_seconds,
     )

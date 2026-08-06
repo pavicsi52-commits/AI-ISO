@@ -20,7 +20,6 @@ from uuid import UUID
 
 from shared_core.enums.permission import Permission
 from shared_core.enums.role import Role
-from shared_core.exceptions.authentication import AuthenticationError
 from shared_core.security.authorization import AuthorizationResult, authorize
 from shared_core.security.jwt import decode_token
 
@@ -68,7 +67,9 @@ class AuthService:
             organization_id=UUID(str(organization_value)) if organization_value else None,
         )
 
-    async def authenticate_api_key(self, raw_key: str, *, source_ip: str | None = None) -> AuthContext:
+    async def authenticate_api_key(
+        self, raw_key: str, *, source_ip: str | None = None
+    ) -> AuthContext:
         """Authenticate a caller via an API key.
 
         Raises:

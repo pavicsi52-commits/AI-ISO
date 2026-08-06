@@ -27,7 +27,9 @@ def _meta() -> ResponseMeta:
     return ResponseMeta(request_id=get_log_context().request_id or "unknown")
 
 
-@router.get("", response_model=SuccessResponse[list[ServiceResponse]], summary="List backend services")
+@router.get(
+    "", response_model=SuccessResponse[list[ServiceResponse]], summary="List backend services"
+)
 async def list_services(
     organization_id: UUID,
     services: ServiceRegistrySvc,
@@ -36,12 +38,16 @@ async def list_services(
     """Services registered in this organization."""
     rows = await services.list_services(organization_id, enabled=enabled)
     return SuccessResponse(
-        message="Services listed.", data=[ServiceResponse.model_validate(r) for r in rows], meta=_meta()
+        message="Services listed.",
+        data=[ServiceResponse.model_validate(r) for r in rows],
+        meta=_meta(),
     )
 
 
 @router.get(
-    "/{service_id}", response_model=SuccessResponse[ServiceResponse], summary="Get a backend service"
+    "/{service_id}",
+    response_model=SuccessResponse[ServiceResponse],
+    summary="Get a backend service",
 )
 async def get_service(
     organization_id: UUID, service_id: UUID, services: ServiceRegistrySvc
@@ -92,7 +98,9 @@ async def create_service(
 
 
 @router.put(
-    "/{service_id}", response_model=SuccessResponse[ServiceResponse], summary="Update a backend service"
+    "/{service_id}",
+    response_model=SuccessResponse[ServiceResponse],
+    summary="Update a backend service",
 )
 async def update_service(
     organization_id: UUID,
@@ -141,7 +149,9 @@ async def list_versions(
     """Every version registered for one service."""
     rows = await versions.list_for_service(organization_id, service_id)
     return SuccessResponse(
-        message="Versions listed.", data=[VersionResponse.model_validate(r) for r in rows], meta=_meta()
+        message="Versions listed.",
+        data=[VersionResponse.model_validate(r) for r in rows],
+        meta=_meta(),
     )
 
 

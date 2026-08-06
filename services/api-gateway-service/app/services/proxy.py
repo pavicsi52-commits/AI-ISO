@@ -140,7 +140,9 @@ class ProxyService:
         correlation_id = str(uuid.uuid4())
         started_at = datetime.now(UTC)
 
-        route = await self._routes.resolve(organization_id, method=method, path=path, headers=headers)
+        route = await self._routes.resolve(
+            organization_id, method=method, path=path, headers=headers
+        )
         if route is None:
             raise ProxyError(404, "No route matches this request.")
 
@@ -176,6 +178,7 @@ class ProxyService:
             request_log=request_log,
             headers=headers,
             path=path,
+            query_string=query_string,
             body=body,
             client_id=client_id,
             started_at=started_at,
@@ -198,6 +201,7 @@ class ProxyService:
         request_log: ApiRequestLog,
         headers: dict[str, str],
         path: str,
+        query_string: str | None,
         body: bytes,
         client_id: UUID | None,
         started_at: datetime,
@@ -263,7 +267,9 @@ class ProxyService:
 
         health_snapshot = await self._health.snapshot(organization_id, service.id)
         circuit_snapshot = await self._health.circuit_snapshot(organization_id, service.id)
-        counter = self._round_robin_counters.setdefault(str(service.id), lb_engine.RoundRobinCounter())
+        counter = self._round_robin_counters.setdefault(
+            str(service.id), lb_engine.RoundRobinCounter()
+        )
         sticky_map = self._sticky_maps.setdefault(str(service.id), lb_engine.StickySessionMap())
         instance = lb_engine.choose_instance(
             service.load_balancing_strategy,
@@ -316,6 +322,8 @@ class ProxyService:
         forward_headers["X-Correlation-ID"] = correlation_id
 
         target_url = instance.url.rstrip("/") + target_path
+        if query_string:
+            target_url += f"?{query_string}"
 
         upstream_started = time.perf_counter()
         try:

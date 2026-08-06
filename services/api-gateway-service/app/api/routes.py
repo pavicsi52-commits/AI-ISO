@@ -40,7 +40,9 @@ async def get_route(
 ) -> SuccessResponse[RouteResponse]:
     """One route."""
     found = await routes.get(organization_id, route_id)
-    return SuccessResponse(message="Route found.", data=RouteResponse.model_validate(found), meta=_meta())
+    return SuccessResponse(
+        message="Route found.", data=RouteResponse.model_validate(found), meta=_meta()
+    )
 
 
 @router.post(

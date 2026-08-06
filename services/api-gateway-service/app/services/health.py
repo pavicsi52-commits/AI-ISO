@@ -120,7 +120,7 @@ class HealthMonitorService:
         return {row.instance_url: CircuitBreakerState(row.circuit_state) for row in rows}
 
     async def list_for_org(self, organization_id: UUID) -> list[ApiServiceHealth]:
-        """Every instance's own last-probed health row, across every service in this organization."""
+        """Every instance's own last-probed health row, across every service in this org."""
         return await self._health_repo.list_for_org(organization_id)
 
 

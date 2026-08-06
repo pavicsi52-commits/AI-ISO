@@ -56,7 +56,9 @@ async def get_statistics_trend(
     )
 
 
-@router.get("/reports", response_model=SuccessResponse[list[ReportResponse]], summary="List reports")
+@router.get(
+    "/reports", response_model=SuccessResponse[list[ReportResponse]], summary="List reports"
+)
 async def list_reports(
     organization_id: UUID,
     reports: ReportSvc,
@@ -66,7 +68,9 @@ async def list_reports(
     """Generated reports, newest first."""
     rows = await reports.list_for_org(organization_id, limit=limit, offset=offset)
     return SuccessResponse(
-        message="Reports listed.", data=[ReportResponse.model_validate(r) for r in rows], meta=_meta()
+        message="Reports listed.",
+        data=[ReportResponse.model_validate(r) for r in rows],
+        meta=_meta(),
     )
 
 
@@ -98,9 +102,11 @@ async def generate_report(
         entity_id=created.id,
         actor_id=str(caller),
         summary=f"Generated {created.kind!s} report.",
-        succeeded=created.status.value != "failed",
+        succeeded=str(created.status) != "failed",
     )
-    return SuccessResponse(message="Report generated.", data=ReportResponse.model_validate(created), meta=_meta())
+    return SuccessResponse(
+        message="Report generated.", data=ReportResponse.model_validate(created), meta=_meta()
+    )
 
 
 @router.get(
@@ -111,12 +117,12 @@ async def get_report(
 ) -> SuccessResponse[ReportResponse]:
     """One report."""
     found = await reports.require_in_org(organization_id, report_id)
-    return SuccessResponse(message="Report found.", data=ReportResponse.model_validate(found), meta=_meta())
+    return SuccessResponse(
+        message="Report found.", data=ReportResponse.model_validate(found), meta=_meta()
+    )
 
 
-@router.get(
-    "/reports/{report_id}/download", summary="Download a report as CSV or Markdown"
-)
+@router.get("/reports/{report_id}/download", summary="Download a report as CSV or Markdown")
 async def download_report(
     organization_id: UUID,
     report_id: UUID,
@@ -138,7 +144,7 @@ async def download_report(
     else:
         body = reports.to_csv(found.content)
         media_type, extension = "text/csv", "csv"
-    filename = f"{found.kind.value}-{report_id}.{extension}"
+    filename = f"{found.kind!s}-{report_id}.{extension}"
     return Response(
         content=body,
         media_type=media_type,
@@ -146,7 +152,9 @@ async def download_report(
     )
 
 
-@router.get("/audit", response_model=SuccessResponse[list[AuditEntryResponse]], summary="Audit trail")
+@router.get(
+    "/audit", response_model=SuccessResponse[list[AuditEntryResponse]], summary="Audit trail"
+)
 async def list_audit(
     organization_id: UUID,
     audit: AuditSvc,

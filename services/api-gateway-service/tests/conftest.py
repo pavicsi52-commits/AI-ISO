@@ -323,7 +323,7 @@ def publisher() -> RecordingPublisher:
 
 @pytest.fixture
 def service_settings() -> GatewayServiceSettings:
-    """Test-tuned settings: small thresholds/timeouts, so a probe/breaker test doesn't sleep for real."""
+    """Test-tuned settings: small thresholds, so a probe/breaker test doesn't sleep for real."""
     return GatewayServiceSettings(
         circuit_breaker_failure_threshold=2,
         circuit_breaker_recovery_seconds=0.05,
@@ -336,7 +336,7 @@ def service_settings() -> GatewayServiceSettings:
 
 @pytest.fixture
 def breakers() -> dict[str, CircuitBreaker]:
-    """One process-wide-equivalent breaker dict, shared by every `HealthMonitorService` a test builds."""
+    """One process-wide-equivalent breaker dict, shared across a test's `HealthMonitorService`s."""
     return {}
 
 
@@ -653,9 +653,14 @@ def make_client(client_service: ClientService, organization_id: uuid.UUID) -> Ma
     """Register one API client."""
 
     async def _make(
-        name: str = "test-client", *, client_kind: ClientKind = ClientKind.THIRD_PARTY, **kwargs: Any
+        name: str = "test-client",
+        *,
+        client_kind: ClientKind = ClientKind.THIRD_PARTY,
+        **kwargs: Any,
     ) -> Any:
-        return await client_service.register(organization_id, name=name, client_kind=client_kind, **kwargs)
+        return await client_service.register(
+            organization_id, name=name, client_kind=client_kind, **kwargs
+        )
 
     return _make
 
@@ -669,7 +674,9 @@ def make_api_key(
 ) -> MakeApiKeyFn:
     """Register one client and issue it an API key; returns ``(raw_key, ApiKey)``."""
 
-    async def _make(*, name: str = "test-key", scopes: list[str] | None = None, **kwargs: Any) -> Any:
+    async def _make(
+        *, name: str = "test-key", scopes: list[str] | None = None, **kwargs: Any
+    ) -> Any:
         client = await make_client()
         return await api_key_service.create(
             organization_id, client_id=client.id, name=name, scopes=scopes or [], **kwargs
@@ -686,7 +693,12 @@ def make_rate_limit_policy(
     rate_limit_service: RateLimitService, organization_id: uuid.UUID
 ) -> MakeRateLimitPolicyFn:
     async def _make(
-        *, scope: Any, scope_reference: str | None = None, max_requests: int = 5, window_seconds: int = 60, **kwargs: Any
+        *,
+        scope: Any,
+        scope_reference: str | None = None,
+        max_requests: int = 5,
+        window_seconds: int = 60,
+        **kwargs: Any,
     ) -> Any:
         return await rate_limit_service.set_policy(
             organization_id,

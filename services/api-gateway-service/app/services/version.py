@@ -35,7 +35,7 @@ class VersionService:
             ApiVersion(
                 organization_id=organization_id,
                 service_id=service_id,
-                version=version,
+                version_label=version,
                 is_default=is_default,
             )
         )
@@ -58,8 +58,12 @@ class VersionService:
         message: str | None = None,
         sunset_at: datetime | None = None,
     ) -> ApiVersion:
-        """Mark a version deprecated, with optional guidance and a sunset date."""
-        stored = await self._versions.require_by_id(version_id)
+        """Mark a version deprecated, with optional guidance and a sunset date.
+
+        Raises:
+            NotFoundError: If no version with this id exists in this organization.
+        """
+        stored = await self._versions.require_in_org(organization_id, version_id)
         stored.is_deprecated = True
         stored.deprecation_message = message
         stored.sunset_at = sunset_at

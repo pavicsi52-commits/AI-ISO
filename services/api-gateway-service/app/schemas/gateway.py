@@ -81,13 +81,16 @@ class VersionCreateRequest(BaseModel):
 class VersionResponse(BaseModel):
     id: UUID
     service_id: UUID
-    version: str
+    version: str = Field(validation_alias="version_label")
+    """Read from the ORM row's ``version_label`` attribute -- ``ApiVersion.version``
+    is the base entity's own optimistic-locking counter (an ``int``), not this
+    field; the public API's ``"version"`` JSON key is unaffected."""
     is_default: bool
     is_deprecated: bool
     deprecation_message: str | None
     sunset_at: datetime | None
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class VersionDeprecateRequest(BaseModel):

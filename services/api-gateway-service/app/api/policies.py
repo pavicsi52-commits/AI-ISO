@@ -25,7 +25,9 @@ def _meta() -> ResponseMeta:
 
 
 @rate_limits_router.get(
-    "", response_model=SuccessResponse[list[RateLimitPolicyResponse]], summary="List rate limit policies"
+    "",
+    response_model=SuccessResponse[list[RateLimitPolicyResponse]],
+    summary="List rate limit policies",
 )
 async def list_rate_limits(
     organization_id: UUID, rate_limits: RateLimitSvc

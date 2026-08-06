@@ -78,7 +78,9 @@ class HealthProbeSweepWorker:
     async def _targets(self) -> list[tuple[UUID, UUID, str, str]]:
         """Every enabled service's own instance, across every organization."""
         async with self._session_factory() as session:
-            services = await ApiServiceRepository(session).list_all(limit=self._max_services_per_tick)
+            services = await ApiServiceRepository(session).list_all(
+                limit=self._max_services_per_tick
+            )
         return [
             (service.organization_id, service.id, service.name, instance["url"])
             for service in services
@@ -93,7 +95,9 @@ class HealthProbeSweepWorker:
         try:
             async with self._session_factory() as session:
                 health_repo = ApiServiceHealthRepository(session)
-                previous = await health_repo.get_for_instance(organization_id, service_id, instance_url)
+                previous = await health_repo.get_for_instance(
+                    organization_id, service_id, instance_url
+                )
                 previous_status = previous.status if previous is not None else None
 
                 monitor = HealthMonitorService(

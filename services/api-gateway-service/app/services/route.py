@@ -99,7 +99,9 @@ class RouteService:
         self, organization_id: UUID, *, service_id: UUID | None = None, enabled: bool | None = None
     ) -> list[ApiRoute]:
         """Routes in this organization, ordered by priority."""
-        return await self._routes.list_for_org(organization_id, service_id=service_id, enabled=enabled)
+        return await self._routes.list_for_org(
+            organization_id, service_id=service_id, enabled=enabled
+        )
 
     async def update(
         self, organization_id: UUID, route_id: UUID, *, actor_id: str | None = None, **fields: Any
@@ -148,7 +150,9 @@ class RouteService:
             )
             for route in routes
         ]
-        chosen = routing_engine.select_route(candidates, method=method, path=path, host=host, headers=headers)
+        chosen = routing_engine.select_route(
+            candidates, method=method, path=path, host=host, headers=headers
+        )
         if chosen is None:
             return None
         return next(route for route in routes if str(route.id) == chosen.id)

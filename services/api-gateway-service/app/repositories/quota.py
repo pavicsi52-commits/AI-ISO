@@ -61,9 +61,7 @@ class ApiQuotaPolicyRepository(BaseRepository[ApiQuotaPolicy]):
         result = await self._session.execute(stmt)
         return result.scalars().first()
 
-    async def list_due_for_reset(
-        self, *, now: datetime, limit: int = 500
-    ) -> list[ApiQuotaPolicy]:
+    async def list_due_for_reset(self, *, now: datetime, limit: int = 500) -> list[ApiQuotaPolicy]:
         """Every quota whose tracked period has already ended, across every organization.
 
         Unscoped by organization -- the quota-reset sweep is a single

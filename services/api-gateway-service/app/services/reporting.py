@@ -14,7 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.enums import AuditAction, ReportFormat, ReportKind, ReportStatus
 from app.models.governance import ApiAudit, ApiReport, ApiStatistic
-from app.repositories.governance import ApiAuditRepository, ApiReportRepository, ApiStatisticRepository
+from app.repositories.governance import (
+    ApiAuditRepository,
+    ApiReportRepository,
+    ApiStatisticRepository,
+)
 from app.repositories.request import ApiRequestLogRepository, ApiResponseLogRepository
 
 logger = get_logger("app.services.reporting")
@@ -82,7 +86,9 @@ class StatisticsService:
         success_rate = (successful / total * 100) if total else 100.0
 
         existing = await self._statistics.get_for_window(organization_id, window_start)
-        window = existing or ApiStatistic(organization_id=organization_id, window_start=window_start)
+        window = existing or ApiStatistic(
+            organization_id=organization_id, window_start=window_start
+        )
         window.window_end = window_end
         window.total_requests = len(requests)
         window.successful_requests = successful
@@ -97,7 +103,9 @@ class StatisticsService:
         window.by_status_code = by_status_code
         window.by_client = by_client
 
-        return await (self._statistics.update(window) if existing else self._statistics.create(window))
+        return await (
+            self._statistics.update(window) if existing else self._statistics.create(window)
+        )
 
     async def dashboard(self, organization_id: UUID) -> dict[str, Any]:
         """The live snapshot a dashboard reads on load."""

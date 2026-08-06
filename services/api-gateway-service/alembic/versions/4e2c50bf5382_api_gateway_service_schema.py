@@ -233,7 +233,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_api_health_status'), 'api_health', ['status'], unique=False)
     op.create_table('api_versions',
     sa.Column('service_id', sa.Uuid(), nullable=False),
-    sa.Column('version', sa.String(length=32), nullable=False),
+    sa.Column('version_label', sa.String(length=32), nullable=False),
     sa.Column('is_default', sa.Boolean(), nullable=False),
     sa.Column('is_deprecated', sa.Boolean(), nullable=False),
     sa.Column('deprecation_message', sa.Text(), nullable=True),
@@ -247,6 +247,7 @@ def upgrade() -> None:
     sa.Column('deleted_by', sa.Uuid(), nullable=True),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('version', sa.Integer(), nullable=False),
     sa.Column('organization_id', sa.Uuid(), nullable=False),
     sa.Column('project_id', sa.Uuid(), nullable=True),
     sa.ForeignKeyConstraint(['service_id'], ['api_services.id'], ondelete='CASCADE'),
