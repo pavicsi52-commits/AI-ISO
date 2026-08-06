@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, status
 from shared_core.logging.context import get_log_context
 
-from app.api.deps import TransformationSvc
+from app.api.deps import EndpointSvc, TransformationSvc
 from app.models.enums import transformation_kind_of
 from app.schemas.response import ResponseMeta, SuccessResponse
 from app.schemas.webhook import TransformationCreateRequest, TransformationResponse
@@ -25,9 +25,17 @@ def _meta() -> ResponseMeta:
     summary="List transformation rules for an endpoint",
 )
 async def list_transformations(
-    endpoint_id: UUID, transformations: TransformationSvc
+    organization_id: UUID, endpoint_id: UUID, endpoints: EndpointSvc, transformations: TransformationSvc
 ) -> SuccessResponse[list[TransformationResponse]]:
-    """Every enabled transformation rule attached to one endpoint, in priority order."""
+    """Every enabled transformation rule attached to one endpoint in this organization, in priority order.
+
+    Confirms *endpoint_id* actually belongs to *organization_id* first
+    (docs/057 "SECURITY": "Organization isolation") -- a
+    ``WebhookTransformation`` row is not directly reachable by
+    organization otherwise, since a rule is looked up by its parent
+    endpoint, not listed per organization.
+    """
+    await endpoints.get(organization_id, endpoint_id)
     rows = await transformations.list_for_endpoint(endpoint_id)
     return SuccessResponse(
         message="Transformation rules listed.",
@@ -43,9 +51,19 @@ async def list_transformations(
     summary="Create a transformation rule",
 )
 async def create_transformation(
-    organization_id: UUID, body: TransformationCreateRequest, transformations: TransformationSvc
+    organization_id: UUID,
+    body: TransformationCreateRequest,
+    endpoints: EndpointSvc,
+    transformations: TransformationSvc,
 ) -> SuccessResponse[TransformationResponse]:
-    """Register a new transformation rule."""
+    """Register a new transformation rule.
+
+    Confirms ``body.endpoint_id`` actually belongs to *organization_id*
+    first -- otherwise a caller could attach a transformation rule to
+    (and thereby alter outbound deliveries for) another organization's
+    own endpoint.
+    """
+    await endpoints.get(organization_id, body.endpoint_id)
     created = await transformations.create(
         organization_id,
         endpoint_id=body.endpoint_id,

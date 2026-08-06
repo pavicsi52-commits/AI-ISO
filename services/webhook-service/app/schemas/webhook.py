@@ -169,7 +169,7 @@ class SignatureRotateRequest(BaseModel):
 class SignatureResponse(BaseModel):
     id: UUID
     endpoint_id: UUID
-    version: int
+    secret_version: int
     algorithm: SignatureAlgorithm
     status: str
     expires_at: datetime | None

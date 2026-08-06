@@ -47,7 +47,7 @@ class WebhookSignatureRepository(BaseRepository[WebhookSignature]):
             self._base_select()
             .where(WebhookSignature.endpoint_id == endpoint_id)
             .where(WebhookSignature.status.in_([str(SecretStatus.ACTIVE), str(SecretStatus.ROTATING)]))
-            .order_by(WebhookSignature.version.desc())
+            .order_by(WebhookSignature.secret_version.desc())
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
@@ -58,15 +58,15 @@ class WebhookSignatureRepository(BaseRepository[WebhookSignature]):
             self._base_select()
             .where(WebhookSignature.endpoint_id == endpoint_id)
             .where(WebhookSignature.status == str(SecretStatus.ACTIVE))
-            .order_by(WebhookSignature.version.desc())
+            .order_by(WebhookSignature.secret_version.desc())
         )
         result = await self._session.execute(stmt)
         return result.scalars().first()
 
     async def get_latest_version(self, endpoint_id: UUID) -> int:
-        """The highest existing ``version`` for an endpoint's own secrets, or ``0`` if none."""
+        """The highest existing ``secret_version`` for an endpoint's own secrets, or ``0`` if none."""
         rows = await self.list_usable_for_endpoint(endpoint_id)
-        return max((row.version for row in rows), default=0)
+        return max((row.secret_version for row in rows), default=0)
 
     async def list_rotating_due_for_expiry(
         self, *, now: datetime, limit: int = 500

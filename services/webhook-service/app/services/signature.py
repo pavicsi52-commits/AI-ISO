@@ -41,7 +41,7 @@ class SignatureService:
             WebhookSignature(
                 organization_id=organization_id,
                 endpoint_id=endpoint_id,
-                version=next_version,
+                secret_version=next_version,
                 algorithm=algorithm,
                 secret_ciphertext=encrypt(secret, key=self._encryption_key),
             )
@@ -76,7 +76,7 @@ class SignatureService:
             WebhookSignature(
                 organization_id=organization_id,
                 endpoint_id=endpoint_id,
-                version=next_version,
+                secret_version=next_version,
                 algorithm=current.algorithm if current else SignatureAlgorithm.HMAC_SHA256,
                 secret_ciphertext=encrypt(new_secret, key=self._encryption_key),
             )
@@ -87,7 +87,7 @@ class SignatureService:
         rows = await self._signatures.list_usable_for_endpoint(endpoint_id)
         return [
             SigningSecret(
-                version=row.version,
+                version=row.secret_version,
                 secret=decrypt(row.secret_ciphertext, key=self._encryption_key),
                 algorithm=SignatureAlgorithm(row.algorithm),
             )
@@ -100,7 +100,7 @@ class SignatureService:
         if row is None:
             return None
         return SigningSecret(
-            version=row.version,
+            version=row.secret_version,
             secret=decrypt(row.secret_ciphertext, key=self._encryption_key),
             algorithm=SignatureAlgorithm(row.algorithm),
         )
