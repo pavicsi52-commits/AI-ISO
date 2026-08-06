@@ -77,6 +77,7 @@ class WebhookServiceSettings(BaseSettings):
     replay_processor_sweep_seconds: int = Field(default=10, ge=5, le=3_600)
     statistics_rollup_seconds: int = Field(default=900, ge=60, le=86_400)
     idempotency_expiry_sweep_seconds: int = Field(default=3_600, ge=60, le=86_400)
+    secret_expiry_sweep_seconds: int = Field(default=3_600, ge=60, le=86_400)
 
     max_report_rows: int = Field(default=10_000, ge=1, le=1_000_000)
 

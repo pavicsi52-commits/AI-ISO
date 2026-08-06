@@ -24,6 +24,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.events.webhook_events import (
     SOURCE_SERVICE,
@@ -38,7 +39,11 @@ from app.models.event import WebhookEvent
 from app.models.retry import WebhookDeadLetter, WebhookRetryQueueEntry
 from app.repositories.delivery import WebhookDeliveryAttemptRepository, WebhookDeliveryRepository
 from app.repositories.endpoint import WebhookEndpointRepository
+from app.repositories.filter import WebhookFilterRepository
 from app.repositories.retry import WebhookDeadLetterRepository, WebhookRetryQueueRepository
+from app.repositories.signature import WebhookSignatureRepository
+from app.repositories.subscription import WebhookSubscriptionRepository
+from app.repositories.transformation import WebhookTransformationRepository
 from app.retry import engine as retry_engine
 from app.security.url_safety import assert_safe_url
 from app.services.filter import FilterService
@@ -364,4 +369,33 @@ class DeliveryService:
         )
 
 
-__all__ = ["DeliveryOutcome", "DeliveryService"]
+def build_delivery_service(
+    session: AsyncSession,
+    http_client: httpx.AsyncClient,
+    *,
+    encryption_key: str,
+    publish_event: EventPublisher | None = None,
+) -> DeliveryService:
+    """Build a fully-wired :class:`DeliveryService` from one session.
+
+    The one-stop constructor a worker (its own session per tick, not a
+    request) or any other caller outside the FastAPI dependency graph
+    needs -- ``app/api/deps.py``'s own ``get_delivery_service`` wires
+    the same pieces together for a request instead.
+    """
+    return DeliveryService(
+        http_client=http_client,
+        deliveries=WebhookDeliveryRepository(session),
+        attempts=WebhookDeliveryAttemptRepository(session),
+        endpoints=WebhookEndpointRepository(session),
+        retry_queue=WebhookRetryQueueRepository(session),
+        dead_letters=WebhookDeadLetterRepository(session),
+        subscriptions=SubscriptionService(WebhookSubscriptionRepository(session)),
+        filters=FilterService(WebhookFilterRepository(session)),
+        transformations=TransformationService(WebhookTransformationRepository(session)),
+        signatures=SignatureService(WebhookSignatureRepository(session), encryption_key=encryption_key),
+        publish_event=publish_event,
+    )
+
+
+__all__ = ["DeliveryOutcome", "DeliveryService", "build_delivery_service"]
