@@ -6232,3 +6232,223 @@ subscribed a user to a topic and broadcast to it (`total_recipients:
 confirmed the append-only audit trail (five correctly-ordered entries)
 and the live statistics dashboard (`deliveries_by_status: {delivered:
 2}`) all reflected it — end-to-end through the actual built image.
+
+## Prompt 056 — Enterprise API Gateway Service
+
+`services/api-gateway-service`, port **8027**, database
+**`aiios_api_gateway`**, Redis **db 29**, RabbitMQ. The single entry
+point for every backend service: routing, load balancing,
+authentication/authorization, rate limiting, quotas, circuit breaking,
+request/response transformation, a REST management API, a GraphQL
+query surface, and a WebSocket live event stream. 15 tables, 15
+repositories, 12 services, 5 pure engines, 11 management routers plus
+the reverse-proxy catch-all, a GraphQL schema, a WebSocket hub, 3
+leader-elected workers, 8 domain events.
+
+**767 tests, 99.55% branch coverage** against real PostgreSQL, Redis,
+and RabbitMQ. Ruff, Black, MyPy all clean (*Success: no issues found in
+89 source files*). Written by six agents working fully in parallel
+(`isolation: "worktree"`) against pure engines/enums; service-registry/
+version/route/client/apikey services; rate-limit/quota/transformation/
+health services; the proxy and auth core; the reporting service plus
+the REST management API; and GraphQL/WebSocket/workers/telemetry,
+respectively — all six hit the account's session limit mid-task at
+least once and were resumed via `SendMessage` from their own worktree's
+partial progress rather than restarted from scratch (one, GraphQL/
+WebSocket/workers, had made zero progress and left no worktree behind,
+per the Agent tool's own "auto-cleanup if unchanged" behavior, and was
+relaunched fresh instead).
+
+### Distinct from `services/gateway/`, Prompt 011's own bootstrap stub
+
+Confirmed via direct inspection that `services/gateway/` is an empty
+foundational stub (its own README says "no business or routing logic
+yet"; `app/services`/`app/security`/`app/clients` are placeholder
+directories) — built separately, without modifying it.
+
+### Reused frameworks vs genuine gaps, established by a dedicated research pass
+
+Per this prompt's own "use every previously implemented platform
+framework, do not redesign the platform" instruction, a foreground
+research `Agent` call, source-verified every reusable primitive before
+any code was written:
+
+- **Reused directly:** `shared_core.security.jwt` (`decode_token`,
+  multi-key `KeyRing` — verification only, this service issues no
+  tokens), `shared_core.security.rbac`/`.authorization`
+  (`ROLE_PERMISSIONS`, `has_permission`, `authorize()` — RBAC checked
+  first, policy only if both a `PolicyEngine` and context are supplied),
+  `shared_core.security.apikey` (`generate_api_key`/`hash_api_key`/
+  `create_api_key`/`rotate_api_key`/`revoke_api_key`/
+  `record_api_key_usage`/`check_api_key_scope`/`check_api_key_ip_allowed`
+  — all pure functions returning new `dataclasses.replace()` copies,
+  never mutating in place; `key_id` is an independently generated UUID,
+  never derivable from a raw key or its hash, which is why verification
+  must look up by *hash*, not by `key_id`), `shared_core.cache.ratelimit
+  .RateLimitCache`/`shared_core.security.ratelimit.DistributedRateLimiter`
+  (fixed-window-plus-penalty and genuine sliding-window-log limiters —
+  no token bucket exists anywhere in `shared_core`),
+  `shared_core.connectors.retry.CircuitBreaker` (real 3-state CLOSED/
+  OPEN/HALF_OPEN), `shared_core.monitoring.checks.check_http_reachable`
+  (builds its own internal `httpx.AsyncClient` — confirmed, by reading
+  its source, to accept no injectable client, which is why health/
+  circuit-breaker tests point at real already-running containers
+  rather than a test double).
+- **Genuine gaps, confirmed absent and built new:** load balancing
+  (no primitive exists anywhere in `shared_core`), a real service-
+  discovery registry (`shared_core.monitoring.services.ServiceRegistry`
+  is a passive last-reported-health tracker with no host/port storage;
+  `shared_core.connectors.discovery` is protocol-level TCP/port probing,
+  not an AI-IOS service registry — this service's own
+  `app/services/service.py` is the real thing), a pooled outbound HTTP
+  client (no `shared_core.http` module exists; the proxy is built
+  directly on `httpx.AsyncClient`), request/response transformation,
+  and a GraphQL library (no dependency on one existed anywhere in the
+  monorepo — `strawberry-graphql[fastapi]` added fresh as this prompt's
+  own choice, async/type-hint-native, matching the FastAPI+pydantic
+  stack already in use everywhere else).
+
+### Local RBAC, not a live cross-service call — an established, not invented, precedent
+
+Confirmed directly in `secrets-management-service`, `project-service`,
+and `organization-service`'s own source comments: every prior service
+asked to integrate the RBAC/policy-engine prompts chose local,
+self-contained enforcement against a caller's own JWT claims over a
+live per-request HTTP call to `services/rbac-service`/`services
+/policy-engine-service`, and none of them build a client for either.
+`app/services/auth.py` follows the same precedent rather than
+introducing this monorepo's first live cross-service authorization
+call.
+
+### Circuit breakers cannot be a request-scoped-yet-stateful singleton
+
+`HealthMonitorService`'s constructor originally held its own
+`dict[str, CircuitBreaker] = {}`, initialized fresh per instance. Since
+`app/api/deps.py` builds one instance per request (an `AsyncSession` is
+not safe to hold open across concurrent requests as a true singleton),
+a fresh breaker dict per request would mean a breaker tripped by one
+request is invisible to the very next one — defeating the entire point
+of a circuit breaker. Fixed by accepting an externally-owned
+`breakers` dict, with one process-wide instance living on
+`app.state.circuit_breakers`, threaded into every request-scoped
+`HealthMonitorService` *and* into the health-probe-sweep worker, which
+runs its own probes on its own schedule outside any request.
+
+### The proxy never parses the body it forwards; GraphQL is single-schema, not federation
+
+Both documented as deliberate scope boundaries in `README.md` and in
+the relevant modules' own docstrings, not omissions: a reverse proxy
+must stay protocol-agnostic (a `BODY`-kind transformation rule is real
+and directly callable, just not wired into the always-streams-bytes
+live path), and no backend currently registered with this gateway
+exposes its own GraphQL schema for there to be anything to federate.
+
+### Bugs worth remembering
+
+- **Every proxied request silently dropped its own query string.**
+  `ProxyService.proxy()` accepted `query_string` as a parameter and
+  stored it on the request log, but `_forward()` built the upstream
+  target URL from the resolved path alone and never appended it —
+  `GET /search?q=foo` proxied as `GET /search` on every call. Found by
+  the proxy/auth agent while re-reading the method end to end before
+  writing its own tests. Fixed by threading `query_string` through
+  `_forward()` and appending it to `target_url` when non-empty; locked
+  in by a dedicated regression test against the ASGI-mounted fake
+  backend.
+- **`VersionService.deprecate()` had no tenant isolation.** It called
+  the base repository's unscoped `require_by_id(version_id)` instead of
+  a tenant-scoped lookup — any organization could deprecate any other
+  organization's API version by id. Found *independently* by two of the
+  six parallel agents (the CRUD-services agent and the reporting/API
+  agent), each adding an identical `ApiVersionRepository
+  .require_in_org()` and switching `deprecate()` to use it — reconciled
+  at merge by taking one copy, not two.
+- **`ApiVersion.version` collided with the base entity's own
+  optimistic-locking column.** `shared_core.base.BaseEntityMixin` gives
+  every entity a `version: int` column, incremented on every update
+  (`increment_version()`); this model declared its own
+  `version: Mapped[str]` for the domain concept ("v1", "2024-01-01")
+  under the exact same name, silently shadowing the inherited column at
+  the SQLAlchemy declarative level. `BaseRepository.update()`'s
+  `entity.version += 1` would `TypeError` against a string the moment
+  any version row's lock was ever bumped (e.g. via
+  `_demote_current_default`) — and the already-generated Alembic
+  migration confirmed the damage was real, not theoretical:
+  `api_versions` was the *only* one of 15 tables missing the standard
+  integer `version` column entirely. Found independently by the same
+  two agents that found the tenant-isolation bug above (both while
+  writing `VersionService`/`app/api/services.py` tests). Fixed by
+  renaming the domain column to `version_label` across the model,
+  repository (`order_by`), service (ORM construction), schema
+  (`VersionResponse.version` now reads via
+  `Field(validation_alias="version_label")`, `populate_by_name=True` —
+  the public `"version"` JSON key is unchanged), and the migration file
+  itself (edited in place, plus the equivalent `ALTER TABLE` applied
+  directly to the live shared test database, rather than a destructive
+  downgrade/upgrade cycle that could disrupt other concurrently-running
+  worktree agents sharing the same Postgres instance).
+- **The first-ever probe of a new, unhealthy instance crashed.**
+  `HealthMonitorService.probe()` incremented `consecutive_failures` on
+  a freshly constructed (not yet flushed) `ApiServiceHealth` row —
+  before the column's own default had ever applied at flush time, the
+  in-memory attribute was `None`, and `None += 1` raised `TypeError`.
+  Caught before any test-writing agent even started, by this service's
+  own hand-written smoke test (`test_health_monitor_probes_a_real_endpoint`,
+  targeting a real already-running container). Fixed by passing
+  `consecutive_failures=0` explicitly at construction.
+- **Two `.value`-on-a-plain-string bugs in `app/api/analytics.py`.**
+  `download_report`'s filename (`found.kind.value`) and
+  `generate_report`'s audit-success flag (`created.status.value`) both
+  called `.value` on an enum column freshly read back from the
+  database — which round-trips as a plain `str`, exactly the class of
+  bug this service's own `app/models/enums.py` docstring warns about
+  and calls for normalising on the *column*, never assumed on the
+  record. Every `GET /gateway/reports/{id}/download` call raised a
+  500. Found by the GraphQL/WebSocket/workers agent while writing
+  `test_api_analytics.py`. Fixed with `!s`/`str()`, matching the
+  already-correct pattern two lines away in the same file.
+- **A manual live e2e verification pass again polluted the shared test
+  database — the same lesson as Prompt 055, missed on the first
+  cleanup attempt.** A real proxy round trip through the running
+  container writes `api_requests`/`api_responses` rows, which
+  `StatisticsRollupWorker._organizations()`'s own unscoped
+  `SELECT DISTINCT organization_id FROM api_requests` has no reason to
+  filter — the first post-verification `DELETE FROM ...` pass covered
+  `api_health`/`api_audit`/`api_routes`/`api_services` but forgot the
+  two request/response-log tables the proxy round trip itself had
+  written to, and the very next full test run failed two
+  `StatisticsRollupWorker` tests deterministically (an inflated
+  organization count and a spurious rollup). A second, complete cleanup
+  pass across every table the live verification had touched fixed it —
+  the same discipline as Prompt 055's own version of this lesson,
+  reconfirmed: a manual live check against the same database an
+  automated suite uses is itself a source of pollution, and every table
+  it touched needs to be accounted for, not just the obviously
+  business-relevant ones.
+- **`app/telemetry/tracing.py` was written correct from the start**,
+  using `**{...}` unpacking at every `start_span` call site, per the
+  now fully-established repo-wide lesson. Confirmed correct by tests
+  asserting on real span attributes via an in-memory OTel exporter, not
+  just by not crashing.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ, using `services/authentication-service`'s real
+private key (confirmed to be the matching keypair for this service's
+own bundled `keys/jwt_public_key.pem`, modulo line-ending differences)
+to sign a genuine JWT. All three leader-elected background jobs
+(health-probe sweep, statistics rollup, quota-reset sweep) registered
+with one node acquiring leadership on startup. Registered a real
+backend service and route over HTTP, then proxied a real request
+through `/e2e/health` — a genuine round trip across the actual Docker
+network from the gateway back to its own `/health` endpoint via a
+different route — and got the real backend's response back. Confirmed
+the append-only audit trail recorded both admin actions, queried the
+GraphQL endpoint (`{ services(organizationId: "...") { name enabled
+instanceCount } }`), and confirmed `GET /gateway/health` reflected a
+real probe result the health-probe-sweep worker had already run on its
+own, unprompted, inside the running container — end-to-end through the
+actual built image. Live-verification rows cleaned from every table
+they touched (`api_services`, `api_routes`, `api_audit`, `api_health`,
+`api_requests`, `api_responses`) before the final test-suite re-run.
