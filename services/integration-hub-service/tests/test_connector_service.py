@@ -23,7 +23,9 @@ class TestRegister:
         self, connector_service: ConnectorService, organization_id: uuid.UUID
     ) -> None:
         created = await connector_service.register(
-            organization_id, name="aws-connector", category=ConnectorCategory.CLOUD,
+            organization_id,
+            name="aws-connector",
+            category=ConnectorCategory.CLOUD,
             connector_type="aws",
         )
         assert created.name == "aws-connector"
