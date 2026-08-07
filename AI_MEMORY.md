@@ -6653,3 +6653,171 @@ re-run.
 conversion, producing an opaque `AMQPInternalError` on startup with no
 obvious cause. `MSYS_NO_PATHCONV=1` before `docker run` whenever an
 argument begins with `/`.
+
+---
+
+## Prompt 058 — Enterprise Integration Hub Service
+
+`services/integration-hub-service`, port **8029**, database
+**`aiios_integration_hub`**, Redis **db 31**, RabbitMQ. A centralized
+connector registry/catalog: connector lifecycle management, credential
+management, data synchronization, transformation, integration flows,
+event routing, health monitoring, marketplace, analytics, reports, and
+audit. 14 tables, 14 repositories, 12 services, 3 genuine-gap pure
+engines, 41 REST routes across 8 routers, 4 leader-elected workers, 9
+domain events.
+
+**724 tests, 98.85% branch coverage** against real PostgreSQL, Redis,
+and RabbitMQ. Ruff, Black, MyPy all clean (*Success: no issues found in
+74 source files*).
+
+### Reused frameworks vs genuine gaps, established by a dedicated research pass
+
+- **Reused directly:** `shared_core.security.encryption` (AES-256-GCM,
+  for self-managed OAuth2 tokens); `shared_core.plugins.versioning`
+  (`is_upgrade`/`is_downgrade`/`is_compatible`/`parse_version` — real
+  semver via `packaging`, for connector upgrade/rollback and
+  marketplace compatibility checks); `shared_core.monitoring.checks
+  .check_http_reachable`/`.check_tcp_reachable` (connector health/
+  connection probing); `shared_core.scheduler`; `shared_core.events`.
+- **Genuine gaps, confirmed absent and built new:** JSON/XML/CSV/YAML
+  conversion plus field mapping/schema validation/enrichment/
+  filtering/aggregation/normalization (`app/transformations/engine.py`
+  — no such conversion or rule-application logic exists anywhere in
+  `shared_core`); a step-graph flow-execution engine with conditions,
+  loops, parallel branches, retries, compensation, and approval gating
+  (`app/flows/engine.py` — no generic workflow engine exists in
+  `shared_core`); event routing/filtering/enrichment
+  (`app/routing/engine.py`); a real RFC 6749 OAuth2 token-exchange
+  module for the authorization-code and refresh grants
+  (`app/security/oauth.py` — `shared_core.security.providers
+  .AuthenticationProvider` is a bare structural `Protocol`, nothing
+  implements the actual handshake); a live credential resolver
+  (`app/security/credential_resolver.py`, following the established
+  `SecretCredentialResolver` precedent from automation-service/
+  discovery-service/configuration-management-service).
+- **This prompt's own explicit scope boundary — a catalog/registry,
+  not literal working integrations** — is why the ~85 named built-in
+  connectors (AWS, Kubernetes, GitHub, ServiceNow, Prometheus,
+  PostgreSQL, MQTT, ...) exist only as marketplace catalog metadata,
+  never as live `BaseConnector` subclasses the way automation-service's
+  own real SSH connector is. `shared_core.connectors` (Prompt 027) is
+  directly importable and was read closely during research, but
+  instantiating 85 real provider clients is exactly the "Customer-
+  specific Connectors" scope docs/058's own "DO NOT IMPLEMENT" section
+  excludes.
+
+### Two kinds of credential, two different resolution paths
+
+`ConnectorCredential` holds either a `secret_ref` (a
+secrets-management-service reference, resolved live and never
+persisted in plaintext) or an `encrypted_value` (AES-256-GCM,
+decryptable by this service alone, for a self-managed OAuth2 token).
+Exactly one is ever set, enforced by `CredentialService.assign()`.
+Cross-checked against automation-service/discovery-service/
+configuration-management-service's own `CredentialResolver` precedent
+(a live `GET /secrets/{id}` call forwarding the caller's own bearer
+token, so secrets-management-service's own ACL applies) — confirmed
+this is the correct precedent to follow here specifically because
+`connector_credentials` references *third-party* system credentials
+this service does not itself mint, unlike webhook-service's own
+self-managed signing secrets (which needed no live resolver at all).
+
+### Bugs worth remembering
+
+- **`_set_path`/`_delete_path` in the transformation engine mutated a
+  shared nested dict in place.** `apply_field_mapping`/`.enrichment`/
+  `.normalization` all start from `dict(data)` -- a shallow copy that
+  only protects the top-level keys; every nested dict object is still
+  shared by reference with the caller's original input. Setting or
+  deleting a nested path that already existed silently mutated that
+  original object too. Found by the pure-engines test-writing agent
+  while writing a regression test for exactly this shape of bug. Fixed
+  with copy-on-write at every intermediate level (an existing nested
+  dict is replaced with a shallow copy of itself before being descended
+  into, rather than mutated).
+- **`CredentialService.rotate()` always overwrote `expires_at`, even
+  when the caller didn't pass a new one** -- silently erasing a
+  credential's own expiry and dropping it out of
+  `list_expiring_before()`'s own sweep forever. Fixed to only update
+  `expires_at` when explicitly given, matching how `refresh_value`
+  already worked.
+- **`HealthService.probe()`'s own `consecutive_failures` field never
+  actually reset to zero on a successful probe.** It computed
+  `connector.consecutive_failures + (0 if healthy else 1)` -- on
+  success this just carries the connector's prior (possibly stale)
+  count forward instead of reflecting that the failure streak had just
+  broken, inconsistent with the sibling `ConnectorService
+  .record_health_outcome`'s own correct `0 if succeeded else +1`
+  semantics. Found by a test-writing agent's own test (named
+  `test_resets_to_zero_on_success_regardless_of_the_prior_count`) that
+  correctly predicted the right behavior and caught the implementation
+  not matching it. Fixed to match.
+- **Two test-authoring mistakes, not source bugs, caught during
+  merge**: a rating-validation test expected FastAPI's own raw 422
+  instead of this platform's `RequestValidationMiddleware` remap onto
+  400 (the same "never assume FastAPI's own default, this platform
+  remaps every request-validation error" lesson every prior AI-IOS
+  service's own test suite already encodes); a credential-rotation
+  test compared an ORM object against itself after mutation (`rotate()`
+  re-fetches the same row through the session's own identity map and
+  mutates it in place, so both the "before" and "after" variables the
+  test held were the same Python object) instead of a plain value
+  captured before rotation -- the same identity-map-aliasing gotcha
+  webhook-service's own `test_repeated_failures_reuse_the_same_retry
+  _queue_row` docstring already documents.
+
+### A background agent's worktree vanished a second time -- now a confirmed, recurring failure mode
+
+Two of seven test-writing agents lost all their assigned work this
+build. The connector-service-and-API agent's worktree never existed at
+all by the time its task notification arrived (zero files written,
+confirmed via `git worktree list`/`git branch`, exactly like the
+replay/reporting agent's own total loss in Prompt 057). Separately, all
+seven agents -- including five whose worktrees *did* survive -- were
+cut off mid-task by an account-wide session-limit error partway through
+the run, each stopping with between one and five of its own assigned
+files still unwritten. Recovery this time was faster and cleaner than
+Prompt 057's because the lesson from that prompt was already applied
+proactively: every surviving worktree's own partial progress was
+committed immediately (`git add -A && git commit`) the moment the
+session-limit failures were detected, before attempting any further
+recovery action -- meaning nothing already written was ever at risk of
+being lost a second time, only the genuinely-never-written files needed
+redoing. Those (the fully-lost connector scope, plus `test_oauth.py`/
+`test_telemetry.py`/`test_api_analytics.py`/`test_credential_resolver
+.py`/`test_api_credentials.py`) were finished by five freshly-dispatched
+agents once the account session limit reset (confirmed via wall-clock
+time, not assumed) -- self-contained prompts, no attempt made to
+"resume" the original agents, since a fresh `Agent` call has no memory
+of a prior run's context regardless of matching worktree state. **This
+confirms the Prompt 057 lesson is not a one-off**: a parallel agent's
+own worktree surviving to be merged is never guaranteed by the tool
+reporting a task as dispatched or even as having made some progress,
+and the correct operational response is to commit real progress
+defensively and often, not just check for it after the fact.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, and RabbitMQ, using `services/authentication-service`'s real
+private key (the same shared platform JWT keypair every prior service's
+own bundled `keys/jwt_public_key.pem` verifies against) to sign a
+genuine JWT. All four leader-elected workers registered and one node
+acquired scheduler leadership on startup. Registered a connector
+pointed at PostgreSQL's own real TCP port, assigned a credential,
+enabled it, triggered a 3-record synchronization (all three succeeded),
+confirmed the marketplace catalog auto-seeded on first read (76
+entries), created and activated a flow with a `route_event` step and
+ran it end to end (confirmed a real `ConnectorEvent` row resulted) --
+and, deliberately never calling the manual probe endpoint, watched the
+leader-elected health-probe-sweep worker pick the connector up and
+record a real `healthy` result entirely on its own within one tick,
+proactively applying the "verify queue/worker designs live, unmanually"
+lesson webhook-service's own Prompt 057 build first established, this
+time as a check performed *before* being asked rather than a bug found
+after the fact. Live-verification rows cleaned from every table they
+touched (`connectors`, `connector_credentials`, `connector_connections`,
+`connector_sync_jobs`, `connector_flows`, `connector_events`,
+`connector_health`, `connector_marketplace`, `connector_audit`) before
+the final test-suite re-run.
