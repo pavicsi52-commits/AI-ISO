@@ -47,9 +47,10 @@ from shared_core.exceptions.ai import AIError
 from shared_core.logging.logger import get_logger
 
 from app.clients.base import ChatMessage
+from app.clients.dispatch import dispatch_chat
 from app.clients.registry import ModelRegistry
 from app.models.agent import Agent
-from app.models.enums import AgentType, ModelProvider, RoutingStrategy
+from app.models.enums import AgentType
 from app.models.profile import AgentProfile
 
 logger = get_logger("app.agents.orchestrator")
@@ -247,22 +248,8 @@ class AgentOrchestrator:
             messages.append(ChatMessage(role="system", content=profile.system_prompt))
         messages.append(ChatMessage(role="user", content="\n\n".join(prompt_parts)))
 
-        provider = profile.model_provider
-        if not isinstance(provider, ModelProvider):
-            provider = ModelProvider(provider)
-        strategy = profile.routing_strategy
-        if not isinstance(strategy, RoutingStrategy):
-            strategy = RoutingStrategy(strategy)
-
         try:
-            completion = await self._registry.chat(
-                messages,
-                strategy=strategy,
-                provider=provider,
-                model=profile.model_name,
-                temperature=profile.temperature,
-                max_tokens=profile.max_tokens,
-            )
+            completion = await dispatch_chat(self._registry, profile, messages)
         except AIError as exc:
             logger.warning(
                 "Agent task failed.",
