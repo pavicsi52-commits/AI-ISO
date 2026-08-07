@@ -175,7 +175,10 @@ class TestPublish:
         await marketplace_service.seed_builtin_catalog(organization_id)
         with pytest.raises(ValidationError):
             await marketplace_service.publish(
-                organization_id, slug="aws", name="My Own AWS Fork", category=ConnectorCategory.CLOUD
+                organization_id,
+                slug="aws",
+                name="My Own AWS Fork",
+                category=ConnectorCategory.CLOUD,
             )
 
 

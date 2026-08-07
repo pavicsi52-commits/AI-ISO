@@ -30,7 +30,9 @@ def _noop_definition() -> dict:
     return {"start": "s1", "steps": {"s1": {"kind": "action", "action": "noop", "next": None}}}
 
 
-async def _create_flow(client: AsyncClient, organization_id: uuid.UUID, **overrides: object) -> dict:
+async def _create_flow(
+    client: AsyncClient, organization_id: uuid.UUID, **overrides: object
+) -> dict:
     payload = {"name": "api-flow", "definition": _noop_definition(), **overrides}
     resp = await client.post(
         "/integrations/flows", params={"organization_id": str(organization_id)}, json=payload

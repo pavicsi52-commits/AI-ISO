@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -134,7 +135,7 @@ class FlowService:
         return result
 
     async def _execute_step(
-        self, action: str, config: dict[str, Any], context: dict[str, Any]
+        self, action: str, config: Mapping[str, Any], context: dict[str, Any]
     ) -> dict[str, Any]:
         if action == "noop":
             return {}
@@ -151,11 +152,11 @@ class FlowService:
             record = context.get("record", {})
             return {"record": await self._transformations.apply_all(connector_id, record)}
         if action == "route_event":
-            connector_id = config.get("connector_id") or context.get("connector_id")
+            connector_ref = config.get("connector_id") or context.get("connector_id")
             organization_id = UUID(str(context["organization_id"]))
             event = await self._events.ingest(
                 organization_id,
-                connector_id=UUID(str(connector_id)) if connector_id else None,
+                connector_id=UUID(str(connector_ref)) if connector_ref else None,
                 source=EventSource(context.get("source", EventSource.INTERNAL)),
                 event_type=str(config.get("event_type", "flow.step")),
                 payload=context.get("record", {}),

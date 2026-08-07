@@ -16,11 +16,11 @@ assert on the recording executor's own call log, not on `steps_executed`.
 
 from __future__ import annotations
 
+import asyncio
 import time
+from typing import Any
 
-import pytest
-
-from app.flows.engine import FlowEngine, FlowRunResult
+from app.flows.engine import FlowEngine
 
 ActionLog = list[str]
 
@@ -61,7 +61,10 @@ class TestSequentialActionChain:
         async def executor(action, config, context):
             return {"order_id": "abc-123"}
 
-        definition = {"start": "s1", "steps": {"s1": {"kind": "action", "action": "create", "next": None}}}
+        definition = {
+            "start": "s1",
+            "steps": {"s1": {"kind": "action", "action": "create", "next": None}},
+        }
         engine = FlowEngine(executor=executor)
         result = await engine.run(definition)
         assert result.context["order_id"] == "abc-123"
@@ -76,7 +79,10 @@ class TestSequentialActionChain:
 
     async def test_a_terminal_next_of_none_stops_the_run(self) -> None:
         log: ActionLog = []
-        definition = {"start": "s1", "steps": {"s1": {"kind": "action", "action": "only", "next": None}}}
+        definition = {
+            "start": "s1",
+            "steps": {"s1": {"kind": "action", "action": "only", "next": None}},
+        }
         engine = FlowEngine(executor=_make_recording_executor(log))
         result = await engine.run(definition)
         assert result.steps_executed == ["s1"]
@@ -85,7 +91,10 @@ class TestSequentialActionChain:
         async def executor(action, config, context):
             return {"added": True}
 
-        definition = {"start": "s1", "steps": {"s1": {"kind": "action", "action": "a", "next": None}}}
+        definition = {
+            "start": "s1",
+            "steps": {"s1": {"kind": "action", "action": "a", "next": None}},
+        }
         engine = FlowEngine(executor=executor)
         result = await engine.run(definition, context={"seed": "value"})
         assert result.context == {"seed": "value", "added": True}
@@ -124,16 +133,22 @@ class TestConditionBranching:
     async def test_resolves_a_dotted_field_path_from_the_context(self) -> None:
         log: ActionLog = []
         definition = self._definition("eq", "us")
-        definition["steps"]["cond"]["rule"] = {"field": "meta.region", "operator": "eq", "value": "us"}
+        definition["steps"]["cond"]["rule"] = {
+            "field": "meta.region",
+            "operator": "eq",
+            "value": "us",
+        }
         engine = FlowEngine(executor=_make_recording_executor(log))
         result = await engine.run(definition, context={"meta": {"region": "us"}})
         assert log == ["mark_pass"]
+        assert result.status == "succeeded"
 
     async def test_a_missing_context_field_takes_the_else_branch(self) -> None:
         log: ActionLog = []
         engine = FlowEngine(executor=_make_recording_executor(log))
         result = await engine.run(self._definition(), context={})
         assert log == ["mark_fail"]
+        assert result.status == "succeeded"
 
     async def test_an_unrecognised_condition_operator_takes_the_else_branch_rather_than_raising(
         self,
@@ -147,6 +162,7 @@ class TestConditionBranching:
         engine = FlowEngine(executor=_make_recording_executor(log))
         result = await engine.run(definition, context={"score": 1})
         assert log == ["mark_fail"]
+        assert result.status == "succeeded"
 
 
 class TestLoop:
@@ -314,7 +330,9 @@ class TestParallel:
         result = await engine.run(definition)
         assert result.steps_executed == ["par1"]
 
-    async def test_continues_to_the_parallel_steps_own_next_once_every_branch_completes(self) -> None:
+    async def test_continues_to_the_parallel_steps_own_next_once_every_branch_completes(
+        self,
+    ) -> None:
         log: ActionLog = []
         definition = {
             "start": "par1",
@@ -331,18 +349,20 @@ class TestParallel:
 
 
 class TestApprovalGating:
-    _definition = {
-        "start": "appr",
-        "steps": {
-            "appr": {"kind": "approval", "next": "after"},
-            "after": {"kind": "action", "action": "post_approval", "next": None},
-        },
-    }
+    @staticmethod
+    def _definition() -> dict[str, Any]:
+        return {
+            "start": "appr",
+            "steps": {
+                "appr": {"kind": "approval", "next": "after"},
+                "after": {"kind": "action", "action": "post_approval", "next": None},
+            },
+        }
 
     async def test_a_fresh_run_stops_awaiting_approval(self) -> None:
         log: ActionLog = []
         engine = FlowEngine(executor=_make_recording_executor(log))
-        result = await engine.run(self._definition)
+        result = await engine.run(self._definition())
         assert result.status == "awaiting_approval"
         assert result.awaiting_step == "appr"
         assert result.steps_executed == ["appr"]
@@ -351,9 +371,9 @@ class TestApprovalGating:
     async def test_resuming_with_the_approval_flag_set_completes_the_run(self) -> None:
         log: ActionLog = []
         engine = FlowEngine(executor=_make_recording_executor(log))
-        first = await engine.run(self._definition)
+        first = await engine.run(self._definition())
         second = await engine.run(
-            self._definition, context={f"_approved_{first.awaiting_step}": True}
+            self._definition(), context={f"_approved_{first.awaiting_step}": True}
         )
         assert second.status == "succeeded"
         assert second.steps_executed == ["appr", "after"]
@@ -361,7 +381,7 @@ class TestApprovalGating:
 
     async def test_a_differently_named_approval_flag_does_not_satisfy_the_gate(self) -> None:
         engine = FlowEngine(executor=_make_recording_executor([]))
-        result = await engine.run(self._definition, context={"_approved_someone_else": True})
+        result = await engine.run(self._definition(), context={"_approved_someone_else": True})
         assert result.status == "awaiting_approval"
 
 
@@ -408,7 +428,9 @@ class TestRetryWithBackoff:
         await engine.run(definition)
         assert sleeps == []
 
-    async def test_exhausting_every_attempt_still_sleeps_between_but_not_after_the_last(self) -> None:
+    async def test_exhausting_every_attempt_still_sleeps_between_but_not_after_the_last(
+        self,
+    ) -> None:
         sleeps: list[float] = []
 
         async def fake_sleep(seconds: float) -> None:
@@ -433,15 +455,16 @@ class TestRetryWithBackoff:
             calls.append(action)
             raise RuntimeError("nope")
 
-        definition = {"start": "s1", "steps": {"s1": {"kind": "action", "action": "a", "next": None}}}
+        definition = {
+            "start": "s1",
+            "steps": {"s1": {"kind": "action", "action": "a", "next": None}},
+        }
         engine = FlowEngine(executor=executor, sleep=_noop_sleep)
         result = await engine.run(definition)
         assert result.status == "failed"
         assert len(calls) == 1
 
     async def test_the_default_sleep_is_asyncio_sleep_when_none_is_injected(self) -> None:
-        import asyncio
-
         engine = FlowEngine(executor=_make_recording_executor([]))
         assert engine._sleep is asyncio.sleep
 

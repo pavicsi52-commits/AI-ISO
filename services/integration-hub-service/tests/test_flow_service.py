@@ -34,9 +34,7 @@ def _noop_definition() -> dict:
 
 
 class TestCreate:
-    async def test_create_starts_in_draft(
-        self, flow_service: FlowService, organization_id
-    ) -> None:
+    async def test_create_starts_in_draft(self, flow_service: FlowService, organization_id) -> None:
         created = await flow_service.create(
             organization_id, name="My Flow", definition=_noop_definition()
         )
@@ -196,9 +194,7 @@ class TestExecuteStepBinding:
         outcome = await flow_service._execute_step("noop", {}, {})
         assert outcome == {}
 
-    async def test_unrecognised_action_raises_value_error(
-        self, flow_service: FlowService
-    ) -> None:
+    async def test_unrecognised_action_raises_value_error(self, flow_service: FlowService) -> None:
         with pytest.raises(ValueError, match="bogus"):
             await flow_service._execute_step("bogus", {}, {})
 
@@ -348,9 +344,7 @@ class TestRunTransformAction:
         )
         definition = {
             "start": "s1",
-            "steps": {
-                "s1": {"kind": "action", "action": "transform", "config": {}, "next": None}
-            },
+            "steps": {"s1": {"kind": "action", "action": "transform", "config": {}, "next": None}},
         }
         created = await flow_service.create(
             organization_id, name="Transform flow", definition=definition
@@ -373,9 +367,7 @@ class TestRunTransformAction:
         connector = await make_connector("bare-target")
         definition = {
             "start": "s1",
-            "steps": {
-                "s1": {"kind": "action", "action": "transform", "config": {}, "next": None}
-            },
+            "steps": {"s1": {"kind": "action", "action": "transform", "config": {}, "next": None}},
         }
         created = await flow_service.create(
             organization_id, name="Passthrough transform flow", definition=definition

@@ -10,7 +10,11 @@ equivalent dotted-path helpers.
 
 from __future__ import annotations
 
+import json
+from typing import ClassVar
+
 import pytest
+import yaml
 
 from app.models.enums import DataFormat, TransformationKind
 from app.transformations.engine import (
@@ -205,16 +209,12 @@ class TestParseDocumentXml:
 
 class TestRenderDocumentJson:
     def test_renders_valid_json_text(self) -> None:
-        import json
-
         rendered = render_document({"a": 1, "b": [1, 2]}, DataFormat.JSON)
         assert json.loads(rendered) == {"a": 1, "b": [1, 2]}
 
 
 class TestRenderDocumentYaml:
     def test_renders_valid_yaml_text(self) -> None:
-        import yaml
-
         rendered = render_document({"a": 1, "b": [1, 2]}, DataFormat.YAML)
         assert yaml.safe_load(rendered) == {"a": 1, "b": [1, 2]}
 
@@ -288,7 +288,10 @@ class TestRoundTripStability:
         # The stronger guarantee docs/058 actually needs: even if the rendered string isn't
         # byte-identical to some arbitrary input XML, re-parsing what this engine itself
         # rendered must reproduce the exact same canonical value, forever after.
-        raw = '<person id="1"><name lang="en">Ada</name><tags><tag>x</tag><tag>y</tag></tags></person>'
+        raw = (
+            '<person id="1"><name lang="en">Ada</name>'
+            "<tags><tag>x</tag><tag>y</tag></tags></person>"
+        )
         first_pass = parse_document(raw, DataFormat.XML)
         second_pass = parse_document(render_document(first_pass, DataFormat.XML), DataFormat.XML)
         third_pass = parse_document(render_document(second_pass, DataFormat.XML), DataFormat.XML)
@@ -390,11 +393,15 @@ class TestEvaluateRule:
 
 class TestApplyFieldMapping:
     def test_moves_a_field_to_a_new_path(self) -> None:
-        result = apply_field_mapping({"user": {"email": "a@example.com"}}, {"user.email": "recipient"})
+        result = apply_field_mapping(
+            {"user": {"email": "a@example.com"}}, {"user.email": "recipient"}
+        )
         assert result["recipient"] == "a@example.com"
 
     def test_removes_the_source_field_when_the_target_differs(self) -> None:
-        result = apply_field_mapping({"user": {"email": "a@example.com"}}, {"user.email": "recipient"})
+        result = apply_field_mapping(
+            {"user": {"email": "a@example.com"}}, {"user.email": "recipient"}
+        )
         assert "email" not in result["user"]
 
     def test_mapping_a_field_onto_itself_leaves_it_in_place(self) -> None:
@@ -474,7 +481,7 @@ class TestApplyEnrichment:
 
 
 class TestApplyAggregation:
-    _rows = [
+    _rows: ClassVar = [
         {"category": "electronics", "amount": 10},
         {"category": "electronics", "amount": 20},
         {"category": "books", "amount": 5},
@@ -496,15 +503,11 @@ class TestApplyAggregation:
         assert result[0]["amount"] == 1
 
     def test_min_and_max_per_group(self) -> None:
-        result = apply_aggregation(
-            self._rows, group_by="category", aggregations={"amount": "min"}
-        )
+        result = apply_aggregation(self._rows, group_by="category", aggregations={"amount": "min"})
         by_category = {entry["category"]: entry["amount"] for entry in result}
         assert by_category["electronics"] == 10
 
-        result = apply_aggregation(
-            self._rows, group_by="category", aggregations={"amount": "max"}
-        )
+        result = apply_aggregation(self._rows, group_by="category", aggregations={"amount": "max"})
         by_category = {entry["category"]: entry["amount"] for entry in result}
         assert by_category["electronics"] == 20
 
@@ -524,11 +527,15 @@ class TestApplyAggregation:
         assert all(entry["missing"] is None for entry in result)
 
     def test_a_field_absent_on_every_row_counts_to_zero(self) -> None:
-        result = apply_aggregation(self._rows, group_by="category", aggregations={"missing": "count"})
+        result = apply_aggregation(
+            self._rows, group_by="category", aggregations={"missing": "count"}
+        )
         assert all(entry["missing"] == 0 for entry in result)
 
     def test_an_unrecognised_operation_name_is_silently_omitted_from_the_entry(self) -> None:
-        result = apply_aggregation(self._rows, group_by="category", aggregations={"amount": "median"})
+        result = apply_aggregation(
+            self._rows, group_by="category", aggregations={"amount": "median"}
+        )
         assert all("amount" not in entry for entry in result)
 
 
@@ -573,7 +580,9 @@ class TestValidateSchema:
         assert validate_schema({"name": "Ada"}, {"required": ["name"]}) == []
 
     def test_reports_a_type_mismatch(self) -> None:
-        violations = validate_schema({"age": "not-a-number"}, {"properties": {"age": {"type": "integer"}}})
+        violations = validate_schema(
+            {"age": "not-a-number"}, {"properties": {"age": {"type": "integer"}}}
+        )
         assert violations == ["Field 'age' expected type 'integer', got 'str'"]
 
     def test_a_matching_type_has_no_violation(self) -> None:
@@ -584,7 +593,9 @@ class TestValidateSchema:
         assert validate_schema({}, {"properties": {"age": {"type": "integer"}}}) == []
 
     def test_an_unrecognised_type_name_is_never_reported_as_a_violation(self) -> None:
-        violations = validate_schema({"age": 5}, {"properties": {"age": {"type": "not_a_real_type"}}})
+        violations = validate_schema(
+            {"age": 5}, {"properties": {"age": {"type": "not_a_real_type"}}}
+        )
         assert violations == []
 
     def test_a_fully_valid_document_has_no_violations(self) -> None:
@@ -656,7 +667,5 @@ class TestApplyTransformation:
         assert result.strip() == "a: 1"
 
     def test_format_conversion_defaults_both_formats_to_json(self) -> None:
-        result = apply_transformation(
-            {}, kind=TransformationKind.FORMAT_CONVERSION, config={}
-        )
+        result = apply_transformation({}, kind=TransformationKind.FORMAT_CONVERSION, config={})
         assert result == "{}"

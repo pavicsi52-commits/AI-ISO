@@ -109,7 +109,8 @@ class SyncService:
             )
         )
 
-        start_index = int(job.checkpoint.get("last_index", -1)) + 1
+        last_index = job.checkpoint.get("last_index", -1)
+        start_index = (last_index if isinstance(last_index, int) else -1) + 1
         succeeded = 0
         failed = 0
         last_error: str | None = None

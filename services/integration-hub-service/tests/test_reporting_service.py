@@ -134,7 +134,9 @@ class TestRollup:
         await _make_sync_job(
             sync_jobs_repo, organization_id, connector.id, status=SyncStatus.COMPLETED
         )
-        second = await statistics_service.rollup(organization_id, window_start=start, window_end=end)
+        second = await statistics_service.rollup(
+            organization_id, window_start=start, window_end=end
+        )
 
         assert second.id == first.id
         assert second.syncs_attempted == 1
