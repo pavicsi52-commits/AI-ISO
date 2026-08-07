@@ -7,18 +7,16 @@ arguments in, JSON-shaped result out -- so
 :class:`~app.tool_execution.executor.ToolExecutor` never needs to know
 which kind it is calling.
 
-**Two of docs/060's ten kinds are deliberately not built here:**
+``WORKFLOW`` runs an already-created :class:`~app.models.workflow
+.AgentWorkflow` row to completion via :class:`~app.langgraph.service
+.WorkflowPersistenceService` -- the same real, repository-backed
+checkpoint persistence :mod:`app.langgraph` builds, never a second,
+disposable engine wiring of its own.
 
-- ``WORKFLOW`` -- wiring an in-process
-  :class:`shared_core.workflow.engine.WorkflowEngine` run needs the
-  same real, repository-backed checkpoint persistence
-  :mod:`app.langgraph` builds over :class:`~app.models.workflow
-  .AgentWorkflow`; building a disposable engine wiring here first would
-  just be redone there.
-- ``CUSTOM`` -- has no generic implementation by design. It is the
-  platform's own extension point: whoever registers a ``CUSTOM`` tool
-  supplies its own handler directly to
-  :class:`~app.tool_registry.registry.ToolHandlerRegistry`.
+``CUSTOM`` has no generic implementation by design. It is the
+platform's own extension point: whoever registers a ``CUSTOM`` tool
+supplies its own handler directly to
+:class:`~app.tool_registry.registry.ToolHandlerRegistry`.
 
 ``CONNECTOR_SDK`` and ``AUTOMATION`` share one implementation: a
 connector-typed automation job is just an automation job pre-configured
@@ -40,6 +38,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clients.automation_client import AutomationClient
 from app.graph.client import GraphClient
+from app.langgraph.service import WorkflowPersistenceService
+from app.repositories.workflow import AgentWorkflowRepository
 from app.sandbox.policy import AgentSandboxPolicy
 from app.sandbox.process import run_isolated, run_script_isolated
 from app.tool_registry.registry import ToolHandler
@@ -149,6 +149,37 @@ def build_automation_handler(client: AutomationClient) -> ToolHandler:
     return handler
 
 
+def build_workflow_handler(
+    service: WorkflowPersistenceService,
+    workflows: AgentWorkflowRepository,
+    *,
+    organization_id: UUID,
+) -> ToolHandler:
+    """Build the handler for a ``WORKFLOW`` tool.
+
+    Arguments: ``workflow_id`` (required) -- an already-created
+    :class:`~app.models.workflow.AgentWorkflow` row in *organization_id*.
+    Runs it to completion (or its next pause/failure) via
+    :class:`~app.langgraph.service.WorkflowPersistenceService`, the
+    same real, checkpointed engine run any other trigger of that
+    workflow uses.
+    """
+
+    async def handler(arguments: dict[str, Any]) -> dict[str, Any]:
+        workflow_id = arguments.get("workflow_id")
+        if not workflow_id:
+            raise ValueError("WORKFLOW tool call is missing required argument 'workflow_id'.")
+        workflow = await workflows.require_in_org(organization_id, UUID(str(workflow_id)))
+        result = await service.run(workflow)
+        return {
+            "status": str(result.status),
+            "current_node_id": result.current_node_id,
+            "error": result.error,
+        }
+
+    return handler
+
+
 def build_knowledge_graph_query_handler(client: GraphClient) -> ToolHandler:
     """Build the handler for a ``KNOWLEDGE_GRAPH_QUERY`` tool.
 
@@ -244,4 +275,5 @@ __all__ = [
     "build_rest_handler",
     "build_shell_handler",
     "build_webhook_handler",
+    "build_workflow_handler",
 ]

@@ -12,6 +12,7 @@ from app.tool_execution.handlers import (
     build_rest_handler,
     build_shell_handler,
     build_webhook_handler,
+    build_workflow_handler,
 )
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     "build_rest_handler",
     "build_shell_handler",
     "build_webhook_handler",
+    "build_workflow_handler",
 ]

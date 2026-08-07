@@ -1,0 +1,49 @@
+"""Repository for :class:`app.models.workflow.AgentWorkflow`."""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from shared_core.database.repository import BaseRepository
+from shared_core.database.tenant import TenantScope
+from shared_core.exceptions.not_found import NotFoundError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.workflow import AgentWorkflow
+
+
+class AgentWorkflowRepository(BaseRepository[AgentWorkflow]):
+    """CRUD plus lookup for :class:`AgentWorkflow`."""
+
+    def __init__(self, session: AsyncSession, *, tenant_scope: TenantScope | None = None) -> None:
+        super().__init__(session, AgentWorkflow, tenant_scope=tenant_scope)
+
+    async def require_in_org(self, organization_id: UUID, workflow_id: UUID) -> AgentWorkflow:
+        """Return *workflow_id*, scoped to *organization_id*.
+
+        Raises:
+            NotFoundError: If no such workflow exists in that organization.
+        """
+        stmt = self._base_select().where(
+            AgentWorkflow.id == workflow_id, AgentWorkflow.organization_id == organization_id
+        )
+        result = await self._session.execute(stmt)
+        workflow = result.scalars().first()
+        if workflow is None:
+            raise NotFoundError(
+                f"AgentWorkflow {workflow_id!s} was not found in organization {organization_id!s}."
+            )
+        return workflow
+
+    async def list_for_agent(self, agent_id: UUID) -> list[AgentWorkflow]:
+        """Every workflow run belonging to *agent_id*, newest first."""
+        stmt = (
+            self._base_select()
+            .where(AgentWorkflow.agent_id == agent_id)
+            .order_by(AgentWorkflow.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+
+__all__ = ["AgentWorkflowRepository"]
