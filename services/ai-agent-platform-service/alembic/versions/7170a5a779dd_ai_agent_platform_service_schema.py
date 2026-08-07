@@ -301,7 +301,6 @@ def upgrade() -> None:  # noqa: PLR0915 -- 17 tables in one initial migration, A
         sa.Column("project_id", sa.Uuid(), nullable=True),
         sa.ForeignKeyConstraint(["agent_id"], ["agents.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("agent_id", "scope", "key", name="uq_agent_memory_scope_key"),
     )
     op.create_index(op.f("ix_agent_memory_agent_id"), "agent_memory", ["agent_id"], unique=False)
     op.create_index("ix_agent_memory_expires_at", "agent_memory", ["expires_at"], unique=False)
