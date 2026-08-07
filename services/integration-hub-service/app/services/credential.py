@@ -97,12 +97,20 @@ class CredentialService:
         refresh_value: str | None = None,
         expires_at: datetime | None = None,
     ) -> ConnectorCredential:
-        """Replace a self-managed credential's own encrypted value."""
+        """Replace a self-managed credential's own encrypted value.
+
+        *expires_at*, like *refresh_value*, is left untouched when not
+        given -- a caller rotating a credential's value without knowing
+        its new expiry must not silently erase the previous one, which
+        would otherwise drop that credential out of
+        :meth:`list_expiring_before`'s own sweep forever.
+        """
         credential = await self.get(organization_id, credential_id)
         credential.encrypted_value = encrypt(raw_value, key=self._encryption_key)
         if refresh_value is not None:
             credential.encrypted_refresh_value = encrypt(refresh_value, key=self._encryption_key)
-        credential.expires_at = expires_at
+        if expires_at is not None:
+            credential.expires_at = expires_at
         credential.last_rotated_at = datetime.now(UTC)
         credential.status = CredentialStatus.ACTIVE
         return await self._credentials.update(credential)

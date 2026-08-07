@@ -68,26 +68,42 @@ def _resolve_path(data: Any, path: str) -> Any:
 
 
 def _set_path(data: dict[str, Any], path: str, value: Any) -> None:
-    """Set a dotted field path on *data*, creating intermediate dicts as needed."""
+    """Set a dotted field path on *data*, creating intermediate dicts as needed.
+
+    Copy-on-write at every intermediate level: an existing nested dict is
+    replaced with a shallow copy of itself before being descended into,
+    rather than mutated in place. Every caller here reaches *data* through
+    its own top-level ``dict(data)`` shallow copy, which shares every
+    nested dict *object* with the original input -- without this, setting
+    a nested path that already exists silently mutates the caller's own
+    original, un-copied data too.
+    """
     parts = path.split(".")
     current = data
     for part in parts[:-1]:
         nxt = current.get(part)
-        if not isinstance(nxt, dict):
-            nxt = {}
-            current[part] = nxt
+        nxt = dict(nxt) if isinstance(nxt, dict) else {}
+        current[part] = nxt
         current = nxt
     current[parts[-1]] = value
 
 
 def _delete_path(data: dict[str, Any], path: str) -> None:
-    """Delete a dotted field path from *data*, if it exists."""
+    """Delete a dotted field path from *data*, if it exists.
+
+    Copy-on-write at every intermediate level, for the same reason
+    :func:`_set_path` is -- see its own docstring.
+    """
     parts = path.split(".")
     current: Any = data
     for part in parts[:-1]:
         if not isinstance(current, Mapping) or part not in current:
             return
-        current = current[part]
+        nxt = current[part]
+        if isinstance(current, dict) and isinstance(nxt, dict):
+            nxt = dict(nxt)
+            current[part] = nxt
+        current = nxt
     if isinstance(current, dict):
         current.pop(parts[-1], None)
 

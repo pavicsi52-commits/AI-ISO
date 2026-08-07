@@ -62,8 +62,9 @@ class HealthService:
                 latency_ms=latency_ms,
                 checked_at=datetime.now(UTC),
                 error=error,
-                consecutive_failures=connector.consecutive_failures
-                + (0 if status == HealthStatus.HEALTHY else 1),
+                consecutive_failures=(
+                    0 if status == HealthStatus.HEALTHY else connector.consecutive_failures + 1
+                ),
                 recovery_attempted=recovery_attempted,
             )
         )
