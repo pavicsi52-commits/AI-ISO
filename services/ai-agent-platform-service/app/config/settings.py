@@ -52,6 +52,15 @@ class AiAgentPlatformServiceSettings(BaseSettings):
     policy_engine_service_base_url: str = Field(default="http://localhost:8025")
     secrets_service_base_url: str = Field(default="http://localhost:8009")
 
+    # ---- knowledge graph (Knowledge Graph Query tool kind / reasoning mode) --------
+
+    neo4j_enabled: bool = Field(default=True)
+    neo4j_database: str = Field(default="neo4j")
+    neo4j_max_connection_pool_size: int = Field(default=50, ge=1)
+    neo4j_connection_timeout_seconds: float = Field(default=30.0, gt=0)
+    neo4j_max_records: int = Field(default=1_000, ge=1, le=100_000)
+    neo4j_query_timeout_seconds: float = Field(default=30.0, gt=0)
+
     # ---- model provider endpoints -------------------------------------------------
     # Each defaults to that provider's own documented public base URL; a
     # self-hosted deployment (Ollama, vLLM, Azure) overrides its own.
