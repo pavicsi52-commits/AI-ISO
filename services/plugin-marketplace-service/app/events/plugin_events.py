@@ -80,11 +80,24 @@ class MarketplaceUpdatedEvent(DomainEvent):
     event_name: ClassVar[str] = "MarketplaceUpdated"
 
 
+@default_registry.register
+class PluginHealthChangedEvent(DomainEvent):
+    """An installed plugin instance's own health status changed since its
+    last probe -- its own execution history, since docs/059's own literal
+    nine-event list has no dedicated health-change event (the same
+    extension integration-hub-service's own ``ConnectorHealthChangedEvent``
+    already made beyond its own required list).
+    """
+
+    event_name: ClassVar[str] = "PluginHealthChanged"
+
+
 __all__ = [
     "SOURCE_SERVICE",
     "MarketplaceUpdatedEvent",
     "PluginActivatedEvent",
     "PluginDisabledEvent",
+    "PluginHealthChangedEvent",
     "PluginInstalledEvent",
     "PluginPublishedEvent",
     "PluginRegisteredEvent",

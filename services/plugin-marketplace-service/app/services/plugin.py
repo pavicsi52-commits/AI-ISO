@@ -115,6 +115,29 @@ class PluginService:
             offset=offset,
         )
 
+    async def update_metadata(
+        self,
+        organization_id: UUID,
+        plugin_id: UUID,
+        *,
+        description: str | None = None,
+        homepage_url: str | None = None,
+        tags: list[str] | None = None,
+    ) -> Plugin:
+        """Update a plugin's own descriptive metadata (``PUT /plugins/{id}``).
+
+        Raises:
+            NotFoundError: If the plugin does not exist here.
+        """
+        plugin = await self.get(organization_id, plugin_id)
+        if description is not None:
+            plugin.description = description
+        if homepage_url is not None:
+            plugin.homepage_url = homepage_url
+        if tags is not None:
+            plugin.tags = list(tags)
+        return await self._plugins.update(plugin)
+
     async def submit_manifest(
         self,
         organization_id: UUID,

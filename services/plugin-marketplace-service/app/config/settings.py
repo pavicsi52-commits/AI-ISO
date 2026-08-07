@@ -20,6 +20,7 @@ from shared_core.config.settings import (
     ApplicationSettings,
     DatabaseSettings,
     EmailSettings,
+    MinioSettings,
     RabbitMQSettings,
     RedisSettings,
 )
@@ -80,6 +81,7 @@ class Settings:
     redis: RedisSettings
     rabbitmq: RabbitMQSettings
     email: EmailSettings
+    minio: MinioSettings
     service: PluginMarketplaceServiceSettings
 
 
@@ -92,6 +94,7 @@ def build_settings(*, service: PluginMarketplaceServiceSettings | None = None) -
         redis=shared.redis,
         rabbitmq=shared.rabbitmq,
         email=shared.email,
+        minio=shared.minio,
         service=service if service is not None else PluginMarketplaceServiceSettings(),
     )
 

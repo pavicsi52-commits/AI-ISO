@@ -44,7 +44,7 @@ services:
     image: redis:7-alpine
     container_name: aiios_redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${AIIOS_REDIS_PASSWORD:-change-me}", "--databases", "32"]
+    command: ["redis-server", "--requirepass", "${AIIOS_REDIS_PASSWORD:-change-me}", "--databases", "64"]
     ports:
       - "${AIIOS_REDIS_PORT:-6379}:6379"
     volumes:
