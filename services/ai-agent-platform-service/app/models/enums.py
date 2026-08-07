@@ -150,6 +150,21 @@ class ToolKind(StrEnum):
     CUSTOM = "custom"
 
 
+class ToolCallStatus(StrEnum):
+    """One tool invocation's own outcome -- distinct from
+    :class:`ExecutionStatus` (a whole agent execution's own status):
+    ``DENIED`` is a first-class outcome here, since a permission
+    refusal is what makes "Permission-aware Tool Calls" auditable
+    after the fact, not a silent no-op folded into ``FAILED``.
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    DENIED = "denied"
+
+
 class PermissionCategory(StrEnum):
     """The capability categories an agent's own tool/delegation/memory/
     model access can be scoped by.
@@ -350,6 +365,7 @@ __all__ = [
     "SessionStatus",
     "TaskPriority",
     "TaskStatus",
+    "ToolCallStatus",
     "ToolKind",
     "WorkflowRunStatus",
 ]
