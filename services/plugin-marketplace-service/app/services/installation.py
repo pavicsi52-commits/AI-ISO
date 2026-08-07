@@ -140,10 +140,24 @@ class PluginInstallationService:
     async def configure(
         self, organization_id: UUID, installation_id: UUID, *, configuration: dict[str, Any]
     ) -> PluginInstallation:
-        """Update an installation's own configuration."""
+        """Update an installation's own configuration.
+
+        Only advances ``status`` to ``CONFIGURED`` from the pre-activation
+        states (``INSTALLING``/``INSTALLED``). Reconfiguring an
+        already-``ACTIVE`` installation must not silently knock it out of
+        the health-probe sweep's own ``list_all_active`` scope, which
+        filters on ``status`` alone -- this service has no separate
+        ``enabled`` boolean column the way ``Connector`` does, where a
+        similar unconditional ``status = CONFIGURED`` is safe because
+        ``list_all_enabled`` filters on that independent flag instead.
+        """
         installation = await self.get(organization_id, installation_id)
         installation.configuration = dict(configuration)
-        installation.status = PluginInstallationStatus.CONFIGURED
+        if installation.status in (
+            PluginInstallationStatus.INSTALLING,
+            PluginInstallationStatus.INSTALLED,
+        ):
+            installation.status = PluginInstallationStatus.CONFIGURED
         return await self._installations.update(installation)
 
     async def activate(self, organization_id: UUID, installation_id: UUID) -> PluginInstallation:

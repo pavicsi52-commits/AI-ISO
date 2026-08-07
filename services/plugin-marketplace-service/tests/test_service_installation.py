@@ -255,6 +255,29 @@ async def test_configure_updates_configuration_and_status(
     assert configured.status == PluginInstallationStatus.CONFIGURED
 
 
+async def test_reconfiguring_an_active_installation_does_not_revert_its_status(
+    installation_service: PluginInstallationService,
+    plugin_service: PluginService,
+    make_plugin: MakePluginFn,
+    organization_id: uuid.UUID,
+) -> None:
+    # Regression: `configure()` used to unconditionally set
+    # `status = CONFIGURED`, which silently knocked an already-`ACTIVE`
+    # installation out of `list_all_active`'s own scope -- the exact set
+    # the health-probe sweep watches. Reconfiguring a live installation's
+    # own `health_check_url` must not require re-activating it.
+    plugin = await _make_published_plugin(make_plugin, plugin_service, organization_id)
+    installed = await installation_service.install(organization_id, plugin.id)
+    await installation_service.activate(organization_id, installed.id)
+
+    reconfigured = await installation_service.configure(
+        organization_id, installed.id, configuration={"health_check_url": "http://example.test"}
+    )
+
+    assert reconfigured.status == PluginInstallationStatus.ACTIVE
+    assert reconfigured.configuration == {"health_check_url": "http://example.test"}
+
+
 async def test_activate_sets_active_and_emits_event(
     installation_service: PluginInstallationService,
     plugin_service: PluginService,
