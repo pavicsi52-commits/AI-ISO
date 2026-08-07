@@ -45,7 +45,9 @@ def _version(
     return PluginVersion(**defaults)
 
 
-def _publisher(organization_id: uuid.UUID, *, slug: str = "publisher", **kwargs: object) -> PluginPublisher:
+def _publisher(
+    organization_id: uuid.UUID, *, slug: str = "publisher", **kwargs: object
+) -> PluginPublisher:
     defaults: dict[str, object] = {
         "organization_id": organization_id,
         "slug": slug,

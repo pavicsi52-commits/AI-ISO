@@ -54,8 +54,8 @@ class StatisticsService:
         published_in_window = [p for p in plugins if window_start <= p.created_at < window_end]
         installations = await self._installations.list_for_org(organization_id, limit=100_000)
         in_window = [i for i in installations if window_start <= i.created_at < window_end]
-        succeeded = sum(1 for i in in_window if i.status.value != "failed")
-        failed = sum(1 for i in in_window if i.status.value == "failed")
+        succeeded = sum(1 for i in in_window if str(i.status) != "failed")
+        failed = sum(1 for i in in_window if str(i.status) == "failed")
 
         by_category: dict[str, int] = {}
         for plugin in plugins:

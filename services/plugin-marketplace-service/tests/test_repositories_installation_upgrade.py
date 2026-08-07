@@ -180,9 +180,7 @@ class TestPluginInstallationRepository:
             _installation(plugin, status=PluginInstallationStatus.ACTIVE)
         )
         active_b = await installations_repo.create(
-            _installation(
-                plugin, organization_id=other_org, status=PluginInstallationStatus.ACTIVE
-            )
+            _installation(plugin, organization_id=other_org, status=PluginInstallationStatus.ACTIVE)
         )
         await installations_repo.create(
             _installation(
@@ -248,19 +246,13 @@ class TestPluginUpgradeRepository:
         plugin = await plugins_repo.create(_plugin(organization_id, slug="upg-order"))
         installation = await installations_repo.create(_installation(plugin))
         oldest = await upgrades_repo.create(
-            _upgrade(
-                installation, from_version="1.0.0", to_version="1.1.0", started_at=ago(300)
-            )
+            _upgrade(installation, from_version="1.0.0", to_version="1.1.0", started_at=ago(300))
         )
         newest = await upgrades_repo.create(
-            _upgrade(
-                installation, from_version="1.1.0", to_version="1.2.0", started_at=ago(10)
-            )
+            _upgrade(installation, from_version="1.1.0", to_version="1.2.0", started_at=ago(10))
         )
         middle = await upgrades_repo.create(
-            _upgrade(
-                installation, from_version="1.2.0", to_version="1.3.0", started_at=ago(150)
-            )
+            _upgrade(installation, from_version="1.2.0", to_version="1.3.0", started_at=ago(150))
         )
 
         found = await upgrades_repo.list_for_installation(installation.id)

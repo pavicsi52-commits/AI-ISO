@@ -184,7 +184,9 @@ class TestVerify:
         plugin_service: PluginService,
         organization_id: uuid.UUID,
     ) -> None:
-        plugin_id, version = await _make_version(plugin_service, organization_id, "pkg-verify-unsigned")
+        plugin_id, version = await _make_version(
+            plugin_service, organization_id, "pkg-verify-unsigned"
+        )
         package = await package_service.build_and_store(
             organization_id, plugin_id, version.id, files=FILES
         )

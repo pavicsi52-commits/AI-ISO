@@ -44,8 +44,8 @@ def test_multi_file_round_trips_byte_for_byte(package_format: PackageFormat) -> 
     package_bytes = build_package(files, package_format=package_format)
     extracted = extract_package(package_bytes, package_format=package_format)
     assert extracted == files
-    for path in files:
-        assert extracted[path] == files[path]
+    for path, content in files.items():
+        assert extracted[path] == content
 
 
 @pytest.mark.parametrize("package_format", _FORMATS)

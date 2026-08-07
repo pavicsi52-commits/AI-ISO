@@ -175,9 +175,7 @@ class TestPluginReviewRepository:
         newer_flag = await reviews_repo.create(
             _review(plugin, reviewer_id="r2", status=ReviewStatus.FLAGGED, created_at=ago(10))
         )
-        await reviews_repo.create(
-            _review(plugin, reviewer_id="r3", status=ReviewStatus.PUBLISHED)
-        )
+        await reviews_repo.create(_review(plugin, reviewer_id="r3", status=ReviewStatus.PUBLISHED))
 
         found = await reviews_repo.list_pending_moderation()
         assert [r.id for r in found] == [older_flag.id, newer_flag.id]
@@ -215,9 +213,7 @@ class TestPluginRatingRepository:
         organization_id: uuid.UUID,
     ) -> None:
         plugin = await plugins_repo.create(_plugin(organization_id, slug="rating-hit"))
-        rating = await ratings_repo.create(
-            _rating_row(plugin, average_rating=3.2, review_count=5)
-        )
+        rating = await ratings_repo.create(_rating_row(plugin, average_rating=3.2, review_count=5))
 
         found = await ratings_repo.get_for_plugin(plugin.id)
         assert found is not None

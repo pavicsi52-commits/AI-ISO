@@ -109,9 +109,9 @@ def test_diamond_shaped_graph_respects_every_dependency_edge() -> None:
     edges: dict[UUID, list[UUID]] = {d: [b, c], b: [a], c: [a]}
     order = resolve_install_order(edges)
     assert set(order) == {a, b, c, d}
-    for node in edges:
+    for node, dependencies in edges.items():
         node_index = order.index(node)
-        for dependency in edges[node]:
+        for dependency in dependencies:
             assert order.index(dependency) < node_index
 
 

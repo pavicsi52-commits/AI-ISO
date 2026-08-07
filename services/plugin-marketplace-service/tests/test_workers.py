@@ -35,7 +35,11 @@ from shared_core.scheduler.manager import SchedulerManager
 from shared_core.scheduler.registry import JobRegistry
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.models.enums import MarketplaceListingStatus, PluginInstallationStatus, PluginLifecycleStatus
+from app.models.enums import (
+    MarketplaceListingStatus,
+    PluginInstallationStatus,
+    PluginLifecycleStatus,
+)
 from app.repositories.governance import PluginStatisticRepository
 from app.repositories.health import PluginHealthRepository
 from app.repositories.installation import PluginInstallationRepository
@@ -326,7 +330,9 @@ async def test_tick_auto_approves_a_draft_listing_for_a_published_plugin(
     )
     assert listing.status == MarketplaceListingStatus.DRAFT
 
-    worker = MarketplaceApprovalSweepWorker(session_factory=db_session_factory, publish_event=publisher)
+    worker = MarketplaceApprovalSweepWorker(
+        session_factory=db_session_factory, publish_event=publisher
+    )
     approved = await worker.tick()
     assert approved == 1
 

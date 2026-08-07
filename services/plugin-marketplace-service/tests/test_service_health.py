@@ -196,7 +196,7 @@ async def test_recovery_attempted_once_failure_threshold_reached(
         slug="health-recovery",
         health_check_url=UNREACHABLE_HTTP_URL,
     )
-    threshold = health_service._failure_threshold  # noqa: SLF001 -- verifying against the real configured threshold
+    threshold = health_service._failure_threshold
 
     last_result = None
     for _ in range(threshold):

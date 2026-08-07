@@ -8,8 +8,10 @@ import uuid
 from typing import Any
 
 import pytest
+from shared_core.exceptions.not_found import NotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.manifests.engine import compute_manifest_checksum
 from app.models.enums import AuditAction, ReportKind, ReportStatus
 from app.repositories.governance import PluginAuditRepository, PluginStatisticRepository
 from app.services.installation import PluginInstallationService
@@ -21,8 +23,6 @@ from tests.conftest import MakePluginFn, ago, soon
 
 
 def _manifest(version: str = "1.0.0") -> dict[str, Any]:
-    from app.manifests.engine import compute_manifest_checksum
-
     manifest: dict[str, Any] = {
         "name": "Reporting Test Plugin",
         "publisher": "test-publisher",
@@ -168,7 +168,9 @@ async def test_generate_marketplace_report(
     published = await _make_published_plugin(
         make_plugin, plugin_service, organization_id, slug="report-marketplace-published"
     )
-    unpublished = await make_plugin(slug="report-marketplace-unpublished")
+    unpublished = await make_plugin(
+        slug="report-marketplace-unpublished", name="Report Unpublished Plugin"
+    )
 
     report = await report_service.generate(organization_id, kind=ReportKind.MARKETPLACE)
 
@@ -279,8 +281,6 @@ async def test_require_in_org_and_list_for_org(
 async def test_require_in_org_missing_report_raises_not_found(
     report_service: ReportService, organization_id: uuid.UUID
 ) -> None:
-    from shared_core.exceptions.not_found import NotFoundError
-
     with pytest.raises(NotFoundError):
         await report_service.require_in_org(organization_id, uuid.uuid4())
 
@@ -308,9 +308,7 @@ def test_to_markdown_non_empty_content() -> None:
 
     markdown = ReportService.to_markdown(content, title="My Report")
 
-    assert markdown == (
-        "# My Report\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |"
-    )
+    assert markdown == ("# My Report\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |")
 
 
 # =============================== AuditService ==================================

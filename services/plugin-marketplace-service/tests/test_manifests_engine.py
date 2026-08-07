@@ -75,7 +75,12 @@ def test_optional_list_fields_may_be_omitted_entirely() -> None:
     not itself an error, unlike ``entry_points``/``supported_platform_versions``.
     """
     manifest = _valid_manifest()
-    for optional_field in ("permissions_required", "dependencies", "api_requirements", "health_checks"):
+    for optional_field in (
+        "permissions_required",
+        "dependencies",
+        "api_requirements",
+        "health_checks",
+    ):
         del manifest[optional_field]
     result = validate_manifest(manifest)
     assert result.valid is True
@@ -201,14 +206,10 @@ def test_empty_supported_platform_versions_is_reported() -> None:
 
 
 def test_supported_platform_versions_entry_missing_platform_is_reported() -> None:
-    manifest = _valid_manifest(
-        supported_platform_versions=[{"version_constraint": ">=1.0.0"}]
-    )
+    manifest = _valid_manifest(supported_platform_versions=[{"version_constraint": ">=1.0.0"}])
     result = validate_manifest(manifest)
     assert result.valid is False
-    assert any(
-        "supported_platform_versions[0].platform" in error for error in result.errors
-    )
+    assert any("supported_platform_versions[0].platform" in error for error in result.errors)
 
 
 def test_supported_platform_versions_entry_missing_version_constraint_is_reported() -> None:
@@ -224,9 +225,7 @@ def test_supported_platform_versions_entry_not_a_dict_is_reported() -> None:
     manifest = _valid_manifest(supported_platform_versions=["aiios>=1.0.0"])
     result = validate_manifest(manifest)
     assert result.valid is False
-    assert any(
-        "supported_platform_versions[0].platform" in error for error in result.errors
-    )
+    assert any("supported_platform_versions[0].platform" in error for error in result.errors)
     assert any(
         "supported_platform_versions[0].version_constraint" in error for error in result.errors
     )

@@ -37,14 +37,10 @@ async def test_register_happy_path(
 async def test_register_duplicate_slug_in_same_org_raises(
     publisher_service: PluginPublisherService, organization_id: uuid.UUID
 ) -> None:
-    await publisher_service.register(
-        organization_id, slug="dup-slug", display_name="First"
-    )
+    await publisher_service.register(organization_id, slug="dup-slug", display_name="First")
 
     with pytest.raises(ValidationError):
-        await publisher_service.register(
-            organization_id, slug="dup-slug", display_name="Second"
-        )
+        await publisher_service.register(organization_id, slug="dup-slug", display_name="Second")
 
 
 async def test_register_same_slug_in_different_org_is_allowed(
@@ -94,9 +90,7 @@ async def test_verify_sets_verified_with_metadata(
     )
     await publisher_service.request_verification(organization_id, publisher.id)
 
-    verified = await publisher_service.verify(
-        organization_id, publisher.id, verified_by="admin-1"
-    )
+    verified = await publisher_service.verify(organization_id, publisher.id, verified_by="admin-1")
 
     assert verified.verification_status == PublisherVerificationStatus.VERIFIED
     assert verified.verified_at is not None
@@ -139,7 +133,9 @@ async def test_is_trusted_signer(
     )
 
     # No key set yet -- nothing is trusted.
-    assert publisher_service.is_trusted_signer(publisher, signer_key_fingerprint="anything") is False
+    assert (
+        publisher_service.is_trusted_signer(publisher, signer_key_fingerprint="anything") is False
+    )
     assert publisher_service.is_trusted_signer(publisher, signer_key_fingerprint=None) is False
 
     _private_pem, public_pem = generate_signing_keypair()

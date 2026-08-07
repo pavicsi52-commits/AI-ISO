@@ -100,7 +100,7 @@ def test_check_network_access_raises_for_a_disallowed_host() -> None:
         granted_categories=frozenset({PluginPermissionCategory.NETWORK}),
         allowed_network_hosts=("api.example.com",),
     )
-    with pytest.raises(SandboxViolationError, match="evil.example.com"):
+    with pytest.raises(SandboxViolationError, match=r"evil\.example\.com"):
         sandbox.check_network_access("evil.example.com")
 
 
@@ -141,9 +141,7 @@ async def test_run_entry_point_captures_a_nonzero_exit_code() -> None:
 
 async def test_run_entry_point_captures_real_stderr() -> None:
     sandbox = _sandbox(execution_timeout_seconds=10.0)
-    result = await sandbox.run_entry_point(
-        [_PYTHON, "-c", "import sys; sys.stderr.write('boom')"]
-    )
+    result = await sandbox.run_entry_point([_PYTHON, "-c", "import sys; sys.stderr.write('boom')"])
     assert "boom" in result.stderr
 
 

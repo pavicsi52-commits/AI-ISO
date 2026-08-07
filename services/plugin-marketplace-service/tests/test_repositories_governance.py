@@ -184,7 +184,9 @@ class TestPluginReportRepository:
         marketplace_report = await reports_repo.create(
             _report(organization_id, kind=ReportKind.MARKETPLACE, title="Marketplace")
         )
-        await reports_repo.create(_report(organization_id, kind=ReportKind.SECURITY, title="Security"))
+        await reports_repo.create(
+            _report(organization_id, kind=ReportKind.SECURITY, title="Security")
+        )
 
         found = await reports_repo.list_for_org(organization_id, kind=ReportKind.MARKETPLACE)
         assert [r.id for r in found] == [marketplace_report.id]
@@ -218,11 +220,16 @@ class TestPluginAuditRepository:
         )
         await audit_repo.create(
             _audit(
-                organization_id, entity_type="installation", entity_id=entity_id, occurred_at=ago(50)
+                organization_id,
+                entity_type="installation",
+                entity_id=entity_id,
+                occurred_at=ago(50),
             )
         )
         await audit_repo.create(
-            _audit(organization_id, entity_type="plugin", entity_id=uuid.uuid4(), occurred_at=ago(20))
+            _audit(
+                organization_id, entity_type="plugin", entity_id=uuid.uuid4(), occurred_at=ago(20)
+            )
         )
 
         found = await audit_repo.list_for_entity("plugin", entity_id)

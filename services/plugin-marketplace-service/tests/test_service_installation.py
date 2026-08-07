@@ -71,7 +71,9 @@ async def _make_published_plugin(
     version_number: str = "1.0.0",
 ) -> Any:
     plugin = await make_plugin(slug=slug)
-    await _publish_version(plugin_service, organization_id, plugin.id, version_number=version_number)
+    await _publish_version(
+        plugin_service, organization_id, plugin.id, version_number=version_number
+    )
     return await plugin_service.get(organization_id, plugin.id)
 
 
@@ -431,7 +433,9 @@ async def test_rollback_to_non_older_version_raises(
     await installation_service.upgrade(organization_id, installed.id, to_version_number="1.1.0")
 
     with pytest.raises(ValidationError):
-        await installation_service.rollback(organization_id, installed.id, to_version_number="1.1.0")
+        await installation_service.rollback(
+            organization_id, installed.id, to_version_number="1.1.0"
+        )
 
 
 async def test_rollback_to_never_installed_version_raises(
@@ -447,4 +451,6 @@ async def test_rollback_to_never_installed_version_raises(
     # actually installed on this instance -- even though "0.5.0" really is
     # older than the current "1.0.0".
     with pytest.raises(ValidationError):
-        await installation_service.rollback(organization_id, installed.id, to_version_number="0.5.0")
+        await installation_service.rollback(
+            organization_id, installed.id, to_version_number="0.5.0"
+        )

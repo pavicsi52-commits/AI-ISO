@@ -61,9 +61,7 @@ async def test_approve_sets_published_and_emits_event(
     listing = await marketplace_service.create_listing(organization_id, plugin.id)
     publisher.events.clear()
 
-    approved = await marketplace_service.approve(
-        organization_id, listing.id, approved_by="admin-1"
-    )
+    approved = await marketplace_service.approve(organization_id, listing.id, approved_by="admin-1")
 
     assert approved.status == MarketplaceListingStatus.PUBLISHED
     assert approved.approved_by == "admin-1"
@@ -186,9 +184,7 @@ async def test_search_featured_only_filters(
     featured_plugin = await make_plugin(slug="search-featured-plugin")
 
     plain_listing = await marketplace_service.create_listing(organization_id, plain_plugin.id)
-    featured_listing = await marketplace_service.create_listing(
-        organization_id, featured_plugin.id
-    )
+    featured_listing = await marketplace_service.create_listing(organization_id, featured_plugin.id)
     await marketplace_service.approve(organization_id, plain_listing.id)
     await marketplace_service.approve(organization_id, featured_listing.id)
     await marketplace_service.feature(featured_listing.id)
@@ -233,9 +229,7 @@ async def test_list_pending_approval_only_returns_draft(
     approved_plugin = await make_plugin(slug="pending-approved-plugin")
 
     draft_listing = await marketplace_service.create_listing(organization_id, draft_plugin.id)
-    approved_listing = await marketplace_service.create_listing(
-        organization_id, approved_plugin.id
-    )
+    approved_listing = await marketplace_service.create_listing(organization_id, approved_plugin.id)
     await marketplace_service.approve(organization_id, approved_listing.id)
 
     pending = await marketplace_service.list_pending_approval()

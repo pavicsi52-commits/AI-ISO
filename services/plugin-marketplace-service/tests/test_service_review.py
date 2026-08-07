@@ -51,14 +51,10 @@ async def test_submit_rating_outside_range_raises(
     plugin = await make_plugin(slug="review-plugin-bad-rating")
 
     with pytest.raises(ValidationError):
-        await review_service.submit(
-            organization_id, plugin.id, reviewer_id="reviewer-1", rating=0
-        )
+        await review_service.submit(organization_id, plugin.id, reviewer_id="reviewer-1", rating=0)
 
     with pytest.raises(ValidationError):
-        await review_service.submit(
-            organization_id, plugin.id, reviewer_id="reviewer-1", rating=6
-        )
+        await review_service.submit(organization_id, plugin.id, reviewer_id="reviewer-1", rating=6)
 
 
 async def test_submit_again_updates_existing_review_not_duplicate(
@@ -112,9 +108,7 @@ async def test_remove_sets_removed_and_recomputes_rating(
     organization_id: uuid.UUID,
 ) -> None:
     plugin = await make_plugin(slug="review-plugin-remove")
-    keep = await review_service.submit(
-        organization_id, plugin.id, reviewer_id="keeper", rating=5
-    )
+    keep = await review_service.submit(organization_id, plugin.id, reviewer_id="keeper", rating=5)
     remove_me = await review_service.submit(
         organization_id, plugin.id, reviewer_id="removed-reviewer", rating=1
     )

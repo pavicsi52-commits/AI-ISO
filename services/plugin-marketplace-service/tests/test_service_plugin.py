@@ -50,7 +50,9 @@ def _manifest(version: str = "1.0.0", **overrides: Any) -> dict[str, Any]:
 
 
 class TestRegister:
-    async def test_register_success(self, plugin_service: PluginService, organization_id: uuid.UUID) -> None:
+    async def test_register_success(
+        self, plugin_service: PluginService, organization_id: uuid.UUID
+    ) -> None:
         plugin = await plugin_service.register(
             organization_id,
             slug="register-happy",
@@ -76,7 +78,9 @@ class TestRegister:
         assert plugin.status == PluginLifecycleStatus.REGISTERED
         assert plugin.current_version_number is None
 
-    async def test_register_defaults(self, plugin_service: PluginService, organization_id: uuid.UUID) -> None:
+    async def test_register_defaults(
+        self, plugin_service: PluginService, organization_id: uuid.UUID
+    ) -> None:
         plugin = await plugin_service.register(
             organization_id,
             slug="register-defaults",
@@ -398,7 +402,8 @@ class TestPublish:
         assert published.current_version_number == "1.1.0"
 
         versions = {
-            v.version_number: v for v in await plugin_service.list_versions(organization_id, plugin.id)
+            v.version_number: v
+            for v in await plugin_service.list_versions(organization_id, plugin.id)
         }
         assert versions["1.1.0"].is_current is True
         assert versions["1.0.0"].is_current is False
@@ -435,7 +440,9 @@ class TestLifecycleTransitions:
         rejected = await plugin_service.reject(organization_id, plugin.id)
         assert rejected.status == PluginLifecycleStatus.REJECTED
 
-    async def test_deprecate(self, plugin_service: PluginService, organization_id: uuid.UUID) -> None:
+    async def test_deprecate(
+        self, plugin_service: PluginService, organization_id: uuid.UUID
+    ) -> None:
         plugin = await plugin_service.register(
             organization_id,
             slug="lifecycle-deprecate",

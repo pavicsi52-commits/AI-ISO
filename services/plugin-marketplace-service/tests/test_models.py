@@ -660,9 +660,7 @@ async def test_plugin_rating_round_trips_aggregate_counts(
     assert rating.rating_4_count + rating.rating_5_count == 8
 
 
-async def test_plugin_rating_defaults(
-    db_session: AsyncSession, organization_id: uuid.UUID
-) -> None:
+async def test_plugin_rating_defaults(db_session: AsyncSession, organization_id: uuid.UUID) -> None:
     plugin = await _make_plugin(db_session, organization_id)
     rating = PluginRating(organization_id=organization_id, plugin_id=plugin.id)
     db_session.add(rating)
@@ -800,9 +798,7 @@ async def test_plugin_health_round_trips_shared_core_health_status(
     assert health.recovery_attempted is True
 
 
-async def test_plugin_health_defaults(
-    db_session: AsyncSession, organization_id: uuid.UUID
-) -> None:
+async def test_plugin_health_defaults(db_session: AsyncSession, organization_id: uuid.UUID) -> None:
     plugin = await _make_plugin(db_session, organization_id)
     installation = await _make_installation(db_session, organization_id, plugin)
     health = PluginHealth(
@@ -895,9 +891,7 @@ async def test_plugin_report_round_trips_content_and_enum_kind(
     assert report.duration_ms == 215.75
 
 
-async def test_plugin_report_defaults(
-    db_session: AsyncSession, organization_id: uuid.UUID
-) -> None:
+async def test_plugin_report_defaults(db_session: AsyncSession, organization_id: uuid.UUID) -> None:
     report = PluginReport(
         organization_id=organization_id, kind=ReportKind.AUDIT, title="Audit Report"
     )
