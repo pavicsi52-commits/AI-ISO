@@ -6821,3 +6821,196 @@ touched (`connectors`, `connector_credentials`, `connector_connections`,
 `connector_sync_jobs`, `connector_flows`, `connector_events`,
 `connector_health`, `connector_marketplace`, `connector_audit`) before
 the final test-suite re-run.
+
+## Prompt 059 — Enterprise Plugin Marketplace Service
+
+`services/plugin-marketplace-service`, port **8030**, database
+**`aiios_plugin_marketplace`**, Redis **db 32**. Plugin registration
+and lifecycle, manifest validation, packaging and Ed25519 signing,
+DB-driven dependency resolution, sandboxed execution governance,
+installation lifecycle, capability permissions, publisher trust,
+marketplace listings, reviews/ratings, and analytics/reports/audit. 17
+tables, 17 repositories, 10 service modules (12 classes), 4 genuine-gap
+pure engines, 45 REST routes across 6 routers, 4 leader-elected
+workers, 10 domain events.
+
+**520 tests, 98.68% branch coverage** against real PostgreSQL, Redis,
+RabbitMQ, and MinIO. Ruff, Black, MyPy all clean (*Success: no issues
+found in 80 source files*).
+
+### Reused frameworks vs genuine gaps, established by a dedicated research pass
+
+- **Reused directly:** `shared_core.plugins.versioning`
+  (`is_upgrade`/`is_downgrade`/`parse_version` — the same real semver
+  Prompt 058 already reused, applied here to plugin version and
+  installation upgrade/rollback); `shared_core.plugins.sandbox
+  .PluginSandbox` (execution-timeout wrapping and best-effort process
+  memory monitoring only — its own permission/filesystem/network
+  checks are keyed to a 9-value vocabulary that doesn't cover this
+  service's own 11-value `PluginPermissionCategory`, so those are
+  bespoke instead); `shared_core.storage.wrapper.StorageWrapper`
+  (MinIO, packaged-artifact storage); `shared_core.scheduler`;
+  `shared_core.events`.
+- **Genuine gaps, confirmed absent and built new:** manifest validation
+  against docs/059's own richer field set — Publisher, split
+  Category+Type, structured multi-platform Supported-Platform-Versions,
+  plural Entry Points, API Requirements, Health Checks, Checksum —
+  none of which `shared_core.plugins.manifest.PluginManifest` covers
+  (`app/manifests/engine.py`); a real DB-backed dependency graph with
+  DFS cycle detection spanning organizations, mirroring
+  `playbook-service`'s own `PlaybookDependencyService._creates_cycle`
+  rather than `shared_core.plugins.resolver.DependencyResolver`'s
+  in-memory-only scope (`app/dependencies/engine.py`); tar.gz/zip
+  packaging and checksumming — no `shared_core.plugins` module
+  compresses or archives anything (`app/packages/engine.py`); Ed25519
+  signing, mirroring `playbook-service/app/signing/signer.py` exactly
+  rather than `shared_core.plugins.manifest`'s RSA-PSS scheme, which is
+  keyed to a different manifest shape (`app/security/signer.py`); a
+  bespoke `PluginPermissionCategory`-keyed capability-grant model; a
+  first-class `plugin_publishers` table and `plugin_reviews`/
+  `plugin_ratings` public star-rating system, neither of which has any
+  precedent anywhere else in the monorepo (`playbook-service`'s own
+  `PlaybookReview` is an internal draft-approval step, not a
+  post-publish public review — confirmed via direct file read before
+  committing to a bespoke design).
+- **`shared_core.plugins.registry.PluginRegistry`/`.resolver
+  .DependencyResolver` are explicitly in-process-only per their own
+  docstrings** ("persistence across restarts is a concern for whatever
+  repository layer wraps this registry") — confirmed via direct read
+  they must not be used as this service's own DB-backed catalog, the
+  same conclusion reached about `WorkflowRegistry`/`JobRegistry` in
+  earlier prompts.
+
+### Two entities, not one: plugin *definition* vs *installation*
+
+`Plugin` (registered/validated/published/approved by its own authoring
+organization) and `PluginInstallation` (a different organization's own
+installed instance — configured/activated/upgraded/rolled back/
+disabled/removed independently) are deliberately separate tables, the
+same "author owns the catalog entry, installer owns their own instance"
+split `ConnectorMarketplaceEntry`/`Connector` already established in
+Prompt 058. `PluginMarketplaceEntry` is a third, separate concern again
+— the published *listing* surface, independently toggleable
+(draft/published/featured/deprecated/removed) from the plugin's own
+Registration→Validation→Publishing→Approval lifecycle.
+
+### Two permission models, two different jobs
+
+`plugin_permissions` (`PluginPermissionGrant`) is the audit/approval
+trail — what an org has actually granted one of its own installations,
+decided by a human via grant/deny/revoke endpoints.
+`PluginExecutionPolicy.granted_categories` (in `app/sandbox/engine.py`)
+is the runtime enforcement layer a caller builds from that grant table
+before executing a plugin's own entry point. Kept as two distinct
+types rather than reusing one shared between a DB row and a runtime
+check, since a DB row's own lifecycle (created, decided, revoked) and a
+runtime policy object's own lifecycle (built fresh per execution from
+whatever is currently granted) are genuinely different concerns.
+
+### Bugs worth remembering
+
+- **`StatisticsService.rollup()` called `i.status.value` on
+  `PluginInstallation.status`** — `AttributeError` on any window
+  containing at least one installation, because the column is backed
+  by plain `String`, never a SQLAlchemy `Enum` type, so the ORM
+  attribute is already a plain `str` at runtime (the "enum-as-str"
+  convention `app/models/enums.py`'s own module docstring documents).
+  Fixed to `str(i.status)`, matching the very next line's own
+  `str(plugin.category)`. Found running the full merged test suite for
+  the first time, since no individual agent's own test file happened
+  to build a statistics window containing an installation.
+- **`PluginInstallationService.configure()` unconditionally set
+  `status = CONFIGURED` on every call** — silently knocking an
+  already-`ACTIVE` installation out of `list_all_active`'s own scope,
+  the exact set the health-probe sweep watches. Reconfiguring a live
+  installation's own `health_check_url` stopped it from ever being
+  probed again until manually reactivated.
+  `ConnectorService.configure()` in Prompt 058 does the identical
+  unconditional `status = CONFIGURED`, and that's *correct* there
+  because `ConnectorRepository.list_all_enabled` filters on a separate
+  `enabled: bool` column, not `status` — `PluginInstallation` has no
+  such column, so the two services' own otherwise-identical-looking
+  methods needed different fixes. Fixed to only advance status from
+  the pre-activation states (`INSTALLING`/`INSTALLED`). Found live, not
+  by any automated test — no test in the 520-test suite happened to
+  reconfigure an already-active installation and then check whether a
+  *later* sweep tick still picked it up, until a regression test was
+  added directly alongside the fix.
+- **Two test-authoring mistakes, not source bugs**: a hand-written
+  `test_archive_plugin` forgot `Authorization` headers on its own
+  `DELETE` call; a recovered agent's `test_generate_marketplace_report`
+  keyed a dict by plugin `name` while both of its own test plugins
+  shared the `make_plugin` fixture's default name, so the second
+  silently clobbered the first before either assertion ran.
+- **A router-registration-order hijack, the same bug class already
+  fixed in notification-center-service**: `app/api/__init__.py`
+  registered `plugins_router` (owning the catch-all `GET`/`PUT`/
+  `DELETE /plugins/{plugin_id}`) before `publishers_router`/
+  `installations_router`/`marketplace_admin_router`, whose own literal
+  one-segment paths (`/plugins/publishers`, `/plugins/installations`,
+  `/plugins/marketplace-listings/...`) the catch-all was hijacking
+  first — FastAPI/Starlette matches route order across the *whole*
+  app, not per-router. Found by the publishers/marketplace-admin/
+  health test-writing agent before it was cut off by the session
+  limit; the fix survived in its own worktree and merged cleanly.
+
+### All seven parallel test-writing agents hit an account-wide session limit this time, not the usual one or two
+
+Six of seven worktrees survived with real partial progress (one file
+short of complete, in most cases) and were committed and merged
+cleanly, including the router-ordering fix above. The seventh
+(`test_api_plugins.py`/`test_api_installations.py`/`test_api_packages.py`)
+left no worktree at all. With the account-wide limit still active (not
+yet reset by wall-clock time), redispatching a fresh agent for the lost
+scope would likely have failed identically to the other six — so
+rather than either wait out the reset or risk another failed dispatch,
+those three files were written directly in the main session instead,
+following the exact same brief that had been given to the lost agent.
+This is a variant of the established "commit worktree progress
+defensively, redispatch fresh agents for genuinely-lost work" lesson
+from Prompts 057/058: sometimes the correct recovery action is to skip
+the redispatch step entirely and do the work directly, specifically
+when the failure signal (an account-wide limit, not a single agent's
+own bad luck) suggests a fresh dispatch would just fail the same way
+again immediately.
+
+### Verification
+
+Image built and run on `aiios_aiios_network` against real Postgres,
+Redis, RabbitMQ, and MinIO. `MSYS_NO_PATHCONV=1` was required on the
+`docker run` call itself, not just on `docker exec`/mypy calls as
+already known — Git Bash silently rewrote `AIIOS_RABBITMQ_VHOST=/aiios`
+into a Windows path before Docker ever saw it, producing an opaque
+`AMQPInternalError` at RabbitMQ connection time with no hint the vhost
+itself was mangled. Separately, Redis's own `--databases` count in the
+root `docker-compose.yml` had to be raised from 32 to 64: with 32 total
+(indices 0–31), integration-hub-service's own db 31 was already the
+last valid index, leaving this service's own db 32 out of range — a
+real "DB index is out of range" `ResponseError` on the very first cache
+connection attempt, caught by the pytest suite before any live
+verification even began. Every one of Prompts 060–080 would have hit
+the same ceiling in turn had it not been fixed here.
+
+Signed a genuine JWT with a throwaway RSA keypair mounted over the
+bundled `jwt_public_key_path` (confirmed after the fact that
+`services/authentication-service`'s own real private key also verifies
+correctly against this service's bundled public key — either would
+have worked). All four leader-elected workers registered and one node
+acquired scheduler leadership on startup. Registered a plugin,
+submitted and validated a manifest, published it, created a draft
+marketplace listing, installed and activated it — and, deliberately
+never calling the manual approve or probe endpoints, watched the
+leader-elected marketplace-approval-sweep worker flip the listing from
+`draft` to `published` entirely on its own within one 10-second tick,
+and watched the health-probe-sweep worker record a real
+`unknown`-then-`healthy` transition across two ticks on its own (the
+first tick genuinely fired *before* a `health_check_url` was even
+configured, correctly recording `unknown` with an explanatory error
+rather than a fabricated result) — proactively applying the "verify
+queue/worker designs live, unmanually" lesson webhook-service's own
+Prompt 057 build first established. That same live pass surfaced the
+`configure()` lifecycle bug above. Live-verification rows cleaned from
+every table they touched before the final test-suite re-run confirmed
+520 tests passing with no cross-test pollution (the polluting row had
+briefly surfaced as a phantom third organization in an unrelated
+statistics-rollup isolation test).
