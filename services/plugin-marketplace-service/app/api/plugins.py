@@ -6,7 +6,7 @@ extensions those endpoints require in order to actually work end to end).
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query
@@ -25,6 +25,7 @@ from app.api.deps import (
     StatisticsSvc,
 )
 from app.models.enums import AuditAction, PluginCategory, PluginLifecycleStatus, ReportKind
+from app.models.installation import PluginInstallation
 from app.schemas.marketplace import (
     PluginDependencyDeclareRequest,
     PluginDependencyResponse,
@@ -54,7 +55,7 @@ def _meta() -> ResponseMeta:
 
 async def _installation_for_plugin(
     installations: InstallationSvc, organization_id: UUID, plugin_id: UUID
-):
+) -> PluginInstallation:
     entries = await installations.list_for_org(organization_id, limit=1_000)
     for entry in entries:
         if entry.plugin_id == plugin_id:
@@ -151,7 +152,9 @@ async def submit_review(
 
 
 @router.get("/statistics", summary="Marketplace activity dashboard")
-async def get_statistics(organization_id: UUID, statistics: StatisticsSvc) -> SuccessResponse[dict]:
+async def get_statistics(
+    organization_id: UUID, statistics: StatisticsSvc
+) -> SuccessResponse[dict[str, Any]]:
     """The live statistics snapshot a dashboard reads on load."""
     data = await statistics.dashboard(organization_id)
     return SuccessResponse(message="Statistics computed.", data=data, meta=_meta())
@@ -163,7 +166,7 @@ async def list_reports(
     reports: ReportSvc,
     limit: Annotated[int, Query(ge=1, le=1_000)] = 200,
     offset: Annotated[int, Query(ge=0)] = 0,
-) -> SuccessResponse[list[dict]]:
+) -> SuccessResponse[list[dict[str, Any]]]:
     """Reports generated in this organization, newest first."""
     rows = await reports.list_for_org(organization_id, limit=limit, offset=offset)
     data = [
@@ -176,7 +179,7 @@ async def list_reports(
 @router.post("/reports", summary="Generate a report", status_code=201)
 async def generate_report(
     organization_id: UUID, kind: ReportKind, reports: ReportSvc, caller: CurrentUserId
-) -> SuccessResponse[dict]:
+) -> SuccessResponse[dict[str, Any]]:
     """Build and store a new report of the given kind."""
     report = await reports.generate(organization_id, kind=kind, generated_by=str(caller))
     data = {
