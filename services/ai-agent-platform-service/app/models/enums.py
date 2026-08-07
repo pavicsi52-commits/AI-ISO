@@ -180,6 +180,15 @@ class PermissionGrantStatus(StrEnum):
     REVOKED = "revoked"
 
 
+class GuardrailVerdict(StrEnum):
+    """What a guardrail decided about one piece of text."""
+
+    ALLOWED = "allowed"
+    BLOCKED = "blocked"
+    REDACTED = "redacted"
+    FLAGGED = "flagged"
+
+
 class GuardrailType(StrEnum):
     """The eight guardrail kinds docs/060's own "GUARDRAILS" section names."""
 
@@ -191,6 +200,19 @@ class GuardrailType(StrEnum):
     RISK_CLASSIFICATION = "risk_classification"
     UNSAFE_ACTION_PREVENTION = "unsafe_action_prevention"
     EXECUTION_CONSTRAINT = "execution_constraint"
+
+
+class RiskLevel(StrEnum):
+    """A live Risk Classification guardrail's own output (docs/060
+    "GUARDRAILS": Risk Classification) -- distinct from
+    ``policy-engine-service``'s own static, per-policy ``risk_weight``:
+    this is computed fresh from the shape of one actual request.
+    """
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
 
 
 class ExecutionStatus(StrEnum):
@@ -313,6 +335,7 @@ __all__ = [
     "BenchmarkStatus",
     "ExecutionStatus",
     "GuardrailType",
+    "GuardrailVerdict",
     "MemoryScope",
     "ModelProvider",
     "OrchestrationPattern",
@@ -322,6 +345,7 @@ __all__ = [
     "ReportFormat",
     "ReportKind",
     "ReportStatus",
+    "RiskLevel",
     "RoutingStrategy",
     "SessionStatus",
     "TaskPriority",
