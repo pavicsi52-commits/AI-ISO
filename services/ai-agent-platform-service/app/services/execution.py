@@ -29,6 +29,7 @@ from app.memory.service import MemoryService
 from app.models.agent import Agent
 from app.models.enums import AgentLifecycleStatus, ExecutionStatus, ReasoningMode
 from app.models.execution import AgentExecution
+from app.models.profile import AgentProfile
 from app.reasoning.engine import (
     ReasoningResult,
     run_hybrid,
@@ -195,7 +196,7 @@ class ExecutionService:
     async def _dispatch_reasoning(
         self,
         agent: Agent,
-        profile,
+        profile: AgentProfile,
         execution: AgentExecution,
         *,
         request: str,
@@ -266,7 +267,7 @@ class ExecutionService:
     async def _run_tool_based(
         self,
         agent: Agent,
-        profile,
+        profile: AgentProfile,
         execution: AgentExecution,
         *,
         request: str,

@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI
+from neo4j import AsyncDriver
 from prometheus_fastapi_instrumentator import Instrumentator
 from redis.asyncio import Redis
 from shared_core.cache.factory import create_cache_framework
@@ -65,7 +66,7 @@ def _build_model_registry(http_client: httpx.AsyncClient, settings: Settings) ->
     )
 
 
-def _build_graph_client(settings: Settings) -> tuple[object, GraphClient]:
+def _build_graph_client(settings: Settings) -> tuple[AsyncDriver | None, GraphClient]:
     driver = create_neo4j_driver(
         settings.neo4j,
         enabled=settings.service.neo4j_enabled,

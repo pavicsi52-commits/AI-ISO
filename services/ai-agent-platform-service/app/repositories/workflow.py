@@ -30,7 +30,7 @@ class AgentWorkflowRepository(BaseRepository[AgentWorkflow]):
             AgentWorkflow.id == workflow_id, AgentWorkflow.organization_id == organization_id
         )
         result = await self._session.execute(stmt)
-        workflow = result.scalars().first()
+        workflow: AgentWorkflow | None = result.scalars().first()
         if workflow is None:
             raise NotFoundError(
                 f"AgentWorkflow {workflow_id!s} was not found in organization {organization_id!s}."

@@ -29,7 +29,7 @@ class AgentExecutionRepository(BaseRepository[AgentExecution]):
             AgentExecution.id == execution_id, AgentExecution.organization_id == organization_id
         )
         result = await self._session.execute(stmt)
-        found = result.scalars().first()
+        found: AgentExecution | None = result.scalars().first()
         if found is None:
             raise NotFoundError(
                 f"AgentExecution {execution_id!s} was not found in organization "

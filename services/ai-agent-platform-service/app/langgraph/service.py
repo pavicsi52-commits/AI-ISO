@@ -15,6 +15,7 @@ table.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from shared_core.workflow import (
     NodeExecutor,
@@ -45,6 +46,20 @@ from app.repositories.workflow import AgentWorkflowRepository
 _SOURCE_SERVICE = "ai-agent-platform-service"
 _PENDING_APPROVAL_KEY = "pending_approval"
 _VARIABLES_KEY = "variables_snapshot"
+
+
+def _mapping_at(checkpoint: dict[str, Any], key: str) -> dict[str, Any]:
+    """Read one nested mapping out of a workflow's own JSON checkpoint.
+
+    Every value in that column is genuinely ``object`` until narrowed.
+    A checkpoint whose key holds something other than a mapping -- a
+    hand-edited row, or a shape written by an older build -- reads as
+    absent rather than crashing a resume, which is the more useful
+    failure: the run restarts from ``START`` with no restored
+    variables instead of refusing to run at all.
+    """
+    value = checkpoint.get(key)
+    return value if isinstance(value, dict) else {}
 
 
 class WorkflowPersistenceService:
@@ -82,7 +97,7 @@ class WorkflowPersistenceService:
             execution_id=str(workflow.id),
             organization_id=str(workflow.organization_id),
         )
-        for name, value in (workflow.checkpoint.get(_VARIABLES_KEY) or {}).items():
+        for name, value in _mapping_at(workflow.checkpoint, _VARIABLES_KEY).items():
             context.variables.set(name, value, scope=VariableScope.WORKFLOW)
 
         pending_holder: dict[str, ApprovalRequest] = {}
@@ -90,8 +105,8 @@ class WorkflowPersistenceService:
         async def resolve_approval(request_id: str) -> ApprovalRequest | None:
             if request_id in pending_holder:
                 return pending_holder[request_id]
-            stored = workflow.checkpoint.get(_PENDING_APPROVAL_KEY)
-            if stored and stored.get("request_id") == request_id:
+            stored = _mapping_at(workflow.checkpoint, _PENDING_APPROVAL_KEY)
+            if stored.get("request_id") == request_id:
                 return approval_request_from_dict(stored)
             return None
 
@@ -191,8 +206,8 @@ class WorkflowPersistenceService:
             request_id = error.split(AWAITING_APPROVAL_PREFIX, 1)[1]
             if request_id in pending_holder:
                 return pending_holder[request_id]
-            stored = workflow.checkpoint.get(_PENDING_APPROVAL_KEY)
-            if stored and stored.get("request_id") == request_id:
+            stored = _mapping_at(workflow.checkpoint, _PENDING_APPROVAL_KEY)
+            if stored.get("request_id") == request_id:
                 return approval_request_from_dict(stored)
         return None
 
@@ -209,7 +224,7 @@ class ApprovalService:
         self._persistence = persistence
 
     def _require_pending(self, workflow: AgentWorkflow) -> ApprovalRequest:
-        stored = workflow.checkpoint.get(_PENDING_APPROVAL_KEY)
+        stored = _mapping_at(workflow.checkpoint, _PENDING_APPROVAL_KEY)
         if not stored:
             raise ValueError(f"Workflow {workflow.id!s} has no pending approval.")
         return approval_request_from_dict(stored)
@@ -246,7 +261,7 @@ class ApprovalService:
         """
         request = self._require_pending(workflow)
         request.approve(provided_by)
-        variables = dict(workflow.checkpoint.get(_VARIABLES_KEY) or {})
+        variables = dict(_mapping_at(workflow.checkpoint, _VARIABLES_KEY))
         variables[f"{request.node_id}_clarification"] = answer
         workflow.checkpoint = {
             **workflow.checkpoint,

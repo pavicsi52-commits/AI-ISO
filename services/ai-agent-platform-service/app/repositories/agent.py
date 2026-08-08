@@ -31,7 +31,7 @@ class AgentRepository(BaseRepository[Agent]):
             Agent.id == agent_id, Agent.organization_id == organization_id
         )
         result = await self._session.execute(stmt)
-        agent = result.scalars().first()
+        agent: Agent | None = result.scalars().first()
         if agent is None:
             raise NotFoundError(
                 f"Agent {agent_id!s} was not found in organization {organization_id!s}."
@@ -84,7 +84,9 @@ class AgentRepository(BaseRepository[Agent]):
         )
         result = await self._session.execute(stmt)
         return [
-            agent for agent in result.scalars().all() if agent.id not in agent_ids_with_recent_benchmark
+            agent
+            for agent in result.scalars().all()
+            if agent.id not in agent_ids_with_recent_benchmark
         ]
 
 

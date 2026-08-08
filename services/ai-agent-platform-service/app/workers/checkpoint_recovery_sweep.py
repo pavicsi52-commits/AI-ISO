@@ -18,6 +18,7 @@ documents, not something this worker can work around.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from shared_core.logging.logger import get_logger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -25,6 +26,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.agents.orchestrator import AgentOrchestrator
 from app.clients.registry import ModelRegistry
 from app.langgraph.service import WorkflowPersistenceService
+from app.models.agent import Agent
+from app.models.enums import AgentType
+from app.models.profile import AgentProfile
 from app.repositories.agent import AgentRepository
 from app.repositories.profile import AgentProfileRepository
 from app.repositories.workflow import AgentWorkflowRepository
@@ -69,19 +73,19 @@ class CheckpointRecoverySweepWorker:
         )
         return resumed
 
-    async def _resume_one(self, workflow_id: object, organization_id: object) -> bool:
+    async def _resume_one(self, workflow_id: UUID, organization_id: UUID) -> bool:
         """Resume one stuck workflow under its own session."""
         try:
             async with self._session_factory() as session:
                 workflows_repo = AgentWorkflowRepository(session)
-                workflow = await workflows_repo.require_in_org(organization_id, workflow_id)  # type: ignore[arg-type]
+                workflow = await workflows_repo.require_in_org(organization_id, workflow_id)
 
                 agents_repo = AgentRepository(session)
-                agents = await agents_repo.list_for_org(organization_id)  # type: ignore[arg-type]
-                agents_by_type: dict[object, list[object]] = {}
+                agents = await agents_repo.list_for_org(organization_id)
+                agents_by_type: dict[AgentType, list[Agent]] = {}
                 for agent in agents:
                     agents_by_type.setdefault(agent.agent_type, []).append(agent)
-                profiles_by_agent_id = {}
+                profiles_by_agent_id: dict[UUID, AgentProfile] = {}
                 for agent in agents:
                     profile = await AgentProfileRepository(session).get_for_agent(agent.id)
                     if profile is not None:

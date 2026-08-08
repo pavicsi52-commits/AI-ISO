@@ -22,6 +22,9 @@ from app.agents.orchestrator import AgentOrchestrator
 from app.benchmarks.runner import BenchmarkCase
 from app.benchmarks.service import BenchmarkService
 from app.clients.registry import ModelRegistry
+from app.models.agent import Agent
+from app.models.enums import AgentType
+from app.models.profile import AgentProfile
 from app.repositories.agent import AgentRepository
 from app.repositories.benchmark import AgentBenchmarkRepository
 from app.repositories.profile import AgentProfileRepository
@@ -88,8 +91,8 @@ class BenchmarkSweepWorker:
                 if not due_agents:
                     return 0
 
-                profiles_by_agent_id = {}
-                agents_by_type: dict[object, list[object]] = {}
+                profiles_by_agent_id: dict[UUID, AgentProfile] = {}
+                agents_by_type: dict[AgentType, list[Agent]] = {}
                 for agent in due_agents:
                     profile = await AgentProfileRepository(session).get_for_agent(agent.id)
                     if profile is None:

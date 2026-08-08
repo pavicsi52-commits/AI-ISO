@@ -203,7 +203,7 @@ class ToolExecutor:
         convention for JSON-list columns, since SQLAlchemy's change
         tracking does not see an in-place ``list.append``.
         """
-        entry = {
+        entry: dict[str, object] = {
             "type": "tool_call",
             "tool_key": tool.tool_key,
             "arguments": arguments,

@@ -24,6 +24,10 @@ dev = [
   "pytest-asyncio>=0.24.0",
   "pytest-cov>=6.0.0",
   "pytest-httpx>=0.35.0",
+  # app/sandbox/engine.py imports psutil directly for its own process
+  # memory check, so this service needs the stubs in its own group --
+  # shared-core's dev group is not installed alongside it.
+  "types-psutil>=6.0.0",
 ]
 
 [tool.uv]

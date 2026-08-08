@@ -30,7 +30,7 @@ class AgentMarketplaceEntryRepository(BaseRepository[AgentMarketplaceEntry]):
             AgentMarketplaceEntry.organization_id == organization_id,
         )
         result = await self._session.execute(stmt)
-        found = result.scalars().first()
+        found: AgentMarketplaceEntry | None = result.scalars().first()
         if found is None:
             raise NotFoundError(
                 f"AgentMarketplaceEntry {entry_id!s} was not found in organization "

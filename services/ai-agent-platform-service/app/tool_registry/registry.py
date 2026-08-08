@@ -107,9 +107,18 @@ def validate_arguments(tool: AgentTool, arguments: dict[str, Any]) -> str | None
     output fails on exactly these, and pulling in a schema library for
     the rest would not catch anything more in practice.
     """
+    # ``parameters_schema`` is a JSON column, so every value read out of
+    # it is genuinely ``object`` until narrowed -- a tool row whose
+    # schema declares e.g. a string where a mapping belongs must fall
+    # back to "no constraint", never crash the validator that exists to
+    # reject malformed input.
     schema = tool.parameters_schema or {}
-    properties = schema.get("properties") or {}
-    required = schema.get("required") or []
+    raw_properties = schema.get("properties")
+    properties: dict[str, Any] = raw_properties if isinstance(raw_properties, dict) else {}
+    raw_required = schema.get("required")
+    required: list[str] = (
+        [str(name) for name in raw_required] if isinstance(raw_required, list) else []
+    )
 
     missing = [name for name in required if name not in arguments]
     if missing:
@@ -129,7 +138,10 @@ def validate_arguments(tool: AgentTool, arguments: dict[str, Any]) -> str | None
         "object": (dict,),
     }
     for name, value in arguments.items():
-        declared = (properties.get(name) or {}).get("type")
+        property_schema = properties.get(name)
+        if not isinstance(property_schema, dict):
+            continue
+        declared = property_schema.get("type")
         if not declared:
             continue
         allowed_types = expected_types.get(declared)

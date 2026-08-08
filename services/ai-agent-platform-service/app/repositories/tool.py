@@ -28,7 +28,7 @@ class AgentToolRepository(BaseRepository[AgentTool]):
             AgentTool.id == tool_id, AgentTool.organization_id == organization_id
         )
         result = await self._session.execute(stmt)
-        found = result.scalars().first()
+        found: AgentTool | None = result.scalars().first()
         if found is None:
             raise NotFoundError(
                 f"AgentTool {tool_id!s} was not found in organization {organization_id!s}."

@@ -45,7 +45,15 @@ class BenchmarkService:
         itself* ran to completion, not whether every case passed --
         pass/fail counts are a separate, expected outcome, not a
         run failure. A run only becomes ``FAILED`` if running it raised
-        outright (e.g. no agent of *agent_type* is registered at all).
+        outright (e.g. an agent profile whose persisted
+        ``model_provider`` is no longer a value this build's own
+        :class:`~app.models.enums.ModelProvider` knows, which
+        :func:`~app.clients.dispatch.dispatch_chat` cannot coerce).
+
+        An *unresolvable* ``agent_type`` is **not** such a case:
+        :meth:`~app.agents.orchestrator.AgentOrchestrator.run_one`
+        never raises, so a suite with no agent registered for it still
+        records ``COMPLETED`` with every case failed.
         """
         started_at = datetime.now(UTC)
         try:

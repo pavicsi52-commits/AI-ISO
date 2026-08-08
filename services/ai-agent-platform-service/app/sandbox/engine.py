@@ -100,7 +100,7 @@ class AgentSandbox:
         Raises:
             AuthorizationError: If usage exceeds the configured limit.
         """
-        usage_mb = psutil.Process().memory_info().rss / _BYTES_PER_MB
+        usage_mb: float = psutil.Process().memory_info().rss / _BYTES_PER_MB
         if usage_mb > self.policy.memory_limit_mb:
             raise AuthorizationError(
                 f"Agent {self.agent_slug!r} process memory usage {usage_mb:.1f}MB exceeds "
