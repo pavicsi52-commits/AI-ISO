@@ -8,7 +8,7 @@ from uuid import UUID
 from shared_core.database.repository import BaseRepository
 from shared_core.database.search import apply_search
 from shared_core.database.tenant import TenantScope
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import MemoryScope
@@ -120,6 +120,23 @@ class AgentMemoryRepository(BaseRepository[AgentMemory]):
             await self._session.delete(row)
         await self._session.flush()
         return len(rows)
+
+    async def count_created_in_window(
+        self, organization_id: UUID, *, since: datetime, until: datetime
+    ) -> int:
+        """How many memory rows were created for *organization_id*
+        within one window -- backs the statistics rollup."""
+        stmt = (
+            self._base_select()
+            .where(
+                AgentMemory.organization_id == organization_id,
+                AgentMemory.created_at >= since,
+                AgentMemory.created_at < until,
+            )
+            .with_only_columns(func.count())
+        )
+        result = await self._session.execute(stmt)
+        return int(result.scalar_one())
 
 
 __all__ = ["AgentMemoryRepository"]

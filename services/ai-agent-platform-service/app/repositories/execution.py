@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from shared_core.database.repository import BaseRepository
@@ -50,6 +51,19 @@ class AgentExecutionRepository(BaseRepository[AgentExecution]):
     async def list_for_task(self, task_id: UUID) -> list[AgentExecution]:
         """Every execution recorded against one specific task."""
         stmt = self._base_select().where(AgentExecution.task_id == task_id)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_in_window(
+        self, organization_id: UUID, *, since: datetime, until: datetime
+    ) -> list[AgentExecution]:
+        """Every execution started for *organization_id* within one
+        window -- backs the statistics rollup."""
+        stmt = self._base_select().where(
+            AgentExecution.organization_id == organization_id,
+            AgentExecution.started_at >= since,
+            AgentExecution.started_at < until,
+        )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 

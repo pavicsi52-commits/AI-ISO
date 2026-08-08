@@ -70,5 +70,18 @@ class AgentTaskRepository(BaseRepository[AgentTask]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_in_window(
+        self, organization_id: UUID, *, since: datetime, until: datetime
+    ) -> list[AgentTask]:
+        """Every task created for *organization_id* within one window
+        -- backs the statistics rollup."""
+        stmt = self._base_select().where(
+            AgentTask.organization_id == organization_id,
+            AgentTask.created_at >= since,
+            AgentTask.created_at < until,
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
 
 __all__ = ["AgentTaskRepository"]
