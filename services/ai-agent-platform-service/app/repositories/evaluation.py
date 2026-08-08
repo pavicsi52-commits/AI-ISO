@@ -33,5 +33,20 @@ class AgentEvaluationRepository(BaseRepository[AgentEvaluation]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_for_org(
+        self, organization_id: UUID, *, limit: int = 200, offset: int = 0
+    ) -> list[AgentEvaluation]:
+        """Every evaluation in *organization_id*, newest first -- backs
+        ``GET /agents/evaluations``."""
+        stmt = (
+            self._base_select()
+            .where(AgentEvaluation.organization_id == organization_id)
+            .order_by(AgentEvaluation.evaluated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
 
 __all__ = ["AgentEvaluationRepository"]

@@ -83,5 +83,22 @@ class AgentTaskRepository(BaseRepository[AgentTask]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_for_org(
+        self,
+        organization_id: UUID,
+        *,
+        status: TaskStatus | None = None,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> list[AgentTask]:
+        """Every task in *organization_id*, newest first -- backs
+        ``GET /agents/tasks``."""
+        stmt = self._base_select().where(AgentTask.organization_id == organization_id)
+        if status is not None:
+            stmt = stmt.where(AgentTask.status == status)
+        stmt = stmt.order_by(AgentTask.created_at.desc()).limit(limit).offset(offset)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
 
 __all__ = ["AgentTaskRepository"]

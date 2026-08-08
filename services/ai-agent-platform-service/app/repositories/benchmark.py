@@ -27,5 +27,20 @@ class AgentBenchmarkRepository(BaseRepository[AgentBenchmark]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
+    async def list_for_org(
+        self, organization_id: UUID, *, limit: int = 200, offset: int = 0
+    ) -> list[AgentBenchmark]:
+        """Every benchmark run in *organization_id*, newest first --
+        backs ``GET /agents/benchmarks``."""
+        stmt = (
+            self._base_select()
+            .where(AgentBenchmark.organization_id == organization_id)
+            .order_by(AgentBenchmark.started_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
 
 __all__ = ["AgentBenchmarkRepository"]
