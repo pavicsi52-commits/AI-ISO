@@ -34,10 +34,22 @@ class AgentStatisticRepository(BaseRepository[AgentStatistic]):
         return result.scalars().first()
 
     async def list_since(self, organization_id: UUID, *, since: datetime) -> list[AgentStatistic]:
-        """Every window for *organization_id* starting at or after *since*."""
-        stmt = self._base_select().where(
-            AgentStatistic.organization_id == organization_id,
-            AgentStatistic.window_start >= since,
+        """Every window for *organization_id* starting at or after
+        *since*, **oldest first**.
+
+        The ordering is part of the contract, not incidental: this backs
+        :meth:`~app.services.reporting.StatisticsService.trend`, whose
+        own caller plots the windows in the order they arrive, and an
+        unordered ``SELECT`` gives Postgres licence to return them in
+        whatever order a scan happens to produce.
+        """
+        stmt = (
+            self._base_select()
+            .where(
+                AgentStatistic.organization_id == organization_id,
+                AgentStatistic.window_start >= since,
+            )
+            .order_by(AgentStatistic.window_start.asc())
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

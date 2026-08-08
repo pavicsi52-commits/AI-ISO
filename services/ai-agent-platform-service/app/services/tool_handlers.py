@@ -95,9 +95,34 @@ def _build_one(tool: AgentTool, kind: ToolKind, deps: HandlerDependencies) -> To
     if kind is ToolKind.DATABASE_QUERY and deps.session is not None:
         sql_template = tool.metadata_.get("sql_template") if tool.metadata_ else None
         if sql_template:
-            return build_database_query_handler(deps.session, str(sql_template))
+            return _build_database_query(tool, str(sql_template), deps)
 
     return None
+
+
+def _build_database_query(
+    tool: AgentTool, sql_template: str, deps: HandlerDependencies
+) -> ToolHandler | None:
+    """Build one ``DATABASE_QUERY`` handler, or ``None`` when its own
+    stored ``sql_template`` is rejected.
+
+    A template that is not a ``SELECT`` is a misconfiguration of *that
+    one tool row*, so it is skipped exactly like an unavailable client
+    -- letting the :class:`ValueError` escape would take every other
+    tool in the same execution down with it, which is the opposite of
+    what this module's own "skip rather than register a handler doomed
+    to raise" rule is for.
+    """
+    if deps.session is None:  # pragma: no cover - guarded by the caller
+        return None
+    try:
+        return build_database_query_handler(deps.session, sql_template)
+    except ValueError as exc:
+        logger.warning(
+            "Skipping a DATABASE_QUERY tool whose own sql_template was rejected.",
+            extra={"extra_fields": {"tool_key": tool.tool_key, "error": str(exc)}},
+        )
+        return None
 
 
 def build_handler_registry(
