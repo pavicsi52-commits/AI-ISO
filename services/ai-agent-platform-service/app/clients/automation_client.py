@@ -48,6 +48,33 @@ class AutomationClient:
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self._caller_token}"}
 
+    @staticmethod
+    def _envelope(response: httpx.Response, *, doing: str) -> dict[str, Any]:
+        """Unwrap this platform's own ``SuccessResponse`` envelope.
+
+        A sibling service that answers with the right status code but a
+        body this service cannot read is a dependency failure like any
+        other -- version skew, or a proxy substituting its own page --
+        so it surfaces as :class:`DependencyError`, never as a raw
+        ``KeyError``/``JSONDecodeError`` escaping this client's own
+        documented contract.
+
+        Raises:
+            DependencyError: If the body isn't JSON, isn't an object, or
+                carries no ``data`` object.
+        """
+        try:
+            body = response.json()
+        except ValueError as exc:
+            raise DependencyError(
+                f"Automation Service returned a non-JSON body {doing}: {exc}"
+            ) from exc
+        if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
+            raise DependencyError(
+                f"Automation Service returned a body with no 'data' object {doing}."
+            )
+        return dict(body["data"])
+
     async def execute_and_wait(
         self,
         job_id: UUID,
@@ -81,15 +108,21 @@ class AutomationClient:
                 f"Automation Service returned HTTP {response.status_code} "
                 f"dispatching job {job_id!r}."
             )
-        execution_id = response.json()["data"]["id"]
+        dispatched = self._envelope(response, doing=f"dispatching job {job_id!s}")
+        execution_id = dispatched.get("id")
+        if not execution_id:
+            raise DependencyError(
+                f"Automation Service dispatched job {job_id!s} without returning an execution id."
+            )
 
         for _attempt in range(self._max_poll_attempts):
-            execution = await self._get_execution(execution_id)
-            if execution["status"] in _TERMINAL_STATUSES:
-                if execution["status"] != "completed":
+            execution = await self._get_execution(str(execution_id))
+            status = execution.get("status")
+            if status in _TERMINAL_STATUSES:
+                if status != "completed":
                     raise DependencyError(
                         f"Automation job {job_id!r} execution {execution_id!r} ended in "
-                        f"status {execution['status']!r}: {execution.get('error_message')}"
+                        f"status {status!r}: {execution.get('error_message')}"
                     )
                 return execution
             await asyncio.sleep(self._poll_interval_seconds)
@@ -111,7 +144,7 @@ class AutomationClient:
                 f"Automation Service returned HTTP {response.status_code} "
                 f"reading execution {execution_id!r}."
             )
-        return dict(response.json()["data"])
+        return self._envelope(response, doing=f"reading execution {execution_id!r}")
 
 
 __all__ = ["AutomationClient"]
