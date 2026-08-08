@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
+from redis.asyncio import Redis
 from shared_core.cache.factory import create_cache_framework
 from shared_core.cache.settings import CacheSettings
 from shared_core.database.factory import create_database_framework
@@ -25,8 +26,12 @@ from shared_core.middleware import (
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
+from shared_core.queue.factory import create_queue_framework
+from shared_core.scheduler import SchedulerManager
+from shared_core.scheduler.factory import create_scheduler_framework
 from shared_core.security.cors import CorsConfig, development_cors_config, production_cors_config
 from shared_core.validation.middleware import RequestValidationMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api import ALL_ROUTERS
@@ -36,6 +41,17 @@ from app.config.settings import Settings, get_settings
 from app.graph.client import GraphClient, create_neo4j_driver
 from app.models.enums import ModelProvider
 from app.sandbox.policy import AgentSandboxPolicy
+from app.types import EventPublisher
+from app.workers.benchmark_sweep import BenchmarkSweepWorker
+from app.workers.checkpoint_recovery_sweep import CheckpointRecoverySweepWorker
+from app.workers.registrar import (
+    register_benchmark_sweep,
+    register_checkpoint_recovery_sweep,
+    register_statistics_rollup,
+    register_task_dispatch_sweep,
+)
+from app.workers.statistics_rollup import StatisticsRollupWorker
+from app.workers.task_dispatch_sweep import TaskDispatchSweepWorker
 
 logger = get_logger("app.startup")
 
@@ -64,6 +80,73 @@ def _build_graph_client(settings: Settings) -> tuple[object, GraphClient]:
         enabled=settings.service.neo4j_enabled,
     )
     return driver, graph_client
+
+
+async def _build_workers(
+    session_factory: async_sessionmaker[AsyncSession],
+    redis_client: Redis,
+    registry: ModelRegistry,
+    http_client: httpx.AsyncClient,
+    sandbox_policy: AgentSandboxPolicy,
+    graph_client: GraphClient,
+    publish_event: EventPublisher,
+    settings: Settings,
+) -> SchedulerManager | None:
+    """Register and start the leader-elected background jobs.
+
+    All four are leader-elected: each is pure database (plus, for task
+    dispatch and checkpoint recovery, model-provider I/O) work with no
+    per-replica state, so N replicas would be N times the load for an
+    identical result -- and concurrent sweeps of the same due rows
+    would race.
+    """
+    if not settings.service.workers_enabled:
+        return None
+
+    queue = await create_queue_framework(settings.rabbitmq)
+    manager = create_scheduler_framework(
+        queue.manager, redis_client, queue_name="ai_agent_platform_service_scheduler_queue"
+    )
+    register_task_dispatch_sweep(
+        manager,
+        TaskDispatchSweepWorker(
+            session_factory,
+            registry,
+            http_client=http_client,
+            sandbox_policy=sandbox_policy,
+            graph_client=graph_client,
+            automation_service_base_url=settings.service.automation_service_base_url,
+            publish_event=publish_event,
+        ).run_job,
+        interval_seconds=settings.service.task_dispatch_sweep_seconds,
+    )
+    register_checkpoint_recovery_sweep(
+        manager,
+        CheckpointRecoverySweepWorker(
+            session_factory,
+            registry,
+            stuck_after_seconds=settings.service.checkpoint_stuck_after_seconds,
+        ).run_job,
+        interval_seconds=settings.service.checkpoint_recovery_sweep_seconds,
+    )
+    register_statistics_rollup(
+        manager,
+        StatisticsRollupWorker(
+            session_factory, window_seconds=settings.service.statistics_rollup_seconds
+        ).run_job,
+        interval_seconds=settings.service.statistics_rollup_seconds,
+    )
+    register_benchmark_sweep(
+        manager,
+        BenchmarkSweepWorker(
+            session_factory,
+            registry,
+            due_after_seconds=settings.service.benchmark_due_after_seconds,
+        ).run_job,
+        interval_seconds=settings.service.benchmark_sweep_seconds,
+    )
+    await manager.start()
+    return manager
 
 
 @asynccontextmanager
@@ -96,6 +179,18 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         memory_limit_mb=settings.service.default_memory_limit_mb,
     )
 
+    scheduler_manager = await _build_workers(
+        database.session_factory,
+        cache.client,
+        app.state.model_registry,
+        app.state.http_client,
+        app.state.sandbox_policy,
+        graph_client,
+        events.manager.publish,
+        settings,
+    )
+    app.state.scheduler_manager = scheduler_manager
+
     logger.info(
         "ai-agent-platform-service starting up",
         extra={
@@ -105,12 +200,15 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 ],
                 "neo4j_enabled": settings.service.neo4j_enabled,
                 "guardrails_enabled": settings.service.guardrails_enabled,
+                "workers_enabled": settings.service.workers_enabled,
             }
         },
     )
     try:
         yield
     finally:
+        if scheduler_manager is not None:
+            await scheduler_manager.stop()
         await app.state.http_client.aclose()
         if neo4j_driver is not None:
             await neo4j_driver.close()

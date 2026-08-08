@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from shared_core.database.repository import BaseRepository
@@ -41,6 +42,19 @@ class AgentBenchmarkRepository(BaseRepository[AgentBenchmark]):
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_agent_ids_benchmarked_since(
+        self, organization_id: UUID, *, since: datetime
+    ) -> set[UUID]:
+        """Every agent id with at least one benchmark run started at or
+        after *since* -- backs the benchmark sweep's own "does this
+        agent still need a health-check benchmark" decision."""
+        stmt = self._base_select().where(
+            AgentBenchmark.organization_id == organization_id,
+            AgentBenchmark.started_at >= since,
+        )
+        result = await self._session.execute(stmt)
+        return {row.agent_id for row in result.scalars().all()}
 
 
 __all__ = ["AgentBenchmarkRepository"]

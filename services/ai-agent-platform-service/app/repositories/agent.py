@@ -8,10 +8,11 @@ from uuid import UUID
 from shared_core.database.repository import BaseRepository
 from shared_core.database.tenant import TenantScope
 from shared_core.exceptions.not_found import NotFoundError
+from sqlalchemy import distinct, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agent import Agent, AgentVersion
-from app.models.enums import AgentType
+from app.models.enums import AgentLifecycleStatus, AgentType
 
 
 class AgentRepository(BaseRepository[Agent]):
@@ -58,6 +59,33 @@ class AgentRepository(BaseRepository[Agent]):
         stmt = self._base_select().where(Agent.organization_id == organization_id)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_organization_ids(self, *, limit: int = 200) -> list[UUID]:
+        """Every organization with at least one registered agent --
+        backs the statistics rollup and benchmark sweep workers, which
+        both need to iterate every tenant without a separate
+        organizations table of their own.
+        """
+        stmt = select(distinct(Agent.organization_id)).limit(limit)
+        result = await self._session.execute(stmt)
+        return [row for row in result.scalars().all() if row is not None]
+
+    async def list_active_without_recent_benchmark(
+        self, organization_id: UUID, *, agent_ids_with_recent_benchmark: set[UUID]
+    ) -> list[Agent]:
+        """Every ``ACTIVE`` agent in *organization_id* not present in
+        *agent_ids_with_recent_benchmark* -- backs the benchmark sweep's
+        own "has this agent had a health-check benchmark lately"
+        decision, computed by the caller from
+        :class:`~app.repositories.benchmark.AgentBenchmarkRepository`.
+        """
+        stmt = self._base_select().where(
+            Agent.organization_id == organization_id, Agent.status == AgentLifecycleStatus.ACTIVE
+        )
+        result = await self._session.execute(stmt)
+        return [
+            agent for agent in result.scalars().all() if agent.id not in agent_ids_with_recent_benchmark
+        ]
 
 
 class AgentVersionRepository(BaseRepository[AgentVersion]):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from shared_core.database.repository import BaseRepository
@@ -9,6 +10,7 @@ from shared_core.database.tenant import TenantScope
 from shared_core.exceptions.not_found import NotFoundError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.enums import WorkflowRunStatus
 from app.models.workflow import AgentWorkflow
 
 
@@ -41,6 +43,30 @@ class AgentWorkflowRepository(BaseRepository[AgentWorkflow]):
             self._base_select()
             .where(AgentWorkflow.agent_id == agent_id)
             .order_by(AgentWorkflow.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_stuck_running(
+        self, cutoff: datetime, *, limit: int = 100
+    ) -> list[AgentWorkflow]:
+        """Every workflow still ``RUNNING`` whose own ``started_at`` is
+        older than *cutoff* -- a real crash-recovery signal: a run
+        genuinely still in progress keeps advancing its own checkpoint
+        on every level, so one stuck this long almost certainly died
+        mid-run rather than merely being slow. Backs the checkpoint
+        recovery sweep, which resumes each one from its own last
+        persisted checkpoint.
+        """
+        stmt = (
+            self._base_select()
+            .where(
+                AgentWorkflow.status == WorkflowRunStatus.RUNNING,
+                AgentWorkflow.started_at.is_not(None),
+                AgentWorkflow.started_at <= cutoff,
+            )
+            .order_by(AgentWorkflow.started_at.asc())
+            .limit(limit)
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

@@ -111,8 +111,10 @@ class AiAgentPlatformServiceSettings(BaseSettings):
     workers_enabled: bool = Field(default=True)
     task_dispatch_sweep_seconds: int = Field(default=15, ge=5, le=3_600)
     checkpoint_recovery_sweep_seconds: int = Field(default=60, ge=5, le=3_600)
+    checkpoint_stuck_after_seconds: float = Field(default=600.0, gt=0)
     statistics_rollup_seconds: int = Field(default=900, ge=60, le=86_400)
     benchmark_sweep_seconds: int = Field(default=3_600, ge=60, le=86_400)
+    benchmark_due_after_seconds: float = Field(default=86_400.0, gt=0)
 
 
 @dataclass(frozen=True, slots=True)
