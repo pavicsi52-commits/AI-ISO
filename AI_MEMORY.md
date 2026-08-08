@@ -7014,3 +7014,156 @@ every table they touched before the final test-suite re-run confirmed
 520 tests passing with no cross-test pollution (the polluting row had
 briefly surfaced as a phantom third organization in an unrelated
 statistics-rollup isolation test).
+
+---
+
+## Prompt 060 — Enterprise AI Agent Platform Service
+
+`services/ai-agent-platform-service`, port **8031**, database
+**`aiios_ai_agent_platform`**, Redis **db 33**. Multi-agent
+orchestration, LangGraph-style workflow persistence with
+human-in-the-loop approval, an MCP client and server, multi-provider
+model routing, a permission-aware tool registry and execution stack,
+scoped agent memory, eight reasoning modes, guardrails, sandboxing,
+and evaluation/benchmarking. 17 tables, 17 repositories across 14
+modules, 6 service modules, 20 REST routes, 4 leader-elected workers,
+9 domain events.
+
+**1332 tests, 97.84% branch coverage** against real PostgreSQL, Redis,
+RabbitMQ, and Neo4j. Ruff, Black, MyPy all clean (*Success: no issues
+found in 125 source files*).
+
+### Reused frameworks vs genuine gaps
+
+- **Reused directly:** `shared_core.workflow` — the real
+  `WorkflowEngine`/`NodeExecutor`/`compile_workflow`/`parse_dict`
+  pipeline plus its `ApprovalRequest`/`ApprovalDecision` types back
+  every multi-agent workflow run; `shared_core.scheduler` (all four
+  workers); `shared_core.events` (9 events);
+  `shared_core.telemetry.ai.trace_ai_request`/`trace_model_inference`
+  (reused verbatim for "Model Calls" rather than reinvented);
+  `shared_core.enums.health_status.HealthStatus`;
+  `shared_core.queue.priority`'s five levels adopted as
+  `TaskPriority`'s literal column values.
+- **Genuine gaps, built new:** per-request risk classification
+  (`app/guardrails/risk.py`) — nothing else in the platform scores
+  risk *per request*, as distinct from `policy-engine-service`'s own
+  static per-policy `risk_weight`; a DB-backed checkpoint store
+  (`app/langgraph/`), since `shared_core.workflow.checkpoint
+  .CheckpointStore` is explicitly in-process-only by its own
+  docstring; an MCP JSON-RPC client and server (`app/mcp/`), with no
+  precedent anywhere in the monorepo; a four-strategy model router
+  (`app/routing/engine.py`); an agent-shaped `PermissionCategory`
+  taxonomy, since neither `shared_core.plugins.permissions
+  .PluginPermission` nor plugin-marketplace-service's own category
+  enum describes tool invocation, delegation, or model access.
+
+### Two real SDK limits, confirmed by reading source rather than assumed
+
+**`WorkflowEngine.run()` cannot resume from a paused node.** It always
+constructs a fresh, empty `WorkflowExecution` and never calls
+`CheckpointStore.restore()`. Resuming therefore re-runs the whole graph
+from `START`. Stated plainly in `app/langgraph/approval.py`'s own
+module docstring rather than papered over.
+
+**A persisted checkpoint always reads `state: "running"`, even after a
+completed run.** `_save_checkpoint` is called *inside* the per-level
+loop while `execution.status` is still RUNNING; the COMPLETED
+transition happens after the loop exits. So the last checkpoint is by
+construction a mid-run snapshot. The terminal state lives on the row's
+own `status` column — which is what the checkpoint-recovery sweep
+actually filters on. A test initially asserted `"completed"` here; the
+SDK source settled it, and the test was corrected to the truth with the
+reason recorded inline.
+
+### Real defects found and fixed by the test pass
+
+- **`AutomationClient` violated its own documented error contract** at
+  three points. A sibling service answering with the right status code
+  but an unreadable body (version skew, or a proxy substituting its own
+  page) escaped as a raw `KeyError`/`JSONDecodeError` instead of the
+  `DependencyError` the method's own docstring promises. Fixed with a
+  shared `_envelope()` unwrapper, plus a guard for a dispatch response
+  that omits an execution id.
+- **`AgentStatisticRepository.list_since` had no `ORDER BY`**, while
+  its own caller (`StatisticsService.trend`) documents "oldest first"
+  and plots the windows in arrival order — an unordered `SELECT` lets
+  PostgreSQL return them in whatever order a scan produces, so a trend
+  chart could render out of sequence.
+- **`build_handler_registry` let one bad tool row kill a whole
+  execution.** A non-`SELECT` `sql_template` raised `ValueError` out of
+  `build_database_query_handler`, taking down the entire handler
+  registry build rather than skipping that single misconfigured tool —
+  the exact opposite of the module's own documented "skip rather than
+  register a handler doomed to raise" rule, which it already applied to
+  unavailable clients.
+- **`AgentMemory`'s `UniqueConstraint("agent_id", "scope", "key")` was
+  too narrow** — found by reasoning through the design before writing
+  the service that depended on it, not by a test failure. It ignored
+  `task_id`/`session_id`, and PostgreSQL treats NULLs as distinct
+  anyway, so it would not have enforced what it appeared to. Dropped in
+  favour of service-level soft uniqueness, matching `AiMemory`'s own
+  established precedent; the live dev DB was patched with an explicit
+  `ALTER TABLE ... DROP CONSTRAINT`.
+
+### MyPy strict surfaced two genuine robustness gaps, not just annotations
+
+`tool_registry.validate_arguments` and `langgraph.service` both read
+straight out of JSON columns, where every value is genuinely `object`
+until narrowed. Both now narrow with `isinstance` and treat a malformed
+shape as "no constraint"/"absent" rather than crashing — which matters
+most for the validator whose entire job is rejecting malformed input,
+and for a resume that should restart from `START` rather than refuse to
+run at all. Two `# type: ignore[arg-type]` suppressions in the sweep
+workers were removed by typing them properly instead of kept.
+
+`types-psutil` had to be added to *this service's own* dev group:
+`app/sandbox/engine.py` imports psutil directly, and shared-core's dev
+group is not installed alongside it.
+
+### Live verification through the real built image
+
+Ran `aiios/ai-agent-platform-service:0.1.0` on the real stack. All
+three readiness checks green (database 2.4ms, redis ping, neo4j
+responded). Full agent lifecycle over real HTTP with a real RSA-signed
+JWT from `authentication-service`'s own key: register → pause → resume;
+tenant isolation returned 404 across orgs; duplicate slug returned 409;
+`/agents/tasks` correctly *not* hijacked by the `{agent_id}` catch-all.
+
+Then, **without ever calling a worker by hand**, created one due task
+and only polled: the leader-elected task-dispatch worker picked it up
+within 5 seconds, made a real model-provider call (correctly failing —
+no Ollama reachable on that network), and applied the retry policy,
+landing the task in `RETRYING`. Earlier, the same unmanual check
+against a real `SchedulerManager` had confirmed all four workers firing
+on their own timers: checkpoint recovery resumed a stuck workflow to
+`completed` at +3s, task dispatch at +9s, statistics rollup at +60s,
+benchmark sweep at +66s. Live-verification rows were deleted from every
+table they touched afterwards.
+
+### Worth remembering
+
+- **`cpu_limit_seconds` is declared and reported, never enforced.** No
+  in-process Python sandbox can cap CPU time without an OS or container
+  boundary underneath it, and `resource.setrlimit` does not exist on
+  Windows at all. The field is the policy a real deployment's own
+  boundary gets configured from — documented rather than faked.
+- **PostgreSQL's `::` cast operator collides with SQLAlchemy's `:name`
+  bind syntax.** `SELECT :x::int` reaches the driver with the
+  placeholder unexpanded; use `CAST(:x AS integer)`.
+- **`route()` breaks keyword ties by longest match, not table order.**
+  "Check server cpu load" routes to INFRASTRUCTURE, not MONITORING,
+  because "server" is longer than "cpu". Two tests asserted otherwise
+  before the docstring settled it.
+- **`AsyncGraphDatabase.driver()` never raises on a malformed host** —
+  verified against the real driver across five malformed inputs
+  (spaces, empty, embedded scheme, stray colons). Construction is fully
+  lazy, so `create_neo4j_driver`'s own try/except is genuinely
+  defensive rather than reachable from that field; a bad host surfaces
+  at `verify()`/query time.
+- **All nine parallel test-writing agents hit account-wide session
+  limits mid-run, twice.** Each had written substantial work before
+  dying, and none of it was lost — the recovery path was to pick their
+  files up in place, lint them, run them, and finish the remainder
+  directly. Confirming what actually landed on disk beat trusting any
+  completion report.
