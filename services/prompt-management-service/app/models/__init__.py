@@ -1,0 +1,100 @@
+"""All ORM models and enums this service persists, re-exported for a
+single import surface (``from app.models import Prompt, PromptType``).
+"""
+
+from __future__ import annotations
+
+from app.models.analytics import (
+    PromptAudit,
+    PromptOptimization,
+    PromptReport,
+    PromptStatistic,
+)
+from app.models.enums import (
+    AbTestArm,
+    AbTestStatus,
+    ApprovalStatus,
+    AuditAction,
+    EvaluationMetric,
+    ExecutionStatus,
+    OptimizationKind,
+    OptimizationStatus,
+    PromptCategory,
+    PromptLifecycleStatus,
+    PromptType,
+    PromptVersionStatus,
+    ReportFormat,
+    ReportKind,
+    ReportStatus,
+    ReviewDecision,
+    ScanStatus,
+    SecurityFinding,
+    SecuritySeverity,
+    SharingScope,
+    TemplateFormat,
+    TestKind,
+    TestRunStatus,
+    VariableKind,
+    VariableType,
+    VersionBump,
+)
+from app.models.governance import PromptApproval, PromptReview, PromptSecurityScan
+from app.models.prompt import Prompt, PromptVersion
+from app.models.template import (
+    PromptCategoryRecord,
+    PromptTag,
+    PromptTemplate,
+    PromptVariable,
+)
+from app.models.testing import (
+    PromptAbTest,
+    PromptExecution,
+    PromptTest,
+    PromptTestResult,
+)
+
+__all__ = [
+    "AbTestArm",
+    "AbTestStatus",
+    "ApprovalStatus",
+    "AuditAction",
+    "EvaluationMetric",
+    "ExecutionStatus",
+    "OptimizationKind",
+    "OptimizationStatus",
+    "Prompt",
+    "PromptAbTest",
+    "PromptApproval",
+    "PromptAudit",
+    "PromptCategory",
+    "PromptCategoryRecord",
+    "PromptExecution",
+    "PromptLifecycleStatus",
+    "PromptOptimization",
+    "PromptReport",
+    "PromptReview",
+    "PromptSecurityScan",
+    "PromptStatistic",
+    "PromptTag",
+    "PromptTemplate",
+    "PromptTest",
+    "PromptTestResult",
+    "PromptType",
+    "PromptVariable",
+    "PromptVersion",
+    "PromptVersionStatus",
+    "ReportFormat",
+    "ReportKind",
+    "ReportStatus",
+    "ReviewDecision",
+    "ScanStatus",
+    "SecurityFinding",
+    "SecuritySeverity",
+    "SharingScope",
+    "TemplateFormat",
+    "TestKind",
+    "TestRunStatus",
+    "VariableKind",
+    "VariableType",
+    "VersionBump",
+]
